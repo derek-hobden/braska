@@ -1039,6 +1039,15 @@
       color: #e55 !important;
       background: #2a1515;
     }
+    .term-tab.dragging {
+      opacity: 0.4;
+    }
+    .term-tab.drag-over-left {
+      box-shadow: inset 3px 0 0 #4a9eff;
+    }
+    .term-tab.drag-over-right {
+      box-shadow: inset -3px 0 0 #4a9eff;
+    }
 
     #terminal-containers {
       flex: 1;
@@ -3280,9 +3289,11 @@
 
     // Multi-tab terminal state — tabs scoped per worktree
     const tabs = new Map(); // id → { term, fitAddon, resizeObs, pane, tabEl, label, workDir }
+    const tabOrder = new Map(); // workDir → [tabId, ...]
     let activeTabId = null;
     let activeWorkDir = null;
     let nextBrowserTabId = -1;
+    let dragTabId = null; // currently dragged tab ID
 
     // File system watcher — auto-refresh explorer & changes when files change
     let fsWatchDebounce = null;
@@ -3299,7 +3310,25 @@
       }, 300);
     });
 
+    function addTabToOrder(id, wd) {
+      if (!tabOrder.has(wd)) tabOrder.set(wd, []);
+      const order = tabOrder.get(wd);
+      if (!order.includes(id)) order.push(id);
+    }
+
+    function removeTabFromOrder(id, wd) {
+      const order = tabOrder.get(wd);
+      if (order) {
+        const idx = order.indexOf(id);
+        if (idx !== -1) order.splice(idx, 1);
+      }
+    }
+
     function tabsForWorkDir(wd) {
+      const order = tabOrder.get(wd);
+      if (order) {
+        return order.filter(id => tabs.has(id)).map(id => [id, tabs.get(id)]);
+      }
       return [...tabs.entries()].filter(([, t]) => t.workDir === wd);
     }
 
@@ -3618,6 +3647,7 @@
       });
 
       tabs.set(id, { type: 'browser', webview, navInput, pane, tabEl: null, label: 'Browser', workDir });
+      addTabToOrder(id, workDir);
       activeTabId = id;
       renderTabBar();
       switchTab(id);
@@ -3632,6 +3662,7 @@
         const hasNotif = !isBusy && notifLog.some(n => n.tabId === id && !n.seen);
         el.className = 'term-tab' + (id === activeTabId ? ' active' : '') + (isBusy ? ' is-busy' : '') + (hasNotif ? ' has-notification' : '');
         el.dataset.id = id;
+        el.draggable = true;
         el.innerHTML = `<span class="term-tab-label">${tab.label}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
         el.addEventListener('click', (e) => {
           if (!e.target.closest('.term-tab-close')) switchTab(id);
@@ -3639,6 +3670,47 @@
         el.querySelector('.term-tab-close').addEventListener('click', (e) => {
           e.stopPropagation();
           closeTab(id);
+        });
+        el.addEventListener('dragstart', (e) => {
+          dragTabId = id;
+          el.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        el.addEventListener('dragend', () => {
+          dragTabId = null;
+          el.classList.remove('dragging');
+          terminalHeader.querySelectorAll('.drag-over-left, .drag-over-right').forEach(
+            el => el.classList.remove('drag-over-left', 'drag-over-right')
+          );
+        });
+        el.addEventListener('dragover', (e) => {
+          if (dragTabId === null || dragTabId === id) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = el.getBoundingClientRect();
+          const midX = rect.left + rect.width / 2;
+          const isLeft = e.clientX < midX;
+          el.classList.toggle('drag-over-left', isLeft);
+          el.classList.toggle('drag-over-right', !isLeft);
+        });
+        el.addEventListener('dragleave', () => {
+          el.classList.remove('drag-over-left', 'drag-over-right');
+        });
+        el.addEventListener('drop', (e) => {
+          e.preventDefault();
+          el.classList.remove('drag-over-left', 'drag-over-right');
+          if (dragTabId === null || dragTabId === id) return;
+          const order = tabOrder.get(activeWorkDir);
+          if (!order) return;
+          const fromIdx = order.indexOf(dragTabId);
+          if (fromIdx === -1) return;
+          order.splice(fromIdx, 1);
+          let toIdx = order.indexOf(id);
+          const rect = el.getBoundingClientRect();
+          if (e.clientX >= rect.left + rect.width / 2) toIdx++;
+          order.splice(toIdx, 0, dragTabId);
+          renderTabBar();
+          switchTab(activeTabId);
         });
         terminalHeader.appendChild(el);
         tab.tabEl = el;
@@ -3690,6 +3762,7 @@
         await window.pty.kill(id);
       }
       tab.pane.remove();
+      removeTabFromOrder(id, closedWorkDir);
       tabs.delete(id);
 
       const remaining = tabsForWorkDir(closedWorkDir);
@@ -3752,6 +3825,7 @@
       resizeObs.observe(pane);
 
       tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, expertName });
+      addTabToOrder(id, workDir);
       activeTabId = id;
 
       // Wire data
@@ -3915,6 +3989,7 @@
         type: 'editor', pane, tabEl: null, label: fileName,
         workDir: activeWorkDir, filePath, textarea, saveFile, dirty: false,
       });
+      addTabToOrder(id, activeWorkDir);
 
       activeTabId = id;
       renderTabBar();
@@ -4924,6 +4999,7 @@
 
       const tabLabel = filePath.split('/').pop();
       tabs.set(id, { type: 'diff', pane, tabEl: null, label: tabLabel, workDir, filePath, diffKey });
+      addTabToOrder(id, workDir);
       activeTabId = id;
       renderTabBar();
       switchTab(id);

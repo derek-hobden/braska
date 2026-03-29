@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "electron .",
+    "postinstall": "electron-rebuild -f -w node-pty",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
