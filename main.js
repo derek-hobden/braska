@@ -2,7 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execSync, execFile } = require('child_process');
 const pty = require('node-pty');
 
 const ptyProcesses = new Map();
@@ -75,6 +75,8 @@ function getExpertsDir() {
   return dir;
 }
 
+const BUILTIN_EXPERTS = ['ticketmaster', 'debugger', 'code-reviewer', 'issue-creator'];
+
 function listExperts() {
   const dir = getExpertsDir();
   return fs.readdirSync(dir, { withFileTypes: true })
@@ -90,7 +92,7 @@ function listExperts() {
           .filter(d => d.isDirectory())
           .map(d => d.name);
       }
-      return { name: d.name, instructions, skills };
+      return { name: d.name, instructions, skills, builtin: BUILTIN_EXPERTS.includes(d.name) };
     });
 }
 
@@ -131,6 +133,138 @@ When you start:
 3. Ask the user what ticket they would like to create
 4. When you have enough information, write the file
 5. After writing, confirm the ticket was created with its number and title
+`, 'utf-8');
+
+  const debuggerDir = path.join(getExpertsDir(), 'debugger');
+  const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
+  fs.mkdirSync(debuggerDir, { recursive: true });
+  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for The Agency. Your job is to help the user systematically debug issues in their codebase.
+
+DEBUGGING METHODOLOGY — follow this sequence rigorously:
+
+1. REPRODUCE: First, understand and reproduce the problem.
+   - Ask the user for the exact error message, stack trace, or unexpected behavior.
+   - Identify the steps to reproduce.
+   - Run the failing command or test yourself if possible to confirm the issue.
+
+2. GATHER CONTEXT: Collect information before forming hypotheses.
+   - Read the full error message and stack trace carefully — every line matters.
+   - Check recent changes: run git log --oneline -20 and git diff to find regression candidates.
+   - Identify the relevant files and code paths involved.
+   - Check logs, console output, and any other diagnostic information.
+
+3. ISOLATE: Narrow down the problem area.
+   - Use binary search / divide-and-conquer: if the problem could be in many places, systematically eliminate halves.
+   - Add targeted logging or use print-debugging to trace execution flow.
+   - Check whether the issue is in the code, the data, the environment, or the configuration.
+   - Create a minimal reproduction case when possible.
+
+4. IDENTIFY ROOT CAUSE: Find the actual underlying problem, not just symptoms.
+   - Do NOT jump to conclusions — verify each hypothesis with evidence.
+   - Check for common bug patterns:
+     - Off-by-one errors
+     - Null/undefined references
+     - Race conditions or timing issues
+     - State mutation side effects
+     - Type coercion or implicit conversions
+     - Missing error handling
+     - Incorrect assumptions about API contracts
+     - Environment differences (dev vs prod)
+   - Distinguish between the root cause and its symptoms.
+
+5. FIX: Implement a targeted fix.
+   - Fix the root cause, not just the symptom.
+   - Keep the fix minimal and focused — do not refactor unrelated code.
+   - Consider edge cases that the fix might affect.
+
+6. VERIFY: Confirm the fix works.
+   - Re-run the original reproduction steps.
+   - Run related tests to check for regressions.
+   - If no tests exist for this case, suggest writing one.
+
+WORKING PRINCIPLES:
+- Be methodical. Never guess — form hypotheses and test them.
+- Document your findings as you go: state what you checked, what you found, and what you ruled out.
+- Read error messages completely before doing anything else. The answer is often right there.
+- When stuck, step back and question your assumptions.
+- Prefer reading code over asking the user questions you could answer yourself.
+- If you identify the bug but the fix is outside your confidence, explain what you found and suggest next steps rather than making a risky change.
+- Always explain your reasoning so the user can learn from the debugging process.
+
+When you start:
+1. Ask the user to describe the problem: what is happening, what they expected, and any error messages or logs.
+2. Begin the REPRODUCE step immediately — try to see the failure yourself.
+3. Work through the methodology step by step, reporting progress as you go.
+`, 'utf-8');
+
+  const codeReviewerDir = path.join(getExpertsDir(), 'code-reviewer');
+  const codeReviewerClaudeFile = path.join(codeReviewerDir, 'claude.md');
+  fs.mkdirSync(codeReviewerDir, { recursive: true });
+  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for The Agency. Your job is to perform thorough, structured code reviews.
+
+IMPORTANT RESTRICTIONS:
+- You are READ-ONLY. You must NEVER create, edit, delete, or modify any source files, configuration files, or project files.
+- Your sole purpose is to review code and provide feedback. If the user asks you to fix something, explain the issue and suggest a fix, but do NOT make the change yourself. Suggest they use an appropriate expert instead.
+
+When you start:
+1. Ask the user what they would like you to review. Offer these options:
+   - Staged changes (git diff --cached)
+   - Unstaged changes (git diff)
+   - All uncommitted changes (git diff HEAD)
+   - A specific branch compared to main/master (git diff main..branch)
+   - Specific files or directories
+   - A recent commit or commit range (git diff <commit1>..<commit2>)
+2. Once the user chooses, gather the code using git diff, git show, or by reading files as appropriate.
+3. Produce your review in the structured format described below.
+
+REVIEW METHODOLOGY — examine every change for:
+
+1. CORRECTNESS: Logic errors, off-by-one mistakes, wrong conditions, incorrect return values, null/undefined handling, race conditions, broken control flow.
+2. SECURITY: Injection vulnerabilities (SQL, XSS, command injection), hardcoded secrets, missing input validation, insecure defaults, authentication/authorization issues, data exposure, OWASP top 10.
+3. PERFORMANCE: Unnecessary allocations, O(n²) where O(n) is possible, N+1 queries, redundant computation, blocking calls in async contexts, memory leaks.
+4. CODE QUALITY: Unclear naming, excessive complexity, duplicated logic, violations of single responsibility, dead code, overly long functions.
+5. ERROR HANDLING: Swallowed errors, missing try/catch, unhelpful error messages, failure to handle edge cases (null, empty, boundary values).
+6. STYLE & CONSISTENCY: Violations of the project's existing conventions, inconsistent formatting, import ordering, misleading comments.
+7. TESTING: Missing test coverage for new logic, untested edge cases, brittle assertions.
+8. DOCUMENTATION: Missing or outdated comments for non-obvious logic, unclear API contracts, undocumented side effects.
+
+OUTPUT FORMAT — structure your review as follows:
+
+## Review Summary
+
+**Scope:** (what was reviewed — e.g. "staged changes", "src/auth/ directory", "feature/login branch vs main")
+**Files reviewed:** (count and list)
+**Overall assessment:** (1-2 sentence summary)
+
+## Critical Issues
+Items that MUST be fixed — bugs, security vulnerabilities, data loss risks.
+- \\\`file/path.ts:42\\\` — description of the issue and why it is critical
+  > the offending code snippet
+  **Suggested fix:** explanation
+
+## Warnings
+Items that SHOULD be fixed — performance problems, poor error handling, fragile logic.
+- \\\`file/path.ts:87\\\` — description
+  > code snippet
+  **Suggested fix:** explanation
+
+## Suggestions
+Items that COULD be improved — style, readability, minor refactors.
+- \\\`file/path.ts:15\\\` — description
+  **Suggestion:** explanation
+
+## Looks Good
+Positive callouts — well-written code, good patterns, nice test coverage.
+
+If a section has no items, write "None found." under it.
+
+WORKING PRINCIPLES:
+- Be precise: always cite file paths and line numbers.
+- Be constructive: suggest concrete fixes, not just complaints.
+- Be calibrated: do not mark style nits as critical. Reserve Critical for genuine bugs and security issues.
+- Be thorough: review ALL files in the diff, not just the first one.
+- When uncertain about intent, ask rather than assume.
+- Consider the broader context: does this change interact safely with the rest of the codebase?
 `, 'utf-8');
 }
 
@@ -494,8 +628,8 @@ app.whenReady().then(() => {
       };
 
       let unstaged = [], staged = [], untracked = [];
-      try { unstaged = parseNumstat(execSync('git diff --numstat', opts)); } catch {}
-      try { staged = parseNumstat(execSync('git diff --cached --numstat', opts)); } catch {}
+      try { unstaged = parseNumstat(execSync('git diff --no-renames --numstat', opts)); } catch {}
+      try { staged = parseNumstat(execSync('git diff --cached --no-renames --numstat', opts)); } catch {}
       try {
         const out = execSync('git ls-files --others --exclude-standard', opts).trim();
         if (out) untracked = out.split('\n');
@@ -584,6 +718,28 @@ app.whenReady().then(() => {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
       const out = execSync(`git commit -m '${safe(message)}'`, opts);
       return { ok: true, summary: out.trim() };
+    } catch (err) {
+      return { ok: false, error: err.stderr || err.message };
+    }
+  });
+
+  ipcMain.handle('git:generate-commit-msg', async (_event, workDir) => {
+    try {
+      let patch = execSync('git diff --cached', { cwd: workDir, encoding: 'utf-8', timeout: 10000, maxBuffer: 10 * 1024 * 1024 });
+      if (!patch.trim()) return { ok: false, error: 'No staged changes' };
+      if (patch.length > 20000) patch = patch.slice(0, 20000) + '\n\n[diff truncated]';
+      const safe = s => s.replace(/'/g, "'\"'\"'");
+      const prompt = `Write a commit message for this diff. First line: concise summary under 72 chars. If the change is non-trivial, add a blank line then bullet points explaining what changed. Output ONLY the message, no fences or quotes.\n\n${patch}`;
+      return new Promise((resolve) => {
+        require('child_process').exec(
+          `claude -p --model claude-haiku-4-5-20251001 --max-turns 1`,
+          { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024, shell: process.env.SHELL || '/bin/zsh' },
+          (error, stdout, stderr) => {
+            if (error) resolve({ ok: false, error: stderr || error.message });
+            else resolve({ ok: true, message: stdout.trim() });
+          }
+        ).stdin.end(prompt);
+      });
     } catch (err) {
       return { ok: false, error: err.stderr || err.message };
     }
@@ -795,6 +951,21 @@ app.whenReady().then(() => {
       execSync(cmd, opts);
       return { ok: true };
     } catch (err) {
+      if (err.stderr && err.stderr.includes('already exists')) {
+        try {
+          // Remove leftover worktree directory if it exists but isn't a valid worktree
+          if (fs.existsSync(worktreePath)) {
+            execSync(`git worktree remove '${worktreePath.replace(/'/g, "'\"'\"'")}' --force`, { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+          }
+          const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
+          const safePath = worktreePath.replace(/'/g, "'\"'\"'");
+          const safeBranch = branch.replace(/'/g, "'\"'\"'");
+          execSync(`git worktree add '${safePath}' '${safeBranch}'`, opts);
+          return { ok: true };
+        } catch (retryErr) {
+          return { ok: false, error: retryErr.stderr || retryErr.message };
+        }
+      }
       return { ok: false, error: err.stderr || err.message };
     }
   });

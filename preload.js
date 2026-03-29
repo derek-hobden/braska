@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('gitOps', {
   stage: (workDir, filePaths) => ipcRenderer.invoke('git:stage', workDir, filePaths),
   unstage: (workDir, filePaths) => ipcRenderer.invoke('git:unstage', workDir, filePaths),
   commit: (workDir, message) => ipcRenderer.invoke('git:commit', workDir, message),
+  generateCommitMsg: (workDir) => ipcRenderer.invoke('git:generate-commit-msg', workDir),
   fetch: (workDir) => ipcRenderer.invoke('git:fetch', workDir),
   pull: (workDir) => ipcRenderer.invoke('git:pull', workDir),
   push: (workDir) => ipcRenderer.invoke('git:push', workDir),

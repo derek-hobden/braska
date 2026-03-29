@@ -924,6 +924,24 @@
       background: #333;
       color: #fff;
     }
+    .expert-picker-separator {
+      height: 1px;
+      background: #333;
+      margin: 8px 0;
+    }
+    .expert-picker-label {
+      padding: 4px 14px;
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .expert-picker-item.builtin {
+      color: #8b9fc7;
+    }
+    .expert-picker-item.builtin:hover {
+      color: #b0c4f0;
+    }
     #expert-picker-cancel {
       margin-top: 12px;
       background: none;
@@ -1418,6 +1436,19 @@
     .changes-commit-btn:hover { background: #3b82f6; }
     .changes-commit-btn:disabled { opacity: 0.4; cursor: default; }
     .changes-commit-btn:disabled:hover { background: #2563eb; }
+    .changes-commit-actions { display: flex; gap: 6px; }
+    .changes-commit-actions .changes-commit-btn { flex: 1; }
+    .changes-generate-btn {
+      background: none; border: 1px solid #333; border-radius: 4px; color: #888;
+      font-size: 0.75rem; padding: 5px 8px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    }
+    .changes-generate-btn:hover { background: #2a2a2a; color: #ccc; border-color: #444; }
+    .changes-generate-btn:disabled { opacity: 0.35; cursor: default; }
+    .changes-generate-btn:disabled:hover { background: none; color: #888; border-color: #333; }
+    .changes-generate-btn.generating { color: #4a9eff; border-color: #4a9eff; }
+    @keyframes spin-generate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .changes-generate-btn.generating svg { animation: spin-generate 1s linear infinite; }
 
     /* Stage/unstage action buttons on file entries */
     .changes-file-action {
@@ -2256,11 +2287,6 @@
             <div class="launchpad-title">Browser</div>
             <div class="launchpad-desc">Browse the web in a tab</div>
           </div>
-          <div class="launchpad-card" id="launchpad-ticketmaster">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <div class="launchpad-title">Ticketmaster</div>
-            <div class="launchpad-desc">Create a tracked ticket</div>
-          </div>
         </div>
       </div>
       <div id="settings-panel">
@@ -2305,7 +2331,13 @@
           </div>
           <div class="changes-commit-area" id="changes-commit-area">
             <textarea class="changes-commit-input" id="changes-commit-input" placeholder="Commit message..." rows="1" spellcheck="false"></textarea>
-            <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
+            <div class="changes-commit-actions">
+              <button class="changes-generate-btn" id="changes-generate-btn" disabled title="Auto-generate commit message with Claude">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m5.636 5.636 12.728 12.728"/><path d="m18.364 5.636-12.728 12.728"/></svg>
+                Generate
+              </button>
+              <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
+            </div>
           </div>
           <div id="changes-body"></div>
         </div>
@@ -2331,11 +2363,6 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           Browser
           <span class="tab-type-picker-hint">3</span>
-        </div>
-        <div class="tab-type-picker-item" data-type="ticketmaster" data-hotkey="4">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Ticketmaster
-          <span class="tab-type-picker-hint">4</span>
         </div>
       </div>
       <button id="tab-type-picker-cancel">Cancel</button>
@@ -3070,7 +3097,7 @@
     }
 
     function renderExpertsList(experts) {
-      experts = experts.filter(ex => ex.name !== 'ticketmaster');
+      experts = experts.filter(ex => ex.name !== 'issue-creator' && !ex.builtin);
       const listHtml = experts.length === 0
         ? '<div class="settings-empty">No experts configured</div>'
         : experts.map(ex => {
@@ -3181,9 +3208,6 @@
       } else if (item.dataset.type === 'browser') {
         startBrowser(pendingWorkDir);
         pendingWorkDir = null;
-      } else if (item.dataset.type === 'ticketmaster') {
-        startTask('ticketmaster', pendingWorkDir);
-        pendingWorkDir = null;
       } else {
         showExpertPicker(pendingWorkDir);
       }
@@ -3191,28 +3215,37 @@
 
     let pendingTicketPath = null;
 
-    async function showExpertPicker(workDir) {
-      pendingWorkDir = workDir;
-      const experts = (await window.experts.list()).filter(ex => ex.name !== 'ticketmaster');
+    function renderExpertPickerItems(experts) {
+      const builtinExperts = experts.filter(ex => ex.builtin);
+      const customExperts = experts.filter(ex => !ex.builtin);
       const claudeItem = '<div class="expert-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
-      const expertItems = experts.map(ex => {
+      const builtinItems = builtinExperts.map(ex => {
+        const esc = ex.name.replace(/"/g, '&quot;');
+        return `<div class="expert-picker-item builtin" data-name="${esc}">${ex.name}</div>`;
+      }).join('');
+      const customItems = customExperts.map(ex => {
         const esc = ex.name.replace(/"/g, '&quot;');
         return `<div class="expert-picker-item" data-name="${esc}">${ex.name}</div>`;
       }).join('');
-      expertPickerList.innerHTML = claudeItem + expertItems;
+      let html = '<div class="expert-picker-label">System</div>' + claudeItem + builtinItems;
+      if (customItems) {
+        html += '<div class="expert-picker-separator"></div><div class="expert-picker-label">Custom</div>' + customItems;
+      }
+      return html;
+    }
+
+    async function showExpertPicker(workDir) {
+      pendingWorkDir = workDir;
+      const experts = (await window.experts.list()).filter(ex => ex.name !== 'issue-creator');
+      expertPickerList.innerHTML = renderExpertPickerItems(experts);
       expertPicker.classList.add('active');
     }
 
     async function showExpertPickerForTicket(workDir, ticketPath) {
       pendingTicketPath = ticketPath;
       pendingWorkDir = workDir;
-      const experts = (await window.experts.list()).filter(ex => ex.name !== 'ticketmaster');
-      const claudeItem = '<div class="expert-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
-      const expertItems = experts.map(ex => {
-        const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="expert-picker-item" data-name="${esc}">${ex.name}</div>`;
-      }).join('');
-      expertPickerList.innerHTML = claudeItem + expertItems;
+      const experts = (await window.experts.list()).filter(ex => ex.name !== 'issue-creator');
+      expertPickerList.innerHTML = renderExpertPickerItems(experts);
       expertPicker.classList.add('active');
     }
 
@@ -3520,9 +3553,7 @@
       if (activeWorkDir) startBrowser(activeWorkDir);
     });
 
-    document.getElementById('launchpad-ticketmaster').addEventListener('click', () => {
-      if (activeWorkDir) startTask('ticketmaster', activeWorkDir);
-    });
+
 
     // Browser tab
     function startBrowser(workDir) {
@@ -3687,7 +3718,7 @@
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const baseName = expertName === '__CLAUDE__' ? 'Claude' : expertName === '__TERMINAL__' ? 'Terminal' : expertName === 'ticketmaster' ? 'Ticketmaster' : expertName;
+      const baseName = expertName === '__CLAUDE__' ? 'Claude' : expertName === '__TERMINAL__' ? 'Terminal' : expertName === 'ticketmaster' ? 'Ticketmaster' : expertName === 'debugger' ? 'Debugger' : expertName === 'code-reviewer' ? 'Code Reviewer' : expertName;
       const label = options.ticketNumber ? `#${options.ticketNumber} - ${baseName}` : baseName;
 
       // Create pane
@@ -4105,6 +4136,7 @@
     const changesBody = document.getElementById('changes-body');
     const changesCommitInput = document.getElementById('changes-commit-input');
     const changesCommitBtn = document.getElementById('changes-commit-btn');
+    const changesGenerateBtn = document.getElementById('changes-generate-btn');
 
     function escHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -4354,11 +4386,13 @@
       if (!status.isGit) {
         changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
         changesCommitBtn.disabled = true;
+        changesGenerateBtn.disabled = true;
         return;
       }
 
       // Update commit button state
       changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
+      changesGenerateBtn.disabled = status.staged.length === 0;
 
       let html = '';
 
@@ -4561,6 +4595,28 @@
       } else {
         showChangesStatus(result.error, 'error');
         changesCommitBtn.disabled = false;
+      }
+    });
+
+    // Auto-generate commit message
+    changesGenerateBtn.addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      changesGenerateBtn.disabled = true;
+      changesGenerateBtn.classList.add('generating');
+      const svgHtml = changesGenerateBtn.querySelector('svg').outerHTML;
+      changesGenerateBtn.innerHTML = svgHtml + ' Generating\u2026';
+      const result = await window.gitOps.generateCommitMsg(activeWorkDir);
+      changesGenerateBtn.classList.remove('generating');
+      changesGenerateBtn.innerHTML = svgHtml + ' Generate';
+      changesGenerateBtn.disabled = false;
+      if (result.ok) {
+        changesCommitInput.value = result.message;
+        changesCommitInput.style.height = 'auto';
+        changesCommitInput.style.height = changesCommitInput.scrollHeight + 'px';
+        changesCommitInput.dispatchEvent(new Event('input'));
+        showChangesStatus('Message generated', 'success');
+      } else {
+        showChangesStatus(result.error || 'Generation failed', 'error');
       }
     });
 
