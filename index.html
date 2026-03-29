@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
   <title>The Agency</title>
+  <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -20,12 +21,13 @@
     /* Sidebar */
     #sidebar {
       width: 240px;
-      min-width: 240px;
+      min-width: 180px;
       background: #161616;
       border-right: 1px solid #2a2a2a;
       display: flex;
       flex-direction: column;
       height: 100vh;
+      flex-shrink: 0;
     }
     #sidebar-header {
       padding: 16px;
@@ -71,6 +73,7 @@
       padding: 8px 16px;
       cursor: pointer;
       gap: 8px;
+      position: relative;
     }
     .project-item:hover {
       background: #252525;
@@ -80,6 +83,7 @@
     }
     .project-name {
       flex: 1;
+      min-width: 0;
       font-size: 0.9rem;
       white-space: nowrap;
       overflow: hidden;
@@ -121,6 +125,691 @@
       text-align: center;
       margin-top: 24px;
     }
+    .project-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .expand-chevron {
+      position: absolute;
+      left: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.6rem;
+      color: #555;
+      width: 10px;
+      transition: transform 0.15s ease;
+    }
+    .project-entry.expanded .expand-chevron {
+      transform: translateY(-50%) rotate(90deg);
+    }
+    .git-badge {
+      color: #f0883e;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+    }
+    .worktree-list {
+      display: none;
+      padding-bottom: 4px;
+    }
+    .project-entry.expanded .worktree-list {
+      display: block;
+    }
+    .worktree-item {
+      padding: 3px 16px 3px 44px;
+      font-size: 0.8rem;
+      color: #888;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+    .worktree-item:hover {
+      background: #252525;
+      color: #ccc;
+    }
+    .worktree-item.active {
+      background: #1e1e1e;
+      color: #ddd;
+      box-shadow: inset 2px 0 0 #4a9eff;
+    }
+    .worktree-item::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #444;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .worktree-item .wt-lock-icon {
+      color: #888;
+      margin-left: 4px;
+      font-size: 0.65rem;
+      vertical-align: middle;
+    }
+    .worktree-add-btn {
+      padding: 3px 16px 3px 44px;
+      font-size: 0.75rem;
+      color: #555;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .worktree-add-btn:hover {
+      color: #aaa;
+      background: #252525;
+    }
+    .worktree-add-btn svg { flex-shrink: 0; }
+
+    /* Worktree context menu */
+    #wt-context-menu {
+      display: none;
+      position: fixed;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 180px;
+      z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    #wt-context-menu.active { display: block; }
+    .wt-ctx-item {
+      padding: 7px 14px;
+      font-size: 0.82rem;
+      color: #ccc;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .wt-ctx-item:hover { background: #333; color: #fff; }
+    .wt-ctx-item.danger { color: #e55; }
+    .wt-ctx-item.danger:hover { background: #3a1515; }
+    .wt-ctx-item.disabled { color: #555; pointer-events: none; }
+    .wt-ctx-sep { height: 1px; background: #3a3a3a; margin: 4px 0; }
+
+    /* Worktree create modal */
+    #wt-create-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #wt-create-modal.active { display: flex; }
+    .wt-modal-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 360px;
+      max-width: 440px;
+    }
+    .wt-modal-content h3 {
+      margin: 0 0 16px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .wt-form-group {
+      margin-bottom: 14px;
+    }
+    .wt-form-group label {
+      display: block;
+      font-size: 0.78rem;
+      color: #888;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .wt-form-group input,
+    .wt-form-group select {
+      width: 100%;
+      background: #1e1e1e;
+      border: 1px solid #3a3a3a;
+      color: #ddd;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .wt-form-group input:focus,
+    .wt-form-group select:focus {
+      border-color: #4a9eff;
+    }
+    .wt-form-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .wt-form-row label {
+      font-size: 0.82rem;
+      color: #aaa;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .wt-modal-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .wt-modal-buttons button {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 1px solid #444;
+    }
+    #wt-create-btn {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+    #wt-create-btn:hover { background: #3a8eef; }
+    #wt-create-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #wt-create-cancel {
+      background: none;
+      color: #888;
+    }
+    #wt-create-cancel:hover { background: #2a2a2a; color: #ccc; }
+    .wt-error {
+      color: #e55;
+      font-size: 0.78rem;
+      margin-top: 6px;
+      display: none;
+    }
+    .wt-error.visible { display: block; }
+
+    /* Worktree delete confirmation modal */
+    #wt-delete-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #wt-delete-modal.active { display: flex; }
+    .wt-delete-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 340px;
+      max-width: 420px;
+    }
+    .wt-delete-content h3 {
+      margin: 0 0 12px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .wt-delete-content p {
+      font-size: 0.82rem;
+      color: #999;
+      margin: 0 0 8px 0;
+      line-height: 1.4;
+    }
+    .wt-delete-warning {
+      background: #3a2515;
+      border: 1px solid #5a3515;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      color: #f0a050;
+      margin: 12px 0;
+      display: none;
+    }
+    .wt-delete-warning.visible { display: block; }
+    .wt-delete-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .wt-delete-buttons button {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 1px solid #444;
+    }
+    #wt-delete-confirm {
+      background: #e55;
+      border-color: #e55;
+      color: #fff;
+    }
+    #wt-delete-confirm:hover { background: #d44; }
+    #wt-delete-cancel {
+      background: none;
+      color: #888;
+    }
+    #wt-delete-cancel:hover { background: #2a2a2a; color: #ccc; }
+    #wt-delete-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Merge modal */
+    #wt-merge-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #wt-merge-modal.active { display: flex; }
+    .wt-merge-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 380px;
+      max-width: 460px;
+    }
+    .wt-merge-content h3 {
+      margin: 0 0 12px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .wt-merge-summary {
+      background: #1a2535;
+      border: 1px solid #2a3a55;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      color: #8ab4f8;
+    }
+    .wt-merge-summary .merge-arrow {
+      color: #555;
+      margin: 0 6px;
+    }
+    .wt-merge-summary .merge-count {
+      color: #666;
+      margin-left: 8px;
+      font-size: 0.75rem;
+    }
+    .wt-merge-commits {
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 8px;
+      padding: 0;
+    }
+    .wt-merge-commits div {
+      padding: 2px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wt-merge-commits .commit-hash {
+      color: #6a9955;
+      margin-right: 6px;
+    }
+    .wt-merge-warning {
+      background: #3a2515;
+      border: 1px solid #5a3515;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      color: #f0a050;
+      margin: 12px 0;
+      display: none;
+    }
+    .wt-merge-warning.visible { display: block; }
+    .wt-merge-success {
+      background: #1a3520;
+      border: 1px solid #2a5530;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      color: #50d070;
+      margin: 12px 0;
+      display: none;
+    }
+    .wt-merge-success.visible { display: block; }
+    .wt-merge-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .wt-merge-buttons button {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 1px solid #444;
+    }
+    #wt-merge-confirm {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+    #wt-merge-confirm:hover { background: #3a8eef; }
+    #wt-merge-cancel {
+      background: none;
+      color: #888;
+    }
+    #wt-merge-cancel:hover { background: #2a2a2a; color: #ccc; }
+    #wt-merge-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Sidebar footer */
+    #sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid #2a2a2a;
+    }
+    #settings-btn {
+      background: none;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+    #settings-btn:hover {
+      background: #252525;
+      color: #ccc;
+    }
+    #settings-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* Settings view */
+    #settings-view {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    #settings-view.active {
+      display: flex;
+    }
+    #settings-header {
+      padding: 16px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #settings-header h2 {
+      margin: 0;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+    }
+    #back-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      font-size: 1rem;
+    }
+    #back-btn:hover {
+      color: #fff;
+      background: #252525;
+    }
+    #settings-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .settings-menu-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #ccc;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      border-radius: 0;
+    }
+    .settings-menu-item:hover {
+      background: #252525;
+    }
+    .settings-menu-item.active {
+      background: #2a2a2a;
+      color: #fff;
+    }
+
+    /* Settings main panel content */
+    #settings-panel {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    #settings-panel.active {
+      display: flex;
+    }
+    #settings-panel-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #settings-panel-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    #settings-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    .settings-empty {
+      color: #444;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+    .settings-add-btn {
+      background: none;
+      border: 1px solid #444;
+      color: #ccc;
+      font-size: 0.9rem;
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .settings-add-btn:hover {
+      background: #2a2a2a;
+      color: #fff;
+      border-color: #666;
+    }
+
+    /* Skills list & form in main panel */
+    .skill-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .skill-item:hover {
+      background: #252525;
+    }
+    .skill-item .skill-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .skill-remove-btn {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    .skill-item:hover .skill-remove-btn {
+      opacity: 1;
+    }
+    .skill-remove-btn:hover {
+      color: #e55;
+      background: #2a1515;
+    }
+    .skill-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #2a2a2a;
+    }
+    .skill-form input,
+    .skill-form textarea {
+      background: #161616;
+      border: 1px solid #333;
+      color: #ddd;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .skill-form input:focus,
+    .skill-form textarea:focus {
+      border-color: #555;
+    }
+    .skill-form textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+    .skill-form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .skill-form-actions button {
+      padding: 6px 16px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 1px solid #444;
+      background: none;
+      color: #ccc;
+    }
+    .skill-form-actions button:hover {
+      background: #2a2a2a;
+      color: #fff;
+      border-color: #666;
+    }
+    .skill-form-actions .save-btn {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+    .skill-form-actions .save-btn:hover {
+      background: #1a3a5c;
+    }
+
+    /* Expert items & form */
+    .expert-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .expert-item:hover { background: #252525; }
+    .expert-item .expert-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .expert-remove-btn {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    .expert-item:hover .expert-remove-btn { opacity: 1; }
+    .expert-remove-btn:hover { color: #e55; background: #2a1515; }
+    .expert-skills-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .expert-skills-label {
+      font-size: 0.8rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .expert-skills-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .expert-skills-list label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #ccc;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+    .expert-skills-list label:hover { background: #252525; }
+    .expert-skills-empty {
+      color: #555;
+      font-size: 0.82rem;
+      font-style: italic;
+    }
 
     /* Main content */
     #main {
@@ -135,6 +824,1359 @@
     p {
       color: #aaa;
     }
+
+    /* Tab type picker modal */
+    #tab-type-picker {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #tab-type-picker.active { display: flex; }
+    #tab-type-picker-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 280px;
+      max-width: 400px;
+    }
+    #tab-type-picker-content h3 {
+      margin: 0 0 16px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .tab-type-picker-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .tab-type-picker-item:hover {
+      background: #333;
+      color: #fff;
+    }
+    .tab-type-picker-item svg { flex-shrink: 0; }
+    .tab-type-picker-hint {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: #666;
+      background: #1e1e1e;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: -apple-system, system-ui, monospace;
+    }
+    #tab-type-picker-cancel {
+      margin-top: 12px;
+      background: none;
+      border: 1px solid #444;
+      color: #888;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      width: 100%;
+    }
+    #tab-type-picker-cancel:hover {
+      background: #2a2a2a;
+      color: #ccc;
+    }
+
+    /* Expert picker modal */
+    #expert-picker {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #expert-picker.active { display: flex; }
+    #expert-picker-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 280px;
+      max-width: 400px;
+    }
+    #expert-picker-content h3 {
+      margin: 0 0 16px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .expert-picker-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .expert-picker-item:hover {
+      background: #333;
+      color: #fff;
+    }
+    #expert-picker-cancel {
+      margin-top: 12px;
+      background: none;
+      border: 1px solid #444;
+      color: #888;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      width: 100%;
+    }
+    #expert-picker-cancel:hover {
+      background: #2a2a2a;
+      color: #ccc;
+    }
+
+    /* Terminal view */
+    #terminal-view {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    #terminal-view.active { display: flex; }
+    #terminal-header {
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: stretch;
+      flex-shrink: 0;
+      background: #161616;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    #terminal-header::-webkit-scrollbar { height: 0; }
+
+    /* Tab bar */
+    .term-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      color: #888;
+      cursor: pointer;
+      border-right: 1px solid #2a2a2a;
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .term-tab:hover {
+      background: #252525;
+      color: #ccc;
+    }
+    .term-tab.active {
+      background: #1e1e1e;
+      color: #ddd;
+    }
+    .term-tab.has-notification .term-tab-label::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4a9eff;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes pulse-busy {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .term-tab.is-busy .term-tab-label::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      margin-right: 6px;
+      vertical-align: middle;
+      animation: pulse-busy 1.5s ease-in-out infinite;
+    }
+    .term-tab-close {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0 2px;
+      border-radius: 3px;
+      line-height: 1;
+    }
+    .term-tab:hover .term-tab-close { color: #888; }
+    .term-tab-close:hover {
+      color: #e55 !important;
+      background: #2a1515;
+    }
+
+    #terminal-containers {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .terminal-pane {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: none;
+      overflow: hidden;
+    }
+    .terminal-pane.active {
+      display: block;
+    }
+    .terminal-pane .drop-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(74, 158, 255, 0.08);
+      border: 2px dashed #4a9eff;
+      border-radius: 4px;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #4a9eff;
+      pointer-events: none;
+    }
+    .terminal-pane.drag-over .drop-overlay {
+      display: flex;
+    }
+
+    /* Content area layout */
+    #content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #content-toolbar {
+      display: flex;
+      align-items: center;
+      height: 36px;
+      min-height: 36px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 0 6px;
+      position: relative;
+    }
+    .toolbar-spacer { flex: 1; }
+    .toolbar-btn {
+      background: none;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      padding: 5px 7px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .toolbar-btn:hover { color: #ccc; background: #252525; }
+    .toolbar-btn.active { color: #aaa; }
+    #breadcrumb {
+      font-size: 0.8rem;
+      color: #666;
+      padding: 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 400px;
+    }
+    #content-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Resize handles */
+    .resize-handle {
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+    .resize-handle:hover,
+    .resize-handle.dragging {
+      background: #4a9eff;
+    }
+    body.resizing { cursor: col-resize !important; user-select: none !important; }
+    body.resizing * { cursor: col-resize !important; user-select: none !important; }
+    body.resizing iframe, body.resizing webview { pointer-events: none !important; }
+
+    /* Sidebar collapse */
+    #sidebar.collapsed {
+      width: 0;
+      min-width: 0;
+      border-right: none;
+      overflow: hidden;
+    }
+    #sidebar.collapsed + .resize-handle { display: none; }
+
+    /* File tree panel */
+    #filetree-panel {
+      width: 250px;
+      min-width: 180px;
+      background: #161616;
+      border-left: 1px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #filetree-panel.hidden { display: none; }
+    #filetree-resize.hidden { display: none; }
+    #filetree-header {
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      flex-shrink: 0;
+    }
+    .filetree-tabs { display: flex; flex: 1; }
+    .filetree-tab {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 4px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-family: inherit;
+      text-align: center;
+    }
+    .filetree-tab:hover { color: #888; }
+    .filetree-tab.active { color: #ccc; border-bottom-color: #4a9eff; }
+    #filetree-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2px 0;
+    }
+    #filetree-body::-webkit-scrollbar { width: 6px; }
+    #filetree-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .ft-item {
+      display: flex;
+      align-items: center;
+      padding: 1px 8px;
+      cursor: default;
+      font-size: 0.82rem;
+      color: #ccc;
+      white-space: nowrap;
+      user-select: none;
+      height: 22px;
+    }
+    .ft-item:hover { background: #252525; }
+    .ft-dir { cursor: pointer; }
+    .ft-chevron {
+      width: 16px;
+      font-size: 0.5rem;
+      color: #666;
+      text-align: center;
+      flex-shrink: 0;
+      transition: transform 0.1s ease;
+    }
+    .ft-entry.expanded > .ft-item > .ft-chevron { transform: rotate(90deg); }
+    .ft-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ft-dir .ft-name { color: #e8c882; }
+    .ft-children { display: none; }
+    .ft-entry.expanded > .ft-children { display: block; }
+    .ft-empty {
+      color: #444;
+      font-size: 0.8rem;
+      font-style: italic;
+      padding: 12px;
+    }
+
+    /* Changes panel */
+    #changes-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2px 0;
+    }
+    #changes-body::-webkit-scrollbar { width: 6px; }
+    #changes-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .changes-section-header {
+      display: flex;
+      align-items: center;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+      padding: 10px 12px 4px;
+      user-select: none;
+    }
+    .changes-section-action {
+      margin-left: auto;
+      border: none;
+      background: none;
+      color: #666;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .changes-section-action:hover { color: #ccc; }
+    .changes-file {
+      display: flex;
+      align-items: center;
+      padding: 2px 12px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      gap: 6px;
+      height: 24px;
+    }
+    .changes-file:hover { background: #252525; }
+    .changes-file-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ccc;
+    }
+    .changes-file-stats {
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+    }
+    .changes-added { color: #3fb950; }
+    .changes-deleted { color: #f85149; }
+    .changes-file.untracked .changes-file-name { color: #3fb950; }
+    .changes-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .changes-badge-m { color: #d29922; }
+    .changes-badge-u { color: #3fb950; }
+    .changes-badge-a { color: #3fb950; }
+    .changes-badge-d { color: #f85149; }
+    .changes-section-count {
+      font-size: 0.62rem;
+      background: #333;
+      color: #aaa;
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-left: 6px;
+    }
+    .changes-file-folder {
+      color: #555;
+      font-size: 0.75rem;
+      flex-shrink: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .changes-commit {
+      padding: 6px 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .changes-commit:hover { background: #1a1a1a; }
+    .changes-commit-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .changes-commit-hash {
+      font-size: 0.72rem;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      color: #4a9eff;
+      flex-shrink: 0;
+    }
+    .changes-commit-msg {
+      font-size: 0.8rem;
+      color: #ccc;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .changes-commit-meta {
+      font-size: 0.68rem;
+      color: #555;
+      margin-top: 2px;
+    }
+    .changes-commit-files { display: none; padding-top: 4px; }
+    .changes-commit.expanded .changes-commit-files { display: block; }
+    .changes-empty {
+      color: #444;
+      font-size: 0.8rem;
+      font-style: italic;
+      padding: 12px;
+    }
+
+    /* Changes toolbar & commit area */
+    #changes-panel-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    .changes-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      gap: 4px;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    .changes-toolbar-btn {
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #888;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .changes-toolbar-btn:hover { background: #2a2a2a; color: #ccc; }
+    .changes-toolbar-btn:disabled { opacity: 0.35; cursor: default; }
+    .changes-toolbar-btn:disabled:hover { background: none; color: #888; }
+    .changes-toolbar-sep {
+      width: 1px;
+      height: 16px;
+      background: #333;
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+    .changes-toolbar-spacer { flex: 1; }
+    .changes-toolbar-status {
+      font-size: 0.7rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+      transition: opacity 0.3s;
+    }
+    .changes-toolbar-status.success { color: #3fb950; }
+    .changes-toolbar-status.error { color: #f85149; }
+    .changes-commit-area {
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 6px;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    .changes-commit-input {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 0.8rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 6px 8px;
+      resize: vertical;
+      min-height: 28px;
+      max-height: 120px;
+      outline: none;
+    }
+    .changes-commit-input:focus { border-color: #4a9eff; }
+    .changes-commit-input::placeholder { color: #555; }
+    .changes-commit-btn {
+      background: #2563eb;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.78rem;
+      padding: 5px 12px;
+      cursor: pointer;
+      align-self: stretch;
+    }
+    .changes-commit-btn:hover { background: #3b82f6; }
+    .changes-commit-btn:disabled { opacity: 0.4; cursor: default; }
+    .changes-commit-btn:disabled:hover { background: #2563eb; }
+
+    /* Stage/unstage action buttons on file entries */
+    .changes-file-action {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 3px;
+      background: #333;
+      color: #ccc;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .changes-file:hover .changes-file-action { display: inline-flex; }
+    .changes-file-action:hover { background: #444; }
+    .changes-file-action.changes-stage { color: #3fb950; }
+    .changes-file-action.changes-unstage { color: #f85149; }
+
+    /* Stash entries */
+    .changes-stash-entry {
+      display: flex;
+      align-items: center;
+      padding: 3px 12px;
+      font-size: 0.8rem;
+      gap: 6px;
+      cursor: default;
+    }
+    .changes-stash-entry:hover { background: #252525; }
+    .changes-stash-msg {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #aaa;
+    }
+    .changes-stash-date {
+      color: #555;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+    .changes-stash-btn {
+      display: none;
+      border: none;
+      background: #333;
+      color: #ccc;
+      font-size: 0.68rem;
+      border-radius: 3px;
+      padding: 2px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .changes-stash-entry:hover .changes-stash-btn { display: inline-block; }
+    .changes-stash-btn:hover { background: #444; }
+    .changes-stash-btn.pop { color: #3fb950; }
+    .changes-stash-btn.drop { color: #f85149; }
+
+    /* Branch management modal */
+    #branch-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.55);
+    }
+    #branch-modal.active { display: flex; }
+    .branch-modal-content {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px;
+      width: 420px;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .branch-modal-content h3 {
+      margin: 0 0 12px;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .branch-create-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .branch-create-row input {
+      flex: 1;
+      background: #141414;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 0.8rem;
+      padding: 5px 8px;
+      outline: none;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+    }
+    .branch-create-row input:focus { border-color: #4a9eff; }
+    .branch-create-row button {
+      background: #2563eb;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.78rem;
+      padding: 5px 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .branch-create-row button:hover { background: #3b82f6; }
+    #branch-list {
+      overflow-y: auto;
+      max-height: 45vh;
+      margin-bottom: 10px;
+    }
+    #branch-list::-webkit-scrollbar { width: 6px; }
+    #branch-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .branch-item {
+      display: flex;
+      align-items: center;
+      padding: 5px 8px;
+      border-radius: 4px;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+    .branch-item:hover { background: #252525; }
+    .branch-item.current { background: #1a2332; }
+    .branch-item.in-worktree { opacity: 0.5; }
+    .branch-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ccc;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      font-size: 0.78rem;
+    }
+    .branch-item.current .branch-name { color: #4a9eff; }
+    .branch-badge {
+      font-size: 0.62rem;
+      background: #333;
+      color: #888;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .branch-badge.wt { background: #2a2040; color: #a78bfa; }
+    .branch-sync {
+      font-size: 0.68rem;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      color: #666;
+      flex-shrink: 0;
+    }
+    .branch-actions {
+      display: none;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .branch-item:hover .branch-actions { display: flex; }
+    .branch-action-btn {
+      border: none;
+      background: #333;
+      color: #ccc;
+      font-size: 0.68rem;
+      border-radius: 3px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+    .branch-action-btn:hover { background: #444; }
+    .branch-action-btn.delete { color: #f85149; }
+    .branch-action-btn.delete:hover { background: #3a1a1a; }
+    .branch-error {
+      color: #f85149;
+      font-size: 0.78rem;
+      padding: 4px 0;
+      display: none;
+    }
+    .branch-error.visible { display: block; }
+    .branch-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 8px;
+      border-top: 1px solid #2a2a2a;
+    }
+    .branch-modal-footer button {
+      background: #333;
+      border: none;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 0.78rem;
+      padding: 5px 16px;
+      cursor: pointer;
+    }
+    .branch-modal-footer button:hover { background: #444; }
+
+    /* Tickets panel */
+    #tickets-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2px 0;
+    }
+    #tickets-body::-webkit-scrollbar { width: 6px; }
+    #tickets-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .tickets-section-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+      padding: 10px 12px 4px;
+      user-select: none;
+    }
+    .ticket-item {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      gap: 6px;
+      min-height: 26px;
+    }
+    .ticket-item:hover { background: #252525; }
+    .ticket-title {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ccc;
+    }
+    .ticket-priority {
+      flex-shrink: 0;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .ticket-priority-high { color: #f85149; background: rgba(248,81,73,0.12); }
+    .ticket-priority-medium { color: #d29922; background: rgba(210,153,34,0.12); }
+    .ticket-priority-low { color: #3fb950; background: rgba(63,185,80,0.12); }
+    .ticket-number {
+      color: #555;
+      font-size: 0.75rem;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      flex-shrink: 0;
+      width: 24px;
+    }
+    .ticket-detail { padding: 16px; }
+    .ticket-detail-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .ticket-detail-back {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .ticket-detail-back:hover { color: #fff; background: #252525; }
+    .ticket-detail-content {
+      font-size: 0.85rem;
+      color: #ccc;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      font-family: inherit;
+    }
+    .ticket-detail-content h1 { font-size: 1.1rem; margin: 0 0 8px; color: #fff; white-space: normal; }
+    .ticket-detail-content h2 { font-size: 0.9rem; margin: 12px 0 4px; color: #aaa; white-space: normal; }
+    .ticket-detail-content li { margin-left: 16px; list-style: disc; white-space: normal; }
+    .ticket-work-btn {
+      background: none;
+      border: 1px solid #4a9eff;
+      color: #4a9eff;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      margin-top: 16px;
+      display: inline-block;
+    }
+    .ticket-work-btn:hover { background: #1a3a5c; }
+    .ticket-worktree-btn {
+      background: none;
+      border: 1px solid #3fb950;
+      color: #3fb950;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      margin-top: 16px;
+      margin-left: 8px;
+      display: inline-block;
+    }
+    .ticket-worktree-btn:hover { background: #1a3d1a; }
+    .ticket-worktree-btn:disabled { opacity: 0.6; cursor: wait; }
+    .ticket-worktree-error { color: #e5534b; font-size: 0.78rem; margin-top: 6px; padding: 4px 0; }
+    .ticket-done-btn {
+      background: none;
+      border: 1px solid #3fb950;
+      color: #3fb950;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      margin-top: 16px;
+      margin-left: 8px;
+      display: inline-block;
+    }
+    .ticket-done-btn:hover { background: #1a3d1a; }
+    .ticket-cancel-btn {
+      background: none;
+      border: 1px solid #e5534b;
+      color: #e5534b;
+      padding: 6px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      margin-top: 16px;
+      margin-left: 8px;
+      display: inline-block;
+    }
+    .ticket-cancel-btn:hover { background: #3d1a1a; }
+    .tickets-filter {
+      display: flex;
+      padding: 6px 8px;
+    }
+    .tickets-filter input {
+      flex: 1;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #ddd;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .tickets-filter input:focus { border-color: #555; }
+    .tickets-empty {
+      color: #444;
+      font-size: 0.8rem;
+      font-style: italic;
+      padding: 12px;
+    }
+
+    /* Diff pane */
+    .diff-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+    .diff-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    .diff-filepath {
+      font-size: 0.82rem;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .diff-stats {
+      font-size: 0.78rem;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      flex-shrink: 0;
+    }
+    .diff-content {
+      flex: 1;
+      overflow: auto;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 20px;
+      background: #1e1e1e;
+    }
+    .diff-content::-webkit-scrollbar { width: 6px; height: 6px; }
+    .diff-content::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .diff-hunk-header {
+      background: #1a2332;
+      color: #4a9eff;
+      padding: 2px 12px;
+      font-size: 0.78rem;
+      border-top: 1px solid #2a2a2a;
+      user-select: none;
+    }
+    .diff-sbs-row { display: flex; }
+    .diff-sbs-cell {
+      flex: 1;
+      display: flex;
+      white-space: pre;
+      min-height: 20px;
+      overflow: hidden;
+    }
+    .diff-sbs-cell + .diff-sbs-cell { border-left: 1px solid #333; }
+    .diff-line-num {
+      width: 40px;
+      min-width: 40px;
+      text-align: right;
+      padding-right: 6px;
+      color: #444;
+      user-select: none;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .diff-line-content {
+      flex: 1;
+      padding: 0 8px;
+      overflow: hidden;
+    }
+    .diff-sbs-cell.deleted { background: rgba(248, 81, 73, 0.08); }
+    .diff-sbs-cell.deleted .diff-line-content { color: #f85149; }
+    .diff-sbs-cell.added { background: rgba(63, 185, 80, 0.08); }
+    .diff-sbs-cell.added .diff-line-content { color: #3fb950; }
+    .diff-sbs-cell.context .diff-line-content { color: #8b949e; }
+    .diff-sbs-cell.empty { background: #161616; }
+    .diff-sbs-cell.empty .diff-line-num { color: transparent; }
+    .diff-word-del { background: rgba(248, 81, 73, 0.35); border-radius: 2px; }
+    .diff-word-add { background: rgba(63, 185, 80, 0.35); border-radius: 2px; }
+
+    /* Launchpad */
+    #launchpad {
+      display: none;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+    #launchpad.active { display: flex; }
+    .launchpad-content {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .launchpad-heading {
+      width: 100%;
+      text-align: center;
+      color: #aaa;
+      font-weight: 400;
+      font-size: 14px;
+      margin: 0 0 4px 0;
+    }
+    .launchpad-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 32px 40px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 12px;
+      cursor: pointer;
+      width: 180px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .launchpad-card:hover {
+      background: #2a2a2a;
+      border-color: #4a9eff;
+    }
+    .launchpad-card svg { color: #666; transition: color 0.15s; }
+    .launchpad-card:hover svg { color: #ccc; }
+    .launchpad-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ddd;
+    }
+    .launchpad-desc {
+      font-size: 0.8rem;
+      color: #555;
+      text-align: center;
+    }
+
+    /* Browser tab */
+    .browser-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+    .browser-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    .browser-nav-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .browser-nav-btn:hover { color: #ccc; background: #252525; }
+    .browser-url {
+      flex: 1;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #ddd;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      outline: none;
+    }
+    .browser-url:focus { border-color: #555; }
+    .browser-pane webview { flex: 1; }
+
+    /* Editor pane */
+    .editor-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    .editor-filepath {
+      font-size: 0.82rem;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .editor-save-btn {
+      background: none;
+      border: 1px solid #444;
+      color: #888;
+      padding: 3px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-family: inherit;
+    }
+    .editor-save-btn:hover {
+      background: #252525;
+      color: #ccc;
+      border-color: #666;
+    }
+    .editor-textarea {
+      flex: 1;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: none;
+      padding: 12px 16px;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+      overflow: auto;
+    }
+    .ft-item.ft-file { cursor: pointer; }
+
+    /* Notification system */
+    .worktree-item.has-notification::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4a9eff;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .project-item.has-notification::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4a9eff;
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .worktree-item.has-busy::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      animation: pulse-busy 1.5s ease-in-out infinite;
+    }
+    .project-item.has-busy::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      animation: pulse-busy 1.5s ease-in-out infinite;
+    }
+    #notification-bell {
+      position: relative;
+      background: none;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      padding: 5px 7px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #notification-bell:hover { color: #ccc; background: #252525; }
+    .notif-count {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #4a9eff;
+      color: #fff;
+      font-size: 0.55rem;
+      font-weight: 700;
+      min-width: 14px;
+      height: 14px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      line-height: 1;
+    }
+    .notif-count.hidden { display: none; }
+    #notification-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 6px;
+      width: 360px;
+      max-height: 400px;
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 200;
+      overflow: hidden;
+      flex-direction: column;
+    }
+    #notification-dropdown.active { display: flex; }
+    #notification-dropdown-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #notification-dropdown-header h4 {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #ccc;
+      font-weight: 600;
+    }
+    #notification-clear-btn {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    #notification-clear-btn:hover { color: #ccc; background: #333; }
+    #notification-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    #notification-list::-webkit-scrollbar { width: 6px; }
+    #notification-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .notif-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .notif-entry:hover { background: #2a2a2a; }
+    .notif-entry:last-child { border-bottom: none; }
+    .notif-dot-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4a9eff;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .notif-entry.seen .notif-dot-indicator { background: transparent; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-title {
+      font-size: 0.82rem;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .notif-title .notif-project { color: #666; font-size: 0.75rem; }
+    .notif-snippet {
+      font-size: 0.75rem;
+      color: #555;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .notif-time {
+      font-size: 0.68rem;
+      color: #555;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .notif-empty {
+      padding: 20px;
+      text-align: center;
+      color: #555;
+      font-size: 0.82rem;
+    }
+
   </style>
 </head>
 <body>
@@ -144,13 +2186,275 @@
       <button id="add-project-btn" title="Add project folder">+</button>
     </div>
     <div id="project-list"></div>
+    <div id="sidebar-footer">
+      <button id="settings-btn" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+    <div id="settings-view">
+      <div id="settings-header">
+        <button id="back-btn" title="Back to projects">&#8592;</button>
+        <h2>Settings</h2>
+      </div>
+      <div id="settings-menu">
+        <button class="settings-menu-item" data-section="experts">Experts</button>
+        <button class="settings-menu-item" data-section="skills">Skills</button>
+        <button class="settings-menu-item" data-section="mcp-servers">MCP Servers</button>
+      </div>
+    </div>
   </div>
-  <div id="main">
-    <h1>The Agency</h1>
-    <p id="info"></p>
+  <div class="resize-handle" id="sidebar-resize"></div>
+  <div id="content-area">
+    <div id="content-toolbar">
+      <button class="toolbar-btn active" id="toggle-sidebar-btn" title="Toggle Sidebar (⌘B)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="5.5" y1="2" x2="5.5" y2="14"/></svg>
+      </button>
+      <div id="breadcrumb"></div>
+      <div class="toolbar-spacer"></div>
+      <button id="notification-bell" title="Notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-count hidden" id="notif-count">0</span>
+      </button>
+      <button class="toolbar-btn active" id="toggle-filetree-btn" title="Toggle Explorer (⌘E)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="10.5" y1="2" x2="10.5" y2="14"/></svg>
+      </button>
+      <div id="notification-dropdown">
+        <div id="notification-dropdown-header">
+          <h4>Notifications</h4>
+          <button id="notification-clear-btn">Clear all</button>
+        </div>
+        <div id="notification-list">
+          <div class="notif-empty">No notifications</div>
+        </div>
+      </div>
+    </div>
+    <div id="content-body">
+      <div id="main">
+        <h1>The Agency</h1>
+        <p id="info"></p>
+      </div>
+      <div id="terminal-view">
+        <div id="terminal-header"></div>
+        <div id="terminal-containers"></div>
+      </div>
+      <div id="launchpad">
+        <div class="launchpad-content">
+          <h3 class="launchpad-heading">Open a new tab containing:</h3>
+          <div class="launchpad-card" id="launchpad-expert">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div class="launchpad-title">Expert</div>
+            <div class="launchpad-desc">Start a session with an AI expert</div>
+          </div>
+          <div class="launchpad-card" id="launchpad-terminal">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <div class="launchpad-title">Terminal</div>
+            <div class="launchpad-desc">Open a shell session</div>
+          </div>
+          <div class="launchpad-card" id="launchpad-browser">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <div class="launchpad-title">Browser</div>
+            <div class="launchpad-desc">Browse the web in a tab</div>
+          </div>
+          <div class="launchpad-card" id="launchpad-ticketmaster">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="launchpad-title">Ticketmaster</div>
+            <div class="launchpad-desc">Create a tracked ticket</div>
+          </div>
+        </div>
+      </div>
+      <div id="settings-panel">
+        <div id="settings-panel-header">
+          <h2 id="settings-panel-title"></h2>
+          <button class="settings-add-btn" id="settings-panel-add-btn" title="Add" style="display:none">+</button>
+        </div>
+        <div id="settings-panel-body"></div>
+      </div>
+      <div class="resize-handle" id="filetree-resize"></div>
+      <div id="filetree-panel">
+        <div id="filetree-header">
+          <div class="filetree-tabs">
+            <button class="filetree-tab active" data-panel="explorer">Explorer</button>
+            <button class="filetree-tab" data-panel="changes">Changes</button>
+            <button class="filetree-tab" data-panel="tickets">Tickets</button>
+          </div>
+        </div>
+        <div id="filetree-body">
+          <div class="ft-empty">No project selected</div>
+        </div>
+        <div id="changes-panel-wrapper" style="display:none">
+          <div class="changes-toolbar" id="changes-toolbar">
+            <button class="changes-toolbar-btn" id="changes-fetch-btn" title="Fetch (git fetch --all)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="changes-toolbar-btn" id="changes-pull-btn" title="Pull (git pull)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            </button>
+            <button class="changes-toolbar-btn" id="changes-push-btn" title="Push (git push)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>
+            <div class="changes-toolbar-sep"></div>
+            <button class="changes-toolbar-btn" id="changes-stash-btn" title="Stash changes (git stash)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+            </button>
+            <button class="changes-toolbar-btn" id="changes-branch-btn" title="Branch management">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            </button>
+            <div class="changes-toolbar-spacer"></div>
+            <span class="changes-toolbar-status" id="changes-toolbar-status"></span>
+          </div>
+          <div class="changes-commit-area" id="changes-commit-area">
+            <textarea class="changes-commit-input" id="changes-commit-input" placeholder="Commit message..." rows="1" spellcheck="false"></textarea>
+            <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
+          </div>
+          <div id="changes-body"></div>
+        </div>
+        <div id="tickets-body" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-type-picker">
+    <div id="tab-type-picker-content">
+      <h3>Open a new tab containing:</h3>
+      <div id="tab-type-picker-list">
+        <div class="tab-type-picker-item" data-type="expert" data-hotkey="1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Expert
+          <span class="tab-type-picker-hint">1</span>
+        </div>
+        <div class="tab-type-picker-item" data-type="terminal" data-hotkey="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Terminal
+          <span class="tab-type-picker-hint">2</span>
+        </div>
+        <div class="tab-type-picker-item" data-type="browser" data-hotkey="3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Browser
+          <span class="tab-type-picker-hint">3</span>
+        </div>
+        <div class="tab-type-picker-item" data-type="ticketmaster" data-hotkey="4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Ticketmaster
+          <span class="tab-type-picker-hint">4</span>
+        </div>
+      </div>
+      <button id="tab-type-picker-cancel">Cancel</button>
+    </div>
+  </div>
+  <div id="expert-picker">
+    <div id="expert-picker-content">
+      <h3>Choose an Expert</h3>
+      <div id="expert-picker-list"></div>
+      <button id="expert-picker-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Worktree context menu -->
+  <div id="wt-context-menu">
+    <div class="wt-ctx-item" data-action="lock">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Lock
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item" data-action="prune">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+      Prune Stale
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item" data-action="merge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+      Merge &amp; Clean Up
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item danger" data-action="remove">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Remove Worktree
+    </div>
+  </div>
+
+  <!-- Worktree create modal -->
+  <div id="wt-create-modal">
+    <div class="wt-modal-content">
+      <h3>Add Worktree</h3>
+      <div class="wt-form-row">
+        <label><input type="checkbox" id="wt-new-branch-check"> Create new branch</label>
+      </div>
+      <div class="wt-form-group" id="wt-branch-select-group">
+        <label>Branch</label>
+        <select id="wt-branch-select"><option value="">Loading...</option></select>
+      </div>
+      <div class="wt-form-group" id="wt-branch-name-group" style="display:none">
+        <label>New Branch Name</label>
+        <input type="text" id="wt-branch-name" placeholder="feature/my-branch" spellcheck="false">
+      </div>
+      <div class="wt-form-group">
+        <label>Directory</label>
+        <input type="text" id="wt-path-input" placeholder="Auto-generated path" spellcheck="false">
+      </div>
+      <div class="wt-error" id="wt-create-error"></div>
+      <div class="wt-modal-buttons">
+        <button id="wt-create-cancel">Cancel</button>
+        <button id="wt-create-btn">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worktree delete confirmation modal -->
+  <div id="wt-delete-modal">
+    <div class="wt-delete-content">
+      <h3>Remove Worktree</h3>
+      <p id="wt-delete-msg">Are you sure you want to remove this worktree?</p>
+      <p id="wt-delete-path" style="font-family:monospace;font-size:0.75rem;color:#666;word-break:break-all"></p>
+      <div class="wt-form-row" id="wt-delete-branch-row">
+        <label><input type="checkbox" id="wt-delete-branch-check" checked> Also delete the branch</label>
+      </div>
+      <div class="wt-delete-warning" id="wt-delete-warning"></div>
+      <div class="wt-delete-buttons">
+        <button id="wt-delete-cancel">Cancel</button>
+        <button id="wt-delete-confirm">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worktree merge & clean up modal -->
+  <div id="wt-merge-modal">
+    <div class="wt-merge-content">
+      <h3>Merge &amp; Clean Up</h3>
+      <div id="wt-merge-loading" style="color:#888;font-size:0.82rem;padding:12px 0;">Checking branch status...</div>
+      <div id="wt-merge-info" style="display:none">
+        <div class="wt-merge-summary" id="wt-merge-summary"></div>
+        <div class="wt-merge-commits" id="wt-merge-commits"></div>
+      </div>
+      <div class="wt-merge-warning" id="wt-merge-warning"></div>
+      <div class="wt-merge-success" id="wt-merge-success"></div>
+      <div class="wt-merge-buttons" id="wt-merge-buttons">
+        <button id="wt-merge-cancel">Cancel</button>
+        <button id="wt-merge-confirm">Merge &amp; Clean Up</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Branch management modal -->
+  <div id="branch-modal">
+    <div class="branch-modal-content">
+      <h3>Branches</h3>
+      <div class="branch-create-row">
+        <input type="text" id="branch-create-input" placeholder="New branch name..." spellcheck="false">
+        <button id="branch-create-btn">Create</button>
+      </div>
+      <div id="branch-list"></div>
+      <div class="branch-error" id="branch-error"></div>
+      <div class="branch-modal-footer">
+        <button id="branch-close-btn">Close</button>
+      </div>
+    </div>
   </div>
 
   <script>
+    // Prevent default drag-drop behavior (Electron navigates to dropped files otherwise)
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => e.preventDefault());
+
     const info = document.getElementById('info');
     info.innerText = `Electron ${window.versions.electron()} | Chrome ${window.versions.chrome()} | Node ${window.versions.node()}`;
 
@@ -162,20 +2466,47 @@
         projectList.innerHTML = '<div id="empty-sidebar">No projects yet.<br>Click + to add a folder.</div>';
         return;
       }
-      projectList.innerHTML = projects.map(p => `
-        <div class="project-item" data-path="${p.path.replace(/"/g, '&quot;')}">
-          <div class="project-info">
-            <div class="project-name">${p.name}</div>
-            <div class="project-path">${p.path}</div>
+      projectList.innerHTML = projects.map(p => {
+        const esc = p.path.replace(/"/g, '&quot;');
+        const chevron = p.isGit ? '<span class="expand-chevron">&#9656;</span>' : '';
+        const badge = p.isGit ? '<span class="git-badge" title="Git repository"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>' : '';
+        const worktrees = p.isGit && p.worktrees.length ? '<div class="worktree-list">' + p.worktrees.map(w => {
+          const wtPath = (w.path || '').replace(/"/g, '&quot;');
+          const lockIcon = w.isLocked ? '<span class="wt-lock-icon" title="Locked">&#128274;</span>' : '';
+          const mainAttr = w.isMain ? ' data-is-main="true"' : '';
+          const lockedAttr = w.isLocked ? ' data-is-locked="true"' : '';
+          return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}>${w.branch || '(unknown)'}${lockIcon}</div>`;
+        }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
+        return `
+          <div class="project-entry${p.isGit ? ' is-git' : ''}" data-path="${esc}">
+            <div class="project-item">
+              ${chevron}
+              <div class="project-info">
+                <div class="project-name-row">
+                  <div class="project-name">${p.name}</div>
+                  ${badge}
+                </div>
+                <div class="project-path">${p.path}</div>
+              </div>
+              <button class="remove-btn" title="Remove project">&times;</button>
+            </div>
+            ${worktrees}
           </div>
-          <button class="remove-btn" title="Remove project">&times;</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     async function loadProjects() {
+      // Preserve expanded state across re-renders
+      const expandedPaths = new Set();
+      projectList.querySelectorAll('.project-entry.expanded').forEach(el => expandedPaths.add(el.dataset.path));
       const projects = await window.projects.list();
       renderProjects(projects);
+      // Restore expanded state
+      expandedPaths.forEach(p => {
+        const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(p)}"]`);
+        if (entry) entry.classList.add('expanded');
+      });
     }
 
     addBtn.addEventListener('click', async () => {
@@ -186,14 +2517,2409 @@
     projectList.addEventListener('click', async (e) => {
       const removeBtn = e.target.closest('.remove-btn');
       if (removeBtn) {
-        const item = removeBtn.closest('.project-item');
-        const projectPath = item.dataset.path;
+        const entry = removeBtn.closest('.project-entry');
+        const projectPath = entry.dataset.path;
         const projects = await window.projects.remove(projectPath);
         renderProjects(projects);
+        return;
+      }
+      // "Add worktree" button click
+      const addWtBtn = e.target.closest('.worktree-add-btn');
+      if (addWtBtn) {
+        const projectPath = addWtBtn.dataset.project;
+        openWorktreeCreateModal(projectPath);
+        return;
+      }
+      // Worktree click → switch to its tabs or show expert picker
+      const worktreeItem = e.target.closest('.worktree-item');
+      if (worktreeItem) {
+        openWorkDir(worktreeItem.dataset.path);
+        return;
+      }
+      const item = e.target.closest('.project-item');
+      if (item) {
+        const entry = item.closest('.project-entry');
+        if (entry && entry.classList.contains('is-git')) {
+          entry.classList.toggle('expanded');
+        } else if (entry) {
+          openWorkDir(entry.dataset.path);
+        }
       }
     });
 
+    // Right-click context menu on worktree items
+    projectList.addEventListener('contextmenu', (e) => {
+      const worktreeItem = e.target.closest('.worktree-item');
+      if (!worktreeItem) return;
+      e.preventDefault();
+      showWorktreeContextMenu(e.clientX, e.clientY, worktreeItem);
+    });
+
     loadProjects();
+
+    // ── Worktree Management ──────────────────────────────────────
+    const wtContextMenu = document.getElementById('wt-context-menu');
+    const wtCreateModal = document.getElementById('wt-create-modal');
+    const wtDeleteModal = document.getElementById('wt-delete-modal');
+    let wtContextTarget = null; // the worktree-item element being right-clicked
+
+    function showWorktreeContextMenu(x, y, worktreeItem) {
+      wtContextTarget = worktreeItem;
+      const isMain = worktreeItem.dataset.isMain === 'true';
+      const isLocked = worktreeItem.dataset.isLocked === 'true';
+
+      // Update lock/unlock label
+      const lockItem = wtContextMenu.querySelector('[data-action="lock"]');
+      if (isLocked) {
+        lockItem.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Unlock';
+      } else {
+        lockItem.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Lock';
+      }
+
+      // Disable lock and remove for main worktree
+      if (isMain) {
+        lockItem.classList.add('disabled');
+        lockItem.title = 'Cannot lock the main worktree';
+      } else {
+        lockItem.classList.remove('disabled');
+        lockItem.title = '';
+      }
+      const removeItem = wtContextMenu.querySelector('[data-action="remove"]');
+      if (isMain) {
+        removeItem.classList.add('disabled');
+        removeItem.title = 'Cannot remove the main worktree';
+      } else {
+        removeItem.classList.remove('disabled');
+        removeItem.title = '';
+      }
+      const mergeItem = wtContextMenu.querySelector('[data-action="merge"]');
+      if (isMain) {
+        mergeItem.classList.add('disabled');
+        mergeItem.title = 'Cannot merge the main worktree into itself';
+      } else {
+        mergeItem.classList.remove('disabled');
+        mergeItem.title = '';
+      }
+
+      // Position menu
+      wtContextMenu.style.left = x + 'px';
+      wtContextMenu.style.top = y + 'px';
+      wtContextMenu.classList.add('active');
+
+      // Adjust if off-screen
+      requestAnimationFrame(() => {
+        const rect = wtContextMenu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) wtContextMenu.style.left = (x - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight) wtContextMenu.style.top = (y - rect.height) + 'px';
+      });
+    }
+
+    document.addEventListener('click', () => wtContextMenu.classList.remove('active'));
+    document.addEventListener('contextmenu', (e) => {
+      if (!e.target.closest('#wt-context-menu') && !e.target.closest('.worktree-item')) {
+        wtContextMenu.classList.remove('active');
+      }
+    });
+
+    wtContextMenu.addEventListener('click', async (e) => {
+      const item = e.target.closest('.wt-ctx-item');
+      if (!item || item.classList.contains('disabled') || !wtContextTarget) return;
+      const action = item.dataset.action;
+      const wtPath = wtContextTarget.dataset.path;
+      const projectEntry = wtContextTarget.closest('.project-entry');
+      const projectPath = projectEntry?.dataset.path;
+
+      wtContextMenu.classList.remove('active');
+
+      if (action === 'remove') {
+        openWorktreeDeleteModal(projectPath, wtPath);
+      } else if (action === 'lock') {
+        const isLocked = wtContextTarget.dataset.isLocked === 'true';
+        const result = await window.worktree.lock(projectPath, wtPath, isLocked);
+        if (result.ok) {
+          loadProjects();
+        } else {
+          alert(`Failed to ${isLocked ? 'unlock' : 'lock'} worktree: ${result.error}`);
+        }
+      } else if (action === 'prune') {
+        const result = await window.worktree.prune(projectPath);
+        if (result.ok) {
+          loadProjects();
+        } else {
+          alert('Failed to prune worktrees: ' + result.error);
+        }
+      } else if (action === 'merge') {
+        openMergeModal(projectPath, wtPath);
+      }
+    });
+
+    // ── Create Worktree Modal ──
+    let wtCreateProjectPath = null;
+
+    async function openWorktreeCreateModal(projectPath) {
+      wtCreateProjectPath = projectPath;
+      const createError = document.getElementById('wt-create-error');
+      createError.textContent = '';
+      createError.classList.remove('visible');
+
+      // Reset form
+      document.getElementById('wt-new-branch-check').checked = true;
+      document.getElementById('wt-branch-name').value = '';
+      document.getElementById('wt-branch-select-group').style.display = 'none';
+      document.getElementById('wt-branch-name-group').style.display = '';
+
+      // Load branches
+      const branchSelect = document.getElementById('wt-branch-select');
+      branchSelect.innerHTML = '<option value="">Loading...</option>';
+      wtCreateModal.classList.add('active');
+
+      const branches = await window.worktree.branches(projectPath);
+      branchSelect.innerHTML = branches.length
+        ? branches.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('')
+        : '<option value="">No branches found</option>';
+
+      // Auto-generate path from first branch
+      updateWorktreePath();
+    }
+
+    function updateWorktreePath() {
+      const isNew = document.getElementById('wt-new-branch-check').checked;
+      const pathInput = document.getElementById('wt-path-input');
+      let branchName;
+      if (isNew) {
+        branchName = document.getElementById('wt-branch-name').value.trim();
+      } else {
+        branchName = document.getElementById('wt-branch-select').value;
+      }
+      if (branchName && wtCreateProjectPath) {
+        const parentDir = wtCreateProjectPath.replace(/\/[^/]+$/, '');
+        const projectName = wtCreateProjectPath.split('/').pop();
+        const safeName = branchName.replace(/\//g, '-');
+        pathInput.value = `${parentDir}/${projectName}.worktrees/${safeName}`;
+      }
+    }
+
+    document.getElementById('wt-new-branch-check').addEventListener('change', (e) => {
+      document.getElementById('wt-branch-select-group').style.display = e.target.checked ? 'none' : '';
+      document.getElementById('wt-branch-name-group').style.display = e.target.checked ? '' : 'none';
+      updateWorktreePath();
+    });
+
+    document.getElementById('wt-branch-select').addEventListener('change', updateWorktreePath);
+    document.getElementById('wt-branch-name').addEventListener('input', updateWorktreePath);
+
+    document.getElementById('wt-create-cancel').addEventListener('click', () => {
+      wtCreateModal.classList.remove('active');
+    });
+
+    wtCreateModal.addEventListener('click', (e) => {
+      if (e.target === wtCreateModal) wtCreateModal.classList.remove('active');
+    });
+
+    document.getElementById('wt-create-btn').addEventListener('click', async () => {
+      const createError = document.getElementById('wt-create-error');
+      const isNew = document.getElementById('wt-new-branch-check').checked;
+      const branch = isNew
+        ? document.getElementById('wt-branch-name').value.trim()
+        : document.getElementById('wt-branch-select').value;
+      const wtPath = document.getElementById('wt-path-input').value.trim();
+
+      if (!branch) {
+        createError.textContent = 'Please specify a branch name.';
+        createError.classList.add('visible');
+        return;
+      }
+      if (!wtPath) {
+        createError.textContent = 'Please specify a directory path.';
+        createError.classList.add('visible');
+        return;
+      }
+
+      const createBtn = document.getElementById('wt-create-btn');
+      createBtn.disabled = true;
+      createBtn.textContent = 'Creating...';
+      createError.classList.remove('visible');
+
+      const result = await window.worktree.add(wtCreateProjectPath, wtPath, branch, isNew);
+      createBtn.disabled = false;
+      createBtn.textContent = 'Create';
+
+      if (result.ok) {
+        wtCreateModal.classList.remove('active');
+        // Mark project as expanded before loadProjects captures state
+        const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(wtCreateProjectPath)}"]`);
+        if (entry) entry.classList.add('expanded');
+        await loadProjects();
+      } else {
+        createError.textContent = result.error || 'Failed to create worktree.';
+        createError.classList.add('visible');
+      }
+    });
+
+    // ── Delete Worktree Modal ──
+    let wtDeleteProjectPath = null;
+    let wtDeletePath = null;
+    let wtDeleteForce = false;
+
+    function openWorktreeDeleteModal(projectPath, wtPath) {
+      wtDeleteProjectPath = projectPath;
+      wtDeletePath = wtPath;
+      wtDeleteForce = false;
+      document.getElementById('wt-delete-path').textContent = wtPath;
+      document.getElementById('wt-delete-warning').classList.remove('visible');
+      document.getElementById('wt-delete-confirm').textContent = 'Remove';
+      document.getElementById('wt-delete-confirm').disabled = false;
+      document.getElementById('wt-delete-branch-check').checked = true;
+      wtDeleteModal.classList.add('active');
+    }
+
+    document.getElementById('wt-delete-cancel').addEventListener('click', () => {
+      wtDeleteModal.classList.remove('active');
+    });
+
+    wtDeleteModal.addEventListener('click', (e) => {
+      if (e.target === wtDeleteModal) wtDeleteModal.classList.remove('active');
+    });
+
+    document.getElementById('wt-delete-confirm').addEventListener('click', async () => {
+      const confirmBtn = document.getElementById('wt-delete-confirm');
+      const warningEl = document.getElementById('wt-delete-warning');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Removing...';
+
+      const deleteBranch = document.getElementById('wt-delete-branch-check').checked;
+      const result = await window.worktree.remove(wtDeleteProjectPath, wtDeletePath, wtDeleteForce, deleteBranch);
+      confirmBtn.disabled = false;
+
+      if (result.ok) {
+        wtDeleteModal.classList.remove('active');
+        // Close any tabs belonging to this worktree
+        const tabIds = tabsForWorkDir(wtDeletePath).map(([id]) => id);
+        for (const tabId of tabIds) {
+          await closeTab(tabId);
+        }
+        loadProjects();
+      } else if ((result.isDirty || result.isLocked) && !wtDeleteForce) {
+        // Show warning and offer force delete
+        wtDeleteForce = true;
+        let msg = '';
+        if (result.isLocked) msg = 'This worktree is locked. ';
+        if (result.isDirty) msg += 'This worktree has uncommitted changes that will be lost.';
+        if (!msg) msg = result.error;
+        warningEl.textContent = msg + ' Click "Force Remove" to proceed anyway.';
+        warningEl.classList.add('visible');
+        confirmBtn.textContent = 'Force Remove';
+      } else {
+        warningEl.textContent = result.error || 'Failed to remove worktree.';
+        warningEl.classList.add('visible');
+        confirmBtn.textContent = 'Remove';
+      }
+    });
+
+    // ── Merge & Clean Up Modal ──
+    let wtMergeProjectPath = null;
+    let wtMergeWorktreePath = null;
+    let wtMergeForce = false;
+    let wtMergeAlreadyMerged = false;
+    let wtMergeDone = false;
+    const wtMergeModal = document.getElementById('wt-merge-modal');
+
+    async function openMergeModal(projectPath, wtPath) {
+      wtMergeProjectPath = projectPath;
+      wtMergeWorktreePath = wtPath;
+      wtMergeForce = false;
+      wtMergeAlreadyMerged = false;
+      wtMergeDone = false;
+
+      // Reset to loading state
+      document.getElementById('wt-merge-loading').style.display = '';
+      document.getElementById('wt-merge-info').style.display = 'none';
+      document.getElementById('wt-merge-warning').classList.remove('visible');
+      document.getElementById('wt-merge-success').classList.remove('visible');
+      document.getElementById('wt-merge-confirm').textContent = 'Merge & Clean Up';
+      document.getElementById('wt-merge-confirm').disabled = true;
+      document.getElementById('wt-merge-cancel').style.display = '';
+      document.getElementById('wt-merge-buttons').style.display = '';
+      wtMergeModal.classList.add('active');
+
+      const preflight = await window.worktree.mergePreflight(projectPath, wtPath);
+
+      document.getElementById('wt-merge-loading').style.display = 'none';
+
+      if (!preflight.ok) {
+        const w = document.getElementById('wt-merge-warning');
+        w.textContent = preflight.error;
+        w.classList.add('visible');
+        document.getElementById('wt-merge-confirm').disabled = true;
+        return;
+      }
+
+      // Build summary
+      const summaryEl = document.getElementById('wt-merge-summary');
+      const commitsEl = document.getElementById('wt-merge-commits');
+      document.getElementById('wt-merge-info').style.display = '';
+
+      if (preflight.alreadyMerged) {
+        wtMergeAlreadyMerged = true;
+        summaryEl.innerHTML = `<strong>${preflight.featureBranch}</strong> is already merged into <strong>${preflight.targetBranch}</strong>`;
+        commitsEl.innerHTML = '';
+        document.getElementById('wt-merge-confirm').textContent = 'Clean Up';
+        document.getElementById('wt-merge-confirm').disabled = false;
+        return;
+      }
+
+      summaryEl.innerHTML = `<strong>${preflight.featureBranch}</strong><span class="merge-arrow">\u2192</span><strong>${preflight.targetBranch}</strong><span class="merge-count">${preflight.commitCount} commit${preflight.commitCount !== 1 ? 's' : ''}</span>`;
+
+      commitsEl.innerHTML = preflight.commits.map(c =>
+        `<div><span class="commit-hash">${c.hash.slice(0, 7)}</span>${c.message}</div>`
+      ).join('');
+
+      if (preflight.isDirty) {
+        const w = document.getElementById('wt-merge-warning');
+        w.textContent = `This worktree has ${preflight.dirtyFileCount} uncommitted file${preflight.dirtyFileCount !== 1 ? 's' : ''}. Commit or stash changes before merging.`;
+        w.classList.add('visible');
+        document.getElementById('wt-merge-confirm').disabled = true;
+        return;
+      }
+
+      if (preflight.isLocked) {
+        wtMergeForce = true;
+      }
+
+      document.getElementById('wt-merge-confirm').disabled = false;
+    }
+
+    document.getElementById('wt-merge-cancel').addEventListener('click', () => {
+      wtMergeModal.classList.remove('active');
+    });
+
+    wtMergeModal.addEventListener('click', (e) => {
+      if (e.target === wtMergeModal) wtMergeModal.classList.remove('active');
+    });
+
+    document.getElementById('wt-merge-confirm').addEventListener('click', async () => {
+      if (wtMergeDone) {
+        wtMergeModal.classList.remove('active');
+        return;
+      }
+
+      const confirmBtn = document.getElementById('wt-merge-confirm');
+      const cancelBtn = document.getElementById('wt-merge-cancel');
+      const warningEl = document.getElementById('wt-merge-warning');
+      const successEl = document.getElementById('wt-merge-success');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = wtMergeAlreadyMerged ? 'Cleaning up...' : 'Merging...';
+      cancelBtn.style.display = 'none';
+
+      const result = await window.worktree.mergeAndCleanup(wtMergeProjectPath, wtMergeWorktreePath, wtMergeForce);
+
+      wtMergeDone = true;
+
+      if (result.ok) {
+        // Close tabs for the merged worktree
+        const tabIds = tabsForWorkDir(wtMergeWorktreePath).map(([id]) => id);
+        for (const tabId of tabIds) {
+          await closeTab(tabId);
+        }
+        loadProjects();
+
+        document.getElementById('wt-merge-info').style.display = 'none';
+        warningEl.classList.remove('visible');
+        successEl.textContent = `Merged ${result.mergedBranch} into ${result.targetBranch}. Worktree and branch cleaned up.`;
+        successEl.classList.add('visible');
+        confirmBtn.textContent = 'Done';
+        confirmBtn.disabled = false;
+      } else if (result.hasConflicts) {
+        warningEl.textContent = result.error;
+        warningEl.classList.add('visible');
+        confirmBtn.textContent = 'Close';
+        confirmBtn.disabled = false;
+      } else if (result.mergeSucceeded) {
+        loadProjects();
+        successEl.textContent = `Merge succeeded, but cleanup failed: ${result.cleanupError}`;
+        successEl.classList.add('visible');
+        confirmBtn.textContent = 'Close';
+        confirmBtn.disabled = false;
+      } else {
+        warningEl.textContent = result.error || 'Merge failed.';
+        warningEl.classList.add('visible');
+        confirmBtn.textContent = 'Close';
+        confirmBtn.disabled = false;
+      }
+    });
+
+    // Settings
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsView = document.getElementById('settings-view');
+    const backBtn = document.getElementById('back-btn');
+    const sidebarHeader = document.getElementById('sidebar-header');
+    const sidebarFooter = document.getElementById('sidebar-footer');
+    const mainPanel = document.getElementById('main');
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsPanelTitle = document.getElementById('settings-panel-title');
+    const settingsPanelBody = document.getElementById('settings-panel-body');
+    const settingsPanelAddBtn = document.getElementById('settings-panel-add-btn');
+    const settingsMenu = document.getElementById('settings-menu');
+    let activeSection = null;
+
+    function enterSettings() {
+      activeTabId = null;
+      sidebarHeader.style.display = 'none';
+      projectList.style.display = 'none';
+      sidebarFooter.style.display = 'none';
+      settingsView.classList.add('active');
+      mainPanel.style.display = 'none';
+      launchpad.classList.remove('active');
+      terminalView.classList.remove('active');
+      settingsPanel.classList.add('active');
+      if (!activeSection) openSection('skills');
+    }
+
+    function exitSettings() {
+      setBreadcrumb(null);
+      settingsView.classList.remove('active');
+      sidebarHeader.style.display = '';
+      projectList.style.display = '';
+      sidebarFooter.style.display = '';
+      settingsPanel.classList.remove('active');
+      mainPanel.style.display = '';
+      activeSection = null;
+      settingsMenu.querySelectorAll('.settings-menu-item').forEach(b => b.classList.remove('active'));
+    }
+
+    function openSection(section) {
+      activeSection = section;
+      settingsMenu.querySelectorAll('.settings-menu-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.section === section);
+      });
+      settingsPanelAddBtn.style.display = 'none';
+      settingsPanelAddBtn.onclick = null;
+
+      if (section === 'skills') {
+        settingsPanelTitle.textContent = 'Skills';
+        settingsPanelAddBtn.style.display = '';
+        settingsPanelAddBtn.onclick = () => showSkillForm('', '');
+        loadSkillsPanel();
+      } else if (section === 'experts') {
+        settingsPanelTitle.textContent = 'Experts';
+        settingsPanelAddBtn.style.display = '';
+        settingsPanelAddBtn.onclick = () => showExpertForm('', '', []);
+        loadExpertsPanel();
+      } else if (section === 'mcp-servers') {
+        settingsPanelTitle.textContent = 'MCP Servers';
+        settingsPanelBody.innerHTML = '<div class="settings-empty">No MCP servers configured</div>';
+      }
+    }
+
+    settingsBtn.addEventListener('click', enterSettings);
+    backBtn.addEventListener('click', exitSettings);
+    settingsMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('.settings-menu-item');
+      if (btn) openSection(btn.dataset.section);
+    });
+
+    // Skills panel
+    async function loadSkillsPanel() {
+      const skills = await window.skills.list();
+      renderSkillsList(skills);
+    }
+
+    function renderSkillsList(skills) {
+      const listHtml = skills.length === 0
+        ? '<div class="settings-empty">No skills configured</div>'
+        : skills.map(s => {
+            const esc = s.name.replace(/"/g, '&quot;');
+            return `<div class="skill-item" data-name="${esc}">
+              <span class="skill-name">${s.name}</span>
+              <button class="skill-remove-btn" data-remove="${esc}" title="Remove skill">&times;</button>
+            </div>`;
+          }).join('');
+      settingsPanelBody.innerHTML = `<div id="skills-list">${listHtml}</div><div id="skill-form-container"></div>`;
+    }
+
+    function showSkillForm(name, content) {
+      const container = document.getElementById('skill-form-container');
+      if (!container) return;
+      const isEdit = name !== '';
+      const nameEsc = name.replace(/"/g, '&quot;');
+      const contentEsc = (content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      container.innerHTML = `<div class="skill-form">
+        <input type="text" id="skill-name-input" placeholder="Skill name" value="${nameEsc}" ${isEdit ? 'readonly style="opacity:0.6;cursor:default"' : ''} />
+        <textarea id="skill-content-input" placeholder="Skill prompt / instructions">${contentEsc}</textarea>
+        <div class="skill-form-actions">
+          <button id="skill-cancel-btn">Cancel</button>
+          <button id="skill-save-btn" class="save-btn">Save</button>
+        </div>
+      </div>`;
+      document.getElementById('skill-cancel-btn').addEventListener('click', () => { container.innerHTML = ''; });
+      document.getElementById('skill-save-btn').addEventListener('click', async () => {
+        const n = document.getElementById('skill-name-input').value.trim();
+        const c = document.getElementById('skill-content-input').value;
+        if (!n) return;
+        const skills = await window.skills.save(n, c);
+        container.innerHTML = '';
+        renderSkillsList(skills);
+      });
+      document.getElementById(isEdit ? 'skill-content-input' : 'skill-name-input').focus();
+    }
+
+    // Experts panel
+    async function loadExpertsPanel() {
+      const experts = await window.experts.list();
+      renderExpertsList(experts);
+    }
+
+    function renderExpertsList(experts) {
+      experts = experts.filter(ex => ex.name !== 'ticketmaster');
+      const listHtml = experts.length === 0
+        ? '<div class="settings-empty">No experts configured</div>'
+        : experts.map(ex => {
+            const esc = ex.name.replace(/"/g, '&quot;');
+            return `<div class="expert-item" data-name="${esc}">
+              <span class="expert-name">${ex.name}</span>
+              <button class="expert-remove-btn" data-remove="${esc}" title="Remove expert">&times;</button>
+            </div>`;
+          }).join('');
+      settingsPanelBody.innerHTML = `<div id="experts-list">${listHtml}</div><div id="expert-form-container"></div>`;
+    }
+
+    async function showExpertForm(name, instructions, assignedSkills) {
+      const container = document.getElementById('expert-form-container');
+      if (!container) return;
+      const isEdit = name !== '';
+      const nameEsc = name.replace(/"/g, '&quot;');
+      const instrEsc = (instructions || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const allSkills = await window.skills.list();
+      const skillsHtml = allSkills.length === 0
+        ? '<div class="expert-skills-empty">No skills available — create skills first</div>'
+        : allSkills.map(s => {
+            const checked = assignedSkills.includes(s.name) ? 'checked' : '';
+            const sEsc = s.name.replace(/"/g, '&quot;');
+            return `<label><input type="checkbox" value="${sEsc}" ${checked}> ${s.name}</label>`;
+          }).join('');
+      container.innerHTML = `<div class="skill-form">
+        <input type="text" id="expert-name-input" placeholder="Expert name" value="${nameEsc}" ${isEdit ? 'readonly style="opacity:0.6;cursor:default"' : ''} />
+        <textarea id="expert-instructions-input" placeholder="Instructions (saved to claude.md)">${instrEsc}</textarea>
+        <div class="expert-skills-section">
+          <span class="expert-skills-label">Assigned Skills</span>
+          <div class="expert-skills-list">${skillsHtml}</div>
+        </div>
+        <div class="skill-form-actions">
+          <button id="expert-cancel-btn">Cancel</button>
+          <button id="expert-save-btn" class="save-btn">Save</button>
+        </div>
+      </div>`;
+      document.getElementById('expert-cancel-btn').addEventListener('click', () => { container.innerHTML = ''; });
+      document.getElementById('expert-save-btn').addEventListener('click', async () => {
+        const n = document.getElementById('expert-name-input').value.trim();
+        const instr = document.getElementById('expert-instructions-input').value;
+        if (!n) return;
+        const checkedSkills = [...container.querySelectorAll('.expert-skills-list input:checked')].map(cb => cb.value);
+        const experts = await window.experts.save(n, instr, checkedSkills);
+        container.innerHTML = '';
+        renderExpertsList(experts);
+      });
+      document.getElementById(isEdit ? 'expert-instructions-input' : 'expert-name-input').focus();
+    }
+
+    settingsPanelBody.addEventListener('click', async (e) => {
+      // Skills
+      const skillRemoveBtn = e.target.closest('.skill-remove-btn');
+      if (skillRemoveBtn) {
+        const skills = await window.skills.remove(skillRemoveBtn.dataset.remove);
+        renderSkillsList(skills);
+        return;
+      }
+      const skillItem = e.target.closest('.skill-item');
+      if (skillItem) {
+        const all = await window.skills.list();
+        const skill = all.find(s => s.name === skillItem.dataset.name);
+        if (skill) showSkillForm(skill.name, skill.content);
+        return;
+      }
+      // Experts
+      const expertRemoveBtn = e.target.closest('.expert-remove-btn');
+      if (expertRemoveBtn) {
+        const experts = await window.experts.remove(expertRemoveBtn.dataset.remove);
+        renderExpertsList(experts);
+        return;
+      }
+      const expertItem = e.target.closest('.expert-item');
+      if (expertItem) {
+        const all = await window.experts.list();
+        const expert = all.find(ex => ex.name === expertItem.dataset.name);
+        if (expert) showExpertForm(expert.name, expert.instructions, expert.skills);
+      }
+    });
+
+    // Expert picker & terminal management
+    const tabTypePicker = document.getElementById('tab-type-picker');
+    const expertPicker = document.getElementById('expert-picker');
+    const expertPickerList = document.getElementById('expert-picker-list');
+    const terminalView = document.getElementById('terminal-view');
+    const terminalHeader = document.getElementById('terminal-header');
+    const terminalContainers = document.getElementById('terminal-containers');
+    let pendingWorkDir = null;
+
+    function showTabTypePicker(workDir) {
+      pendingWorkDir = workDir;
+      tabTypePicker.classList.add('active');
+    }
+
+    document.getElementById('tab-type-picker-cancel').addEventListener('click', () => {
+      tabTypePicker.classList.remove('active');
+      pendingWorkDir = null;
+    });
+
+    document.getElementById('tab-type-picker-list').addEventListener('click', (e) => {
+      const item = e.target.closest('.tab-type-picker-item');
+      if (!item || !pendingWorkDir) return;
+      tabTypePicker.classList.remove('active');
+      if (item.dataset.type === 'terminal') {
+        startTask('__TERMINAL__', pendingWorkDir);
+        pendingWorkDir = null;
+      } else if (item.dataset.type === 'browser') {
+        startBrowser(pendingWorkDir);
+        pendingWorkDir = null;
+      } else if (item.dataset.type === 'ticketmaster') {
+        startTask('ticketmaster', pendingWorkDir);
+        pendingWorkDir = null;
+      } else {
+        showExpertPicker(pendingWorkDir);
+      }
+    });
+
+    let pendingTicketPath = null;
+
+    async function showExpertPicker(workDir) {
+      pendingWorkDir = workDir;
+      const experts = (await window.experts.list()).filter(ex => ex.name !== 'ticketmaster');
+      const claudeItem = '<div class="expert-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
+      const expertItems = experts.map(ex => {
+        const esc = ex.name.replace(/"/g, '&quot;');
+        return `<div class="expert-picker-item" data-name="${esc}">${ex.name}</div>`;
+      }).join('');
+      expertPickerList.innerHTML = claudeItem + expertItems;
+      expertPicker.classList.add('active');
+    }
+
+    async function showExpertPickerForTicket(workDir, ticketPath) {
+      pendingTicketPath = ticketPath;
+      pendingWorkDir = workDir;
+      const experts = (await window.experts.list()).filter(ex => ex.name !== 'ticketmaster');
+      const claudeItem = '<div class="expert-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
+      const expertItems = experts.map(ex => {
+        const esc = ex.name.replace(/"/g, '&quot;');
+        return `<div class="expert-picker-item" data-name="${esc}">${ex.name}</div>`;
+      }).join('');
+      expertPickerList.innerHTML = claudeItem + expertItems;
+      expertPicker.classList.add('active');
+    }
+
+    document.getElementById('expert-picker-cancel').addEventListener('click', () => {
+      expertPicker.classList.remove('active');
+      pendingWorkDir = null;
+      pendingTicketPath = null;
+    });
+
+    expertPickerList.addEventListener('click', (e) => {
+      const item = e.target.closest('.expert-picker-item');
+      if (!item || !pendingWorkDir) return;
+      const expertName = item.dataset.name;
+      expertPicker.classList.remove('active');
+
+      if (pendingTicketPath) {
+        const ticketPath = pendingTicketPath;
+        pendingTicketPath = null;
+        const relPath = ticketPath.startsWith(pendingWorkDir)
+          ? ticketPath.slice(pendingWorkDir.length + 1)
+          : ticketPath;
+        const ticketNum = ticketPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
+        startTask(expertName, pendingWorkDir, {
+          initialPrompt: `Read the ticket file at ${relPath} and let me know once done`,
+          ticketNumber: ticketNum
+        });
+      } else {
+        startTask(expertName, pendingWorkDir);
+      }
+      pendingWorkDir = null;
+    });
+
+    // Multi-tab terminal state — tabs scoped per worktree
+    const tabs = new Map(); // id → { term, fitAddon, resizeObs, pane, tabEl, label, workDir }
+    let activeTabId = null;
+    let activeWorkDir = null;
+    let nextBrowserTabId = -1;
+
+    // File system watcher — auto-refresh explorer & changes when files change
+    let fsWatchDebounce = null;
+    window.filetree.onChange((filename) => {
+      clearTimeout(fsWatchDebounce);
+      fsWatchDebounce = setTimeout(() => {
+        if (!activeWorkDir) return;
+        const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
+        if (activePanel === 'tickets') {
+          if (filename && !filename.includes('.the-agency/tickets/') &&
+              !filename.includes('.the-agency\\tickets\\')) return;
+        }
+        refreshRightPanel(activeWorkDir);
+      }, 300);
+    });
+
+    function tabsForWorkDir(wd) {
+      return [...tabs.entries()].filter(([, t]) => t.workDir === wd);
+    }
+
+    // Notification system
+    const notifActivity = new Map(); // workDir → Set of tab IDs with unseen activity
+    const notifLog = []; // { id, workDir, tabId, tabLabel, snippet, timestamp, seen }
+    let notifNextId = 1;
+    let notifUpdateTimer = null;
+    const notifDebounceTimers = new Map(); // tabId → setTimeout handle for output-idle detection
+    const busyTabs = new Set(); // tab IDs currently receiving PTY output (Claude/expert only)
+    const busyDebounceTimers = new Map(); // tabId → setTimeout handle for busy-idle detection
+
+    function stripAnsi(str) {
+      return str.replace(/\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]/g, '').replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '').replace(/\x1b[\x20-\x7e]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
+    }
+
+    function markTabActivity(workDir, tabId, tabLabel, snippet) {
+      if (tabId === activeTabId) return; // never notify for the tab the user is viewing
+      if (!notifActivity.has(workDir)) notifActivity.set(workDir, new Set());
+      notifActivity.get(workDir).add(tabId);
+
+      const cleanSnippet = stripAnsi(snippet).trim();
+      if (cleanSnippet) {
+        const existing = notifLog.find(n => n.tabId === tabId && !n.seen);
+        if (existing) {
+          existing.snippet = cleanSnippet.slice(-100);
+          existing.timestamp = Date.now();
+        } else {
+          notifLog.unshift({
+            id: notifNextId++, workDir, tabId, tabLabel,
+            snippet: cleanSnippet.slice(-100),
+            timestamp: Date.now(), seen: false,
+          });
+          if (notifLog.length > 50) notifLog.length = 50;
+        }
+      }
+      scheduleNotifUpdate();
+    }
+
+    function scheduleNotifUpdate() {
+      if (notifUpdateTimer) return;
+      notifUpdateTimer = setTimeout(() => {
+        notifUpdateTimer = null;
+        updateNotifUI();
+      }, 300);
+    }
+
+    function updateNotifUI() {
+      // Helper: check if any tab in a workdir is busy
+      function wdHasBusy(wd) {
+        for (const [tid, t] of tabs) if (t.workDir === wd && busyTabs.has(tid)) return true;
+        return false;
+      }
+      // Sidebar worktree dots — green busy takes priority over blue notification
+      document.querySelectorAll('.worktree-item').forEach(el => {
+        const wd = el.dataset.path;
+        const busy = wdHasBusy(wd);
+        const notif = !busy && notifActivity.has(wd) && notifActivity.get(wd).size > 0;
+        el.classList.toggle('has-busy', busy);
+        el.classList.toggle('has-notification', notif);
+      });
+      // Project dots — non-git: check own path; git: aggregate from child worktrees
+      document.querySelectorAll('.project-entry').forEach(el => {
+        let busy = false, notif = false;
+        if (el.classList.contains('is-git')) {
+          el.querySelectorAll('.worktree-item').forEach(wt => {
+            const wd = wt.dataset.path;
+            if (wdHasBusy(wd)) busy = true;
+            if (notifActivity.has(wd) && notifActivity.get(wd).size > 0) notif = true;
+          });
+        } else {
+          const wd = el.dataset.path;
+          busy = wdHasBusy(wd);
+          notif = notifActivity.has(wd) && notifActivity.get(wd).size > 0;
+        }
+        const pi = el.querySelector('.project-item');
+        if (pi) {
+          pi.classList.toggle('has-busy', busy);
+          pi.classList.toggle('has-notification', !busy && notif);
+        }
+      });
+      // Bell count
+      const unseenCount = notifLog.filter(n => !n.seen).length;
+      const countEl = document.getElementById('notif-count');
+      countEl.textContent = unseenCount > 99 ? '99+' : unseenCount;
+      countEl.classList.toggle('hidden', unseenCount === 0);
+      // Update tab dots — green busy takes priority over blue notification
+      for (const [id, tab] of tabs) {
+        if (tab.tabEl) {
+          const isBusy = busyTabs.has(id);
+          const hasNotif = !isBusy && notifLog.some(n => n.tabId === id && !n.seen);
+          tab.tabEl.classList.toggle('is-busy', isBusy);
+          tab.tabEl.classList.toggle('has-notification', hasNotif);
+        }
+      }
+    }
+
+    function clearNotifForTab(tabId) {
+      if (notifDebounceTimers.has(tabId)) {
+        clearTimeout(notifDebounceTimers.get(tabId));
+        notifDebounceTimers.delete(tabId);
+      }
+      for (const [wd, set] of notifActivity) {
+        set.delete(tabId);
+        if (set.size === 0) notifActivity.delete(wd);
+      }
+      for (const entry of notifLog) {
+        if (entry.tabId === tabId) entry.seen = true;
+      }
+      updateNotifUI();
+    }
+
+    function markTabBusy(tabId) {
+      busyTabs.add(tabId);
+      const tab = tabs.get(tabId);
+      if (tab?.tabEl) tab.tabEl.classList.add('is-busy');
+      scheduleNotifUpdate();
+    }
+
+    function clearTabBusy(tabId) {
+      busyTabs.delete(tabId);
+      if (busyDebounceTimers.has(tabId)) {
+        clearTimeout(busyDebounceTimers.get(tabId));
+        busyDebounceTimers.delete(tabId);
+      }
+      const tab = tabs.get(tabId);
+      if (tab?.tabEl) tab.tabEl.classList.remove('is-busy');
+      scheduleNotifUpdate();
+    }
+
+    function getWorkDirLabel(workDir) {
+      const wtEl = document.querySelector(`.worktree-item[data-path="${CSS.escape(workDir)}"]`);
+      if (wtEl) {
+        const entry = wtEl.closest('.project-entry');
+        const projectName = entry?.querySelector('.project-name')?.textContent || '';
+        const branch = wtEl.textContent.trim();
+        return projectName ? `${projectName} / ${branch}` : branch;
+      }
+      const projEl = document.querySelector(`.project-entry[data-path="${CSS.escape(workDir)}"]`);
+      if (projEl) return projEl.querySelector('.project-name')?.textContent || workDir.split('/').pop();
+      return workDir.split('/').pop();
+    }
+
+    function formatTimeAgo(ts) {
+      const diff = Math.floor((Date.now() - ts) / 1000);
+      if (diff < 5) return 'now';
+      if (diff < 60) return `${diff}s`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+      return `${Math.floor(diff / 86400)}d`;
+    }
+
+    function renderNotifDropdown() {
+      const list = document.getElementById('notification-list');
+      if (notifLog.length === 0) {
+        list.innerHTML = '<div class="notif-empty">No notifications</div>';
+        return;
+      }
+      list.innerHTML = notifLog.slice(0, 30).map(n => {
+        const ago = formatTimeAgo(n.timestamp);
+        const projectLabel = getWorkDirLabel(n.workDir);
+        return `<div class="notif-entry${n.seen ? ' seen' : ''}" data-tab-id="${n.tabId}" data-work-dir="${escHtml(n.workDir)}">
+          <div class="notif-dot-indicator"></div>
+          <div class="notif-body">
+            <div class="notif-title"><span>${escHtml(n.tabLabel)}</span><span class="notif-project">${escHtml(projectLabel)}</span></div>
+            <div class="notif-snippet">${escHtml(n.snippet)}</div>
+          </div>
+          <div class="notif-time">${ago}</div>
+        </div>`;
+      }).join('');
+    }
+
+    const launchpad = document.getElementById('launchpad');
+
+    function setBreadcrumb(workDir) {
+      const el = document.getElementById('breadcrumb');
+      document.querySelectorAll('.worktree-item.active').forEach(w => w.classList.remove('active'));
+      if (!workDir) { el.textContent = ''; return; }
+      let label = '';
+      let found = false;
+      projectList.querySelectorAll('.worktree-item').forEach(w => {
+        if (w.dataset.path === workDir) {
+          w.classList.add('active');
+          const entry = w.closest('.project-entry');
+          const projectName = entry?.querySelector('.project-name')?.textContent || '';
+          const branch = w.textContent.trim();
+          label = projectName ? `${projectName} / ${branch}` : branch;
+          found = true;
+        }
+      });
+      if (!found) {
+        projectList.querySelectorAll('.project-entry').forEach(entry => {
+          if (entry.dataset.path === workDir) {
+            label = entry.querySelector('.project-name')?.textContent || workDir.split('/').pop();
+            found = true;
+          }
+        });
+      }
+      if (!found) label = workDir.split('/').pop();
+      el.textContent = label;
+    }
+
+    function restoreExplorerState(workDir) {
+      const visible = workDirExplorerVisible.has(workDir) ? workDirExplorerVisible.get(workDir) : true;
+      filetreeVisible = visible;
+      filetreePanel.classList.toggle('hidden', !filetreeVisible);
+      toggleFiletreeBtn.classList.toggle('active', filetreeVisible);
+    }
+
+    function openWorkDir(workDir) {
+      setBreadcrumb(workDir);
+      restoreExplorerState(workDir);
+      window.filetree.watch(workDir);
+      const existing = tabsForWorkDir(workDir);
+      if (existing.length > 0) {
+        // Has tabs — switch to this worktree's view
+        activeWorkDir = workDir;
+        refreshRightPanel(workDir);
+        mainPanel.style.display = 'none';
+        settingsPanel.classList.remove('active');
+        launchpad.classList.remove('active');
+        terminalView.classList.add('active');
+        renderTabBar();
+        // If active tab isn't in this worktree, switch to last tab in it
+        if (!activeTabId || tabs.get(activeTabId)?.workDir !== workDir) {
+          switchTab(existing[existing.length - 1][0]);
+        } else {
+          switchTab(activeTabId);
+        }
+      } else {
+        // No tabs — show launchpad
+        activeWorkDir = workDir;
+        activeTabId = null;
+        refreshRightPanel(workDir);
+        mainPanel.style.display = 'none';
+        settingsPanel.classList.remove('active');
+        terminalView.classList.remove('active');
+        launchpad.classList.add('active');
+      }
+    }
+
+    document.getElementById('launchpad-expert').addEventListener('click', () => {
+      if (activeWorkDir) showExpertPicker(activeWorkDir);
+    });
+
+    document.getElementById('launchpad-terminal').addEventListener('click', () => {
+      if (activeWorkDir) startTask('__TERMINAL__', activeWorkDir);
+    });
+
+    document.getElementById('launchpad-browser').addEventListener('click', () => {
+      if (activeWorkDir) startBrowser(activeWorkDir);
+    });
+
+    document.getElementById('launchpad-ticketmaster').addEventListener('click', () => {
+      if (activeWorkDir) startTask('ticketmaster', activeWorkDir);
+    });
+
+    // Browser tab
+    function startBrowser(workDir) {
+      const workDirChanged = activeWorkDir !== workDir;
+      activeWorkDir = workDir;
+      if (workDirChanged) refreshRightPanel(workDir);
+
+      mainPanel.style.display = 'none';
+      settingsPanel.classList.remove('active');
+      launchpad.classList.remove('active');
+      terminalView.classList.add('active');
+
+      const id = nextBrowserTabId--;
+
+      const pane = document.createElement('div');
+      pane.className = 'terminal-pane browser-pane';
+      terminalContainers.appendChild(pane);
+
+      const nav = document.createElement('div');
+      nav.className = 'browser-nav';
+      nav.innerHTML = `
+        <button class="browser-nav-btn" data-action="back" title="Back">\u2190</button>
+        <button class="browser-nav-btn" data-action="forward" title="Forward">\u2192</button>
+        <button class="browser-nav-btn" data-action="reload" title="Reload">\u21BB</button>
+        <input class="browser-url" type="text" />
+      `;
+      pane.appendChild(nav);
+
+      const webview = document.createElement('webview');
+      webview.setAttribute('src', 'about:blank');
+      webview.setAttribute('allowpopups', '');
+      pane.appendChild(webview);
+
+      const navInput = nav.querySelector('.browser-url');
+      navInput.value = '';
+
+      nav.addEventListener('click', (e) => {
+        const btn = e.target.closest('.browser-nav-btn');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        if (action === 'back') webview.goBack();
+        else if (action === 'forward') webview.goForward();
+        else if (action === 'reload') webview.reload();
+      });
+
+      navInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          let val = navInput.value.trim();
+          if (val && !val.match(/^https?:\/\//)) val = 'https://' + val;
+          webview.loadURL(val);
+        }
+      });
+
+      webview.addEventListener('did-navigate', (e) => { navInput.value = e.url; });
+      webview.addEventListener('did-navigate-in-page', (e) => { navInput.value = e.url; });
+      webview.addEventListener('page-title-updated', (e) => {
+        const tab = tabs.get(id);
+        if (tab) {
+          tab.label = e.title || 'Browser';
+          renderTabBar();
+        }
+      });
+
+      tabs.set(id, { type: 'browser', webview, navInput, pane, tabEl: null, label: 'Browser', workDir });
+      activeTabId = id;
+      renderTabBar();
+      switchTab(id);
+    }
+
+    function renderTabBar() {
+      terminalHeader.innerHTML = '';
+      const workDirTabs = tabsForWorkDir(activeWorkDir);
+      for (const [id, tab] of workDirTabs) {
+        const el = document.createElement('div');
+        const isBusy = busyTabs.has(id);
+        const hasNotif = !isBusy && notifLog.some(n => n.tabId === id && !n.seen);
+        el.className = 'term-tab' + (id === activeTabId ? ' active' : '') + (isBusy ? ' is-busy' : '') + (hasNotif ? ' has-notification' : '');
+        el.dataset.id = id;
+        el.innerHTML = `<span class="term-tab-label">${tab.label}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
+        el.addEventListener('click', (e) => {
+          if (!e.target.closest('.term-tab-close')) switchTab(id);
+        });
+        el.querySelector('.term-tab-close').addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeTab(id);
+        });
+        terminalHeader.appendChild(el);
+        tab.tabEl = el;
+      }
+      // "+" button to add another tab to this worktree
+      const addEl = document.createElement('div');
+      addEl.className = 'term-tab';
+      addEl.style.cssText = 'color:#555;padding:8px 10px;';
+      addEl.innerHTML = '+';
+      addEl.title = 'Add tab';
+      addEl.addEventListener('click', () => showTabTypePicker(activeWorkDir));
+      terminalHeader.appendChild(addEl);
+    }
+
+    function switchTab(id) {
+      if (!tabs.has(id)) return;
+      activeTabId = id;
+      clearNotifForTab(id);
+      if (busyTabs.has(id)) clearTabBusy(id);
+      // Show/hide panes: only show panes for current workDir, and only active one visible
+      for (const [tid, tab] of tabs) {
+        const show = tab.workDir === activeWorkDir && tid === id;
+        tab.pane.classList.toggle('active', show);
+        if (tab.tabEl) tab.tabEl.classList.toggle('active', tid === id);
+      }
+      const tab = tabs.get(id);
+      if (tab.type === 'browser') {
+        tab.webview.focus();
+      } else if (tab.type === 'editor') {
+        tab.textarea.focus();
+      } else if (tab.type === 'terminal') {
+        tab.fitAddon.fit();
+        tab.term.focus();
+      }
+    }
+
+    async function closeTab(id) {
+      const tab = tabs.get(id);
+      if (!tab) return;
+      clearNotifForTab(id);
+      if (busyTabs.has(id)) clearTabBusy(id);
+      const closedWorkDir = tab.workDir;
+      if (tab.type === 'browser' || tab.type === 'editor' || tab.type === 'diff') {
+        // Nothing extra to clean up — just remove the pane
+      } else {
+        tab.term.dispose();
+        if (tab.resizeObs) tab.resizeObs.disconnect();
+        window.pty.removeListeners(id);
+        await window.pty.kill(id);
+      }
+      tab.pane.remove();
+      tabs.delete(id);
+
+      const remaining = tabsForWorkDir(closedWorkDir);
+      if (remaining.length === 0 && closedWorkDir === activeWorkDir) {
+        // No tabs left for this worktree — show launchpad
+        activeTabId = null;
+        terminalView.classList.remove('active');
+        settingsPanel.classList.remove('active');
+        launchpad.classList.add('active');
+      } else if (activeTabId === id) {
+        // Switch to another tab in same worktree
+        const nextId = remaining.length > 0 ? remaining[remaining.length - 1][0] : null;
+        if (nextId) switchTab(nextId);
+      }
+      renderTabBar();
+    }
+
+    async function startTask(expertName, workDir, options = {}) {
+      const workDirChanged = activeWorkDir !== workDir;
+      activeWorkDir = workDir;
+      if (workDirChanged) refreshRightPanel(workDir);
+
+      // Show terminal view
+      mainPanel.style.display = 'none';
+      settingsPanel.classList.remove('active');
+      launchpad.classList.remove('active');
+      terminalView.classList.add('active');
+
+      const baseName = expertName === '__CLAUDE__' ? 'Claude' : expertName === '__TERMINAL__' ? 'Terminal' : expertName === 'ticketmaster' ? 'Ticketmaster' : expertName;
+      const label = options.ticketNumber ? `#${options.ticketNumber} - ${baseName}` : baseName;
+
+      // Create pane
+      const pane = document.createElement('div');
+      pane.className = 'terminal-pane';
+      terminalContainers.appendChild(pane);
+
+      // Load xterm via ESM dynamic import
+      const [{ Terminal }, { FitAddon }] = await Promise.all([
+        import('./node_modules/@xterm/xterm/lib/xterm.mjs'),
+        import('./node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
+      ]);
+
+      const term = new Terminal({
+        theme: { background: '#1e1e1e', foreground: '#d4d4d4', cursor: '#d4d4d4', selectionBackground: '#3a3a3a' },
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        fontSize: 13,
+        cursorBlink: true,
+      });
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(pane);
+
+      // Spawn pty — returns tab id
+      const dims = fitAddon.proposeDimensions();
+      const id = await window.pty.spawn(expertName, workDir, dims, options.initialPrompt || null);
+
+      const resizeObs = new ResizeObserver(() => {
+        if (activeTabId === id) fitAddon.fit();
+      });
+      resizeObs.observe(pane);
+
+      tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, expertName });
+      activeTabId = id;
+
+      // Wire data
+      const isClaudeTab = expertName !== '__TERMINAL__';
+      window.pty.onData(id, data => {
+        term.write(data);
+        if (isClaudeTab && activeTabId !== id) {
+          // Claude/expert in background: green busy dot while active, blue when done
+          // Filter escape-only data (cursor moves, TUI redraws) — only real content triggers busy
+          const meaningful = stripAnsi(data).trim().length;
+          if (meaningful > 0) {
+            if (!busyTabs.has(id)) markTabBusy(id);
+            if (busyDebounceTimers.has(id)) clearTimeout(busyDebounceTimers.get(id));
+            busyDebounceTimers.set(id, setTimeout(() => {
+              busyDebounceTimers.delete(id);
+              const wasBusy = busyTabs.has(id);
+              clearTabBusy(id);
+              if (wasBusy && activeTabId !== id) markTabActivity(workDir, id, label, data);
+            }, 1000));
+          }
+        } else if (!isClaudeTab && activeTabId !== id) {
+          // Plain terminal in background: blue notification only
+          if (notifDebounceTimers.has(id)) clearTimeout(notifDebounceTimers.get(id));
+          notifDebounceTimers.set(id, setTimeout(() => {
+            notifDebounceTimers.delete(id);
+            if (activeTabId !== id) markTabActivity(workDir, id, label, data);
+          }, 1000));
+        }
+      });
+      window.pty.onExit(id, code => {
+        term.write(`\r\n\x1b[90m[Process exited with code ${code}]\x1b[0m\r\n`);
+        if (busyTabs.has(id)) clearTabBusy(id);
+        if (activeTabId !== id) markTabActivity(workDir, id, label, `Process exited with code ${code}`);
+      });
+      term.onData(data => window.pty.write(id, data));
+      term.onResize(({ cols, rows }) => window.pty.resize(id, cols, rows));
+
+      // Drag-and-drop file handling
+      const dropOverlay = document.createElement('div');
+      dropOverlay.className = 'drop-overlay';
+      dropOverlay.textContent = 'Drop files here';
+      pane.appendChild(dropOverlay);
+
+      let dragCounter = 0;
+      pane.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        pane.classList.add('drag-over');
+      });
+      pane.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
+      pane.addEventListener('dragleave', () => {
+        dragCounter--;
+        if (dragCounter <= 0) {
+          dragCounter = 0;
+          pane.classList.remove('drag-over');
+        }
+      });
+      pane.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter = 0;
+        pane.classList.remove('drag-over');
+
+        // File paths extracted by preload via webUtils.getPathForFile (capture phase)
+        const paths = window.dragDrop.getLastDroppedPaths();
+        if (paths.length === 0) return;
+
+        const isClaudeSession = expertName !== '__TERMINAL__';
+        const parts = paths.map(p => {
+          // For Claude/expert sessions, prefix with @ so Claude Code attaches the file
+          if (isClaudeSession) {
+            return p.includes(' ') ? `@"${p}"` : `@${p}`;
+          }
+          return p.includes(' ') ? `"${p}"` : p;
+        });
+
+        if (parts.length > 0) {
+          window.pty.write(id, parts.join(' '));
+          term.focus();
+        }
+      });
+
+      // Activate this tab
+      renderTabBar();
+      switchTab(id);
+    }
+    // File editor tabs
+    async function openFileEditor(filePath, fileName) {
+      // If already open, just switch to it
+      for (const [id, tab] of tabs) {
+        if (tab.type === 'editor' && tab.filePath === filePath) {
+          switchTab(id);
+          return;
+        }
+      }
+
+      mainPanel.style.display = 'none';
+      settingsPanel.classList.remove('active');
+      launchpad.classList.remove('active');
+      terminalView.classList.add('active');
+
+      const content = await window.fileEditor.read(filePath);
+      const id = nextBrowserTabId--;
+
+      const pane = document.createElement('div');
+      pane.className = 'terminal-pane editor-pane';
+      terminalContainers.appendChild(pane);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'editor-toolbar';
+      toolbar.innerHTML = `
+        <span class="editor-filepath">${fileName}</span>
+        <div class="toolbar-spacer"></div>
+        <button class="editor-save-btn" title="Save (\u2318S)">Save</button>
+      `;
+      pane.appendChild(toolbar);
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'editor-textarea';
+      textarea.value = content;
+      textarea.spellcheck = false;
+      pane.appendChild(textarea);
+
+      let savedContent = content;
+
+      const updateDirty = () => {
+        const dirty = textarea.value !== savedContent;
+        const tab = tabs.get(id);
+        if (tab) {
+          tab.label = (dirty ? '\u25CF ' : '') + fileName;
+          tab.dirty = dirty;
+          renderTabBar();
+        }
+      };
+
+      textarea.addEventListener('input', updateDirty);
+
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 2;
+          updateDirty();
+        }
+      });
+
+      const saveFile = async () => {
+        await window.fileEditor.save(filePath, textarea.value);
+        savedContent = textarea.value;
+        updateDirty();
+      };
+
+      toolbar.querySelector('.editor-save-btn').addEventListener('click', saveFile);
+
+      tabs.set(id, {
+        type: 'editor', pane, tabEl: null, label: fileName,
+        workDir: activeWorkDir, filePath, textarea, saveFile, dirty: false,
+      });
+
+      activeTabId = id;
+      renderTabBar();
+      switchTab(id);
+    }
+
+    // File tree & panel toggles
+    const filetreePanel = document.getElementById('filetree-panel');
+    const filetreeBody = document.getElementById('filetree-body');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
+
+    let filetreeVisible = true;
+    let sidebarVisible = true;
+    const workDirExplorerVisible = new Map(); // per-worktree explorer state
+
+    function toggleSidebar() {
+      sidebarVisible = !sidebarVisible;
+      document.getElementById('sidebar').classList.toggle('collapsed', !sidebarVisible);
+      toggleSidebarBtn.classList.toggle('active', sidebarVisible);
+    }
+
+    function setFiletreeVisible(visible) {
+      filetreeVisible = visible;
+      filetreePanel.classList.toggle('hidden', !filetreeVisible);
+      document.getElementById('filetree-resize').classList.toggle('hidden', !filetreeVisible);
+      toggleFiletreeBtn.classList.toggle('active', filetreeVisible);
+      if (activeWorkDir) workDirExplorerVisible.set(activeWorkDir, filetreeVisible);
+      if (filetreeVisible && activeWorkDir) refreshRightPanel(activeWorkDir);
+    }
+
+    function toggleFiletree() {
+      setFiletreeVisible(!filetreeVisible);
+    }
+
+    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    toggleFiletreeBtn.addEventListener('click', toggleFiletree);
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        toggleFiletree();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        const tab = tabs.get(activeTabId);
+        if (tab?.type === 'editor' && tab.saveFile) tab.saveFile();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+        e.preventDefault();
+        if (!filetreeVisible) {
+          toggleFiletree();
+          switchRightPanelTab('changes');
+        } else if (document.querySelector('.filetree-tab[data-panel="changes"]')?.classList.contains('active')) {
+          toggleFiletree();
+        } else {
+          switchRightPanelTab('changes');
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        if (!filetreeVisible) {
+          toggleFiletree();
+          switchRightPanelTab('tickets');
+        } else if (document.querySelector('.filetree-tab[data-panel="tickets"]')?.classList.contains('active')) {
+          toggleFiletree();
+        } else {
+          switchRightPanelTab('tickets');
+        }
+      }
+    });
+
+    // Cmd+W closes active tab instead of the window (intercepted in main process)
+    window.windowActions.onCloseActiveTab(() => {
+      if (activeTabId != null) closeTab(activeTabId);
+    });
+
+    // Cmd+T opens the new-tab picker (intercepted in main process)
+    window.windowActions.onOpenTabPicker(() => {
+      if (activeWorkDir) showTabTypePicker(activeWorkDir);
+    });
+
+    // Number keys (1-4) select items while the tab-type picker is open
+    document.addEventListener('keydown', (e) => {
+      if (!tabTypePicker.classList.contains('active')) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        tabTypePicker.classList.remove('active');
+        pendingWorkDir = null;
+        return;
+      }
+      const item = document.querySelector(`.tab-type-picker-item[data-hotkey="${e.key}"]`);
+      if (item) {
+        e.preventDefault();
+        item.click();
+      }
+    });
+
+    // Escape closes worktree context menu and modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (wtContextMenu.classList.contains('active')) {
+          wtContextMenu.classList.remove('active');
+        } else if (wtCreateModal.classList.contains('active')) {
+          wtCreateModal.classList.remove('active');
+        } else if (wtDeleteModal.classList.contains('active')) {
+          wtDeleteModal.classList.remove('active');
+        } else if (wtMergeModal.classList.contains('active')) {
+          wtMergeModal.classList.remove('active');
+        }
+      }
+    });
+
+    // Resizable panels
+    (function initResizablePanels() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarHandle = document.getElementById('sidebar-resize');
+      const filetreeHandle = document.getElementById('filetree-resize');
+      const MIN_SIDEBAR = 180;
+      const MIN_FILETREE = 180;
+
+      // Restore persisted widths
+      const savedSidebarW = localStorage.getItem('sidebar-width');
+      const savedFiletreeW = localStorage.getItem('filetree-width');
+      if (savedSidebarW) { sidebar.style.width = savedSidebarW + 'px'; sidebar.style.minWidth = MIN_SIDEBAR + 'px'; }
+      if (savedFiletreeW) { filetreePanel.style.width = savedFiletreeW + 'px'; }
+
+      function startDrag(e, getTarget, min, storageKey, getWidth) {
+        e.preventDefault();
+        const handle = e.currentTarget;
+        handle.classList.add('dragging');
+        document.body.classList.add('resizing');
+        const startX = e.clientX;
+        const startWidth = getWidth();
+
+        function onMove(ev) {
+          const delta = storageKey === 'sidebar-width'
+            ? ev.clientX - startX
+            : startX - ev.clientX;
+          const newWidth = Math.max(min, startWidth + delta);
+          getTarget().style.width = newWidth + 'px';
+        }
+
+        function onUp() {
+          handle.classList.remove('dragging');
+          document.body.classList.remove('resizing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          const finalWidth = parseInt(getTarget().style.width);
+          if (finalWidth) localStorage.setItem(storageKey, finalWidth);
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      }
+
+      sidebarHandle.addEventListener('mousedown', (e) => {
+        startDrag(e, () => sidebar, MIN_SIDEBAR, 'sidebar-width', () => sidebar.getBoundingClientRect().width);
+      });
+
+      filetreeHandle.addEventListener('mousedown', (e) => {
+        startDrag(e, () => filetreePanel, MIN_FILETREE, 'filetree-width', () => filetreePanel.getBoundingClientRect().width);
+      });
+    })();
+
+    async function refreshFileTree(dirPath) {
+      if (!dirPath) {
+        filetreeBody.innerHTML = '<div class="ft-empty">No project selected</div>';
+        return;
+      }
+      filetreeBody.innerHTML = '';
+      await renderFileTreeLevel(dirPath, filetreeBody, 0);
+    }
+
+    async function renderFileTreeLevel(dirPath, container, depth) {
+      const entries = await window.filetree.list(dirPath);
+      if (entries.length === 0 && depth === 0) {
+        container.innerHTML = '<div class="ft-empty">Empty directory</div>';
+        return;
+      }
+      for (const entry of entries) {
+        const safeName = entry.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const entryEl = document.createElement('div');
+        entryEl.className = 'ft-entry';
+        const itemEl = document.createElement('div');
+        itemEl.style.paddingLeft = (8 + depth * 16) + 'px';
+
+        if (entry.isDirectory) {
+          itemEl.className = 'ft-item ft-dir';
+          itemEl.innerHTML = `<span class="ft-chevron">&#9656;</span><span class="ft-name">${safeName}</span>`;
+          const childrenEl = document.createElement('div');
+          childrenEl.className = 'ft-children';
+          let loaded = false;
+          itemEl.addEventListener('click', async () => {
+            const expanding = entryEl.classList.toggle('expanded');
+            if (expanding && !loaded) {
+              loaded = true;
+              await renderFileTreeLevel(entry.path, childrenEl, depth + 1);
+            }
+          });
+          entryEl.appendChild(itemEl);
+          entryEl.appendChild(childrenEl);
+        } else {
+          itemEl.className = 'ft-item ft-file';
+          itemEl.innerHTML = `<span class="ft-chevron"></span><span class="ft-name">${safeName}</span>`;
+          itemEl.addEventListener('click', () => openFileEditor(entry.path, entry.name));
+          entryEl.appendChild(itemEl);
+        }
+        container.appendChild(entryEl);
+      }
+    }
+
+    // Git changes panel & diff view
+    const changesPanelWrapper = document.getElementById('changes-panel-wrapper');
+    const changesBody = document.getElementById('changes-body');
+    const changesCommitInput = document.getElementById('changes-commit-input');
+    const changesCommitBtn = document.getElementById('changes-commit-btn');
+
+    function escHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function refreshRightPanel(workDir) {
+      if (!filetreeVisible || !workDir) return;
+      const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
+      if (activePanel === 'changes') refreshChanges(workDir);
+      else if (activePanel === 'tickets') refreshTickets(workDir);
+      else refreshFileTree(workDir);
+    }
+
+    const ticketsBody = document.getElementById('tickets-body');
+
+    function switchRightPanelTab(panel) {
+      document.querySelectorAll('.filetree-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.panel === panel)
+      );
+      filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
+      changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
+      ticketsBody.style.display = panel === 'tickets' ? '' : 'none';
+      if (panel === 'changes' && activeWorkDir) refreshChanges(activeWorkDir);
+      if (panel === 'explorer' && activeWorkDir) refreshFileTree(activeWorkDir);
+      if (panel === 'tickets' && activeWorkDir) {
+        window.tickets.init(activeWorkDir).then(() => refreshTickets(activeWorkDir));
+      }
+    }
+
+    async function refreshTickets(workDir) {
+      const prevScroll = ticketsBody.scrollTop;
+      const tickets = await window.tickets.list(workDir);
+
+      const openTickets = tickets.filter(i => i.status === 'open');
+      const doneTickets = tickets.filter(i => i.status === 'done');
+      const cancelledTickets = tickets.filter(i => i.status === 'cancelled');
+
+      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /></div>';
+
+      if (openTickets.length > 0) {
+        html += `<div class="tickets-section-header">Open<span class="changes-section-count">${openTickets.length}</span></div>`;
+        for (const ticket of openTickets) {
+          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
+          const prioClass = ticket.priority ? `ticket-priority-${ticket.priority.toLowerCase()}` : '';
+          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}">
+            <span class="ticket-number">#${num}</span>
+            <span class="ticket-title">${escHtml(ticket.title)}</span>
+            ${ticket.priority ? `<span class="ticket-priority ${prioClass}">${escHtml(ticket.priority)}</span>` : ''}
+          </div>`;
+        }
+      }
+
+      if (doneTickets.length > 0) {
+        html += `<div class="tickets-section-header">Done<span class="changes-section-count">${doneTickets.length}</span></div>`;
+        for (const ticket of doneTickets) {
+          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
+          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}" style="opacity:0.6">
+            <span class="ticket-number">#${num}</span>
+            <span class="ticket-title">${escHtml(ticket.title)}</span>
+          </div>`;
+        }
+      }
+
+      if (cancelledTickets.length > 0) {
+        html += `<div class="tickets-section-header">Cancelled<span class="changes-section-count">${cancelledTickets.length}</span></div>`;
+        for (const ticket of cancelledTickets) {
+          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
+          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}" style="opacity:0.6">
+            <span class="ticket-number">#${num}</span>
+            <span class="ticket-title" style="text-decoration:line-through">${escHtml(ticket.title)}</span>
+          </div>`;
+        }
+      }
+
+      if (openTickets.length === 0 && doneTickets.length === 0 && cancelledTickets.length === 0) {
+        html += '<div class="tickets-empty">No tickets found</div>';
+      }
+
+      ticketsBody.innerHTML = html;
+      ticketsBody.scrollTop = prevScroll;
+
+      const searchInput = document.getElementById('tickets-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          const query = searchInput.value.toLowerCase();
+          ticketsBody.querySelectorAll('.ticket-item').forEach(el => {
+            const title = (el.dataset.title || '').toLowerCase();
+            el.style.display = title.includes(query) ? '' : 'none';
+          });
+        });
+      }
+    }
+
+    function getProjectRootForWorkDir(workDir) {
+      const wtEl = document.querySelector(`.worktree-item[data-path="${CSS.escape(workDir)}"]`);
+      if (wtEl) {
+        const entry = wtEl.closest('.project-entry');
+        return entry?.dataset.path || null;
+      }
+      const projEl = document.querySelector(`.project-entry[data-path="${CSS.escape(workDir)}"]`);
+      if (projEl && projEl.classList.contains('is-git')) return workDir;
+      return null;
+    }
+
+    function generateTicketBranchName(ticketFilename, ticketTitle) {
+      const num = ticketFilename.match(/^(\d+)/)?.[1] || '';
+      const slug = ticketTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 40);
+      return num ? `ticket-${num}-${slug}` : `ticket-${slug}`;
+    }
+
+    async function workOnTicketInNewWorktree(ticketPath) {
+      const projectRoot = getProjectRootForWorkDir(activeWorkDir);
+      if (!projectRoot) return;
+
+      const content = await window.tickets.read(ticketPath);
+      const titleMatch = content.match(/^# (.+)$/m);
+      const ticketFilename = ticketPath.split('/').pop();
+      const ticketTitle = titleMatch ? titleMatch[1].trim() : ticketFilename.replace(/\.md$/, '');
+
+      const branchName = generateTicketBranchName(ticketFilename, ticketTitle);
+      const parentDir = projectRoot.replace(/\/[^/]+$/, '');
+      const projectName = projectRoot.split('/').pop();
+      const wtPath = `${parentDir}/${projectName}.worktrees/${branchName}`;
+
+      // Show loading state
+      const btn = document.querySelector(`.ticket-worktree-btn[data-ticket-path="${CSS.escape(ticketPath)}"]`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Creating worktree...'; }
+
+      const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
+      if (!result.ok) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Work on this in a new worktree'; }
+        let errEl = btn?.parentElement?.querySelector('.ticket-worktree-error');
+        if (!errEl && btn) {
+          errEl = document.createElement('div');
+          errEl.className = 'ticket-worktree-error';
+          btn.insertAdjacentElement('afterend', errEl);
+        }
+        if (errEl) errEl.textContent = result.error || 'Failed to create worktree.';
+        return;
+      }
+
+      const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(projectRoot)}"]`);
+      if (entry) entry.classList.add('expanded');
+      await loadProjects();
+      openWorkDir(wtPath);
+      showExpertPickerForTicket(wtPath, ticketPath);
+    }
+
+    ticketsBody.addEventListener('click', async (e) => {
+      const backBtn = e.target.closest('.ticket-detail-back');
+      if (backBtn) {
+        refreshTickets(activeWorkDir);
+        return;
+      }
+
+      const workBtn = e.target.closest('.ticket-work-btn');
+      if (workBtn) {
+        const ticketPath = workBtn.dataset.ticketPath;
+        showExpertPickerForTicket(activeWorkDir, ticketPath);
+        return;
+      }
+
+      const worktreeBtn = e.target.closest('.ticket-worktree-btn');
+      if (worktreeBtn) {
+        const ticketPath = worktreeBtn.dataset.ticketPath;
+        workOnTicketInNewWorktree(ticketPath);
+        return;
+      }
+
+      const doneBtn = e.target.closest('.ticket-done-btn');
+      if (doneBtn) {
+        const ticketPath = doneBtn.dataset.ticketPath;
+        await window.tickets.close(ticketPath, 'done');
+        refreshTickets(activeWorkDir);
+        return;
+      }
+
+      const cancelBtn = e.target.closest('.ticket-cancel-btn');
+      if (cancelBtn) {
+        const ticketPath = cancelBtn.dataset.ticketPath;
+        await window.tickets.close(ticketPath, 'cancelled');
+        refreshTickets(activeWorkDir);
+        return;
+      }
+
+      const item = e.target.closest('.ticket-item');
+      if (!item) return;
+
+      const ticketPath = item.dataset.path;
+      const content = await window.tickets.read(ticketPath);
+
+      const rendered = escHtml(content)
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/\n\n/g, '<br><br>');
+
+      const isOpen = ticketPath.includes('/tickets/open/');
+      ticketsBody.innerHTML = `
+        <div class="ticket-detail">
+          <div class="ticket-detail-header">
+            <button class="ticket-detail-back" title="Back to tickets list">&larr; Tickets</button>
+          </div>
+          <div class="ticket-detail-content">${rendered}</div>
+          <button class="ticket-work-btn" data-ticket-path="${escHtml(ticketPath)}">Work on this ticket...</button>
+          ${isOpen && getProjectRootForWorkDir(activeWorkDir) ? `<button class="ticket-worktree-btn" data-ticket-path="${escHtml(ticketPath)}">Work on this in a new worktree</button>` : ''}
+          ${isOpen ? `<button class="ticket-done-btn" data-ticket-path="${escHtml(ticketPath)}">Done</button><button class="ticket-cancel-btn" data-ticket-path="${escHtml(ticketPath)}">Cancelled</button>` : ''}
+        </div>`;
+    });
+
+    document.getElementById('filetree-header').addEventListener('click', (e) => {
+      const tab = e.target.closest('.filetree-tab');
+      if (tab) switchRightPanelTab(tab.dataset.panel);
+    });
+
+    function changeEntry(file, badge, cls, attrs, stats, actionHtml) {
+      const idx = file.lastIndexOf('/');
+      const name = idx >= 0 ? file.slice(idx + 1) : file;
+      const folder = idx >= 0 ? file.slice(0, idx) : '';
+      return `<div class="changes-file" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span></div>`;
+    }
+
+    function statSpan(added, deleted) {
+      return `<span class="changes-added">+${added}</span> <span class="changes-deleted">&minus;${deleted}</span>`;
+    }
+
+    function showChangesStatus(msg, type) {
+      const el = document.getElementById('changes-toolbar-status');
+      el.textContent = msg;
+      el.className = 'changes-toolbar-status ' + type;
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => { el.textContent = ''; el.className = 'changes-toolbar-status'; }, 4000);
+    }
+
+    async function refreshChanges(workDir) {
+      changesBody.innerHTML = '<div class="changes-empty">Loading...</div>';
+      const [status, commits, stashes] = await Promise.all([
+        window.gitDiff.status(workDir),
+        window.gitDiff.log(workDir, 20),
+        window.gitDiff.stashList(workDir),
+      ]);
+
+      if (!status.isGit) {
+        changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
+        changesCommitBtn.disabled = true;
+        return;
+      }
+
+      // Update commit button state
+      changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
+
+      let html = '';
+
+      const unstageBtn = '<button class="changes-file-action changes-unstage" title="Unstage">&minus;</button>';
+      const stageBtn = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
+
+      if (status.staged.length > 0) {
+        html += `<div class="changes-section-header">Staged<span class="changes-section-count">${status.staged.length}</span><button class="changes-section-action unstage-all" title="Unstage all">&minus; All</button></div>`;
+        for (const f of status.staged)
+          html += changeEntry(f.file, 'A', 'changes-badge-a', `data-file="${escHtml(f.file)}" data-staged="true"`, statSpan(f.added, f.deleted), unstageBtn);
+      }
+
+      if (status.unstaged.length > 0) {
+        html += `<div class="changes-section-header">Changes<span class="changes-section-count">${status.unstaged.length}</span><button class="changes-section-action stage-all-unstaged" title="Stage all changes">+ All</button></div>`;
+        for (const f of status.unstaged)
+          html += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-staged="false"`, statSpan(f.added, f.deleted), stageBtn);
+      }
+
+      if (status.untracked.length > 0) {
+        html += `<div class="changes-section-header">Untracked<span class="changes-section-count">${status.untracked.length}</span><button class="changes-section-action stage-all-untracked" title="Stage all untracked">+ All</button></div>`;
+        for (const f of status.untracked)
+          html += changeEntry(f, 'U', 'changes-badge-u', `data-file="${escHtml(f)}" data-untracked="true"`, '<span class="changes-added">new</span>', stageBtn);
+      }
+
+      if (stashes.length > 0) {
+        html += `<div class="changes-section-header">Stashes<span class="changes-section-count">${stashes.length}</span></div>`;
+        for (let i = 0; i < stashes.length; i++) {
+          const s = stashes[i];
+          html += `<div class="changes-stash-entry">
+            <span class="changes-stash-msg">${escHtml(s.message)}</span>
+            <span class="changes-stash-date">${escHtml(s.date)}</span>
+            <button class="changes-stash-btn pop" data-index="${i}" title="Pop stash">Pop</button>
+            <button class="changes-stash-btn drop" data-index="${i}" title="Drop stash">Drop</button>
+          </div>`;
+        }
+      }
+
+      if (commits.length > 0) {
+        html += '<div class="changes-section-header">Recent Commits</div>';
+        for (const c of commits) {
+          html += `<div class="changes-commit" data-hash="${c.hash}">
+            <div class="changes-commit-header">
+              <span class="changes-commit-hash">${c.hash.slice(0, 7)}</span>
+              <span class="changes-commit-msg">${escHtml(c.message)}</span>
+            </div>
+            <div class="changes-commit-meta">${escHtml(c.author)} &middot; ${escHtml(c.date)}</div>
+            <div class="changes-commit-files"></div>
+          </div>`;
+        }
+      }
+
+      if (!html) html = '<div class="changes-empty">No changes</div>';
+      changesBody.innerHTML = html;
+    }
+
+    changesBody.addEventListener('click', async (e) => {
+      // Stage button
+      const stageBtnEl = e.target.closest('.changes-stage');
+      if (stageBtnEl) {
+        e.stopPropagation();
+        const fileEl = stageBtnEl.closest('.changes-file');
+        const file = fileEl.dataset.file;
+        if (file && activeWorkDir) {
+          const result = await window.gitOps.stage(activeWorkDir, [file]);
+          if (result.ok) refreshChanges(activeWorkDir);
+          else showChangesStatus('Stage failed', 'error');
+        }
+        return;
+      }
+
+      // Unstage button
+      const unstageBtnEl = e.target.closest('.changes-unstage');
+      if (unstageBtnEl) {
+        e.stopPropagation();
+        const fileEl = unstageBtnEl.closest('.changes-file');
+        const file = fileEl.dataset.file;
+        if (file && activeWorkDir) {
+          const result = await window.gitOps.unstage(activeWorkDir, [file]);
+          if (result.ok) refreshChanges(activeWorkDir);
+          else showChangesStatus('Unstage failed', 'error');
+        }
+        return;
+      }
+
+      // Stash pop
+      const stashPopBtn = e.target.closest('.changes-stash-btn.pop');
+      if (stashPopBtn) {
+        const idx = parseInt(stashPopBtn.dataset.index);
+        if (activeWorkDir) {
+          const result = await window.gitOps.stashPop(activeWorkDir, idx);
+          if (result.ok) { showChangesStatus('Stash popped', 'success'); refreshChanges(activeWorkDir); }
+          else showChangesStatus(result.hasConflicts ? 'Conflicts on stash pop' : result.error, 'error');
+        }
+        return;
+      }
+
+      // Stash drop
+      const stashDropBtn = e.target.closest('.changes-stash-btn.drop');
+      if (stashDropBtn) {
+        const idx = parseInt(stashDropBtn.dataset.index);
+        if (activeWorkDir) {
+          const result = await window.gitOps.stashDrop(activeWorkDir, idx);
+          if (result.ok) { showChangesStatus('Stash dropped', 'success'); refreshChanges(activeWorkDir); }
+          else showChangesStatus(result.error, 'error');
+        }
+        return;
+      }
+
+      // Unstage all
+      if (e.target.closest('.unstage-all')) {
+        if (activeWorkDir) {
+          const files = [...changesBody.querySelectorAll('[data-staged="true"]')].map(el => el.dataset.file);
+          if (files.length) {
+            const result = await window.gitOps.unstage(activeWorkDir, files);
+            if (result.ok) refreshChanges(activeWorkDir);
+            else showChangesStatus('Unstage failed', 'error');
+          }
+        }
+        return;
+      }
+
+      // Stage all unstaged changes
+      if (e.target.closest('.stage-all-unstaged')) {
+        if (activeWorkDir) {
+          const files = [...changesBody.querySelectorAll('[data-staged="false"]')].map(el => el.dataset.file);
+          if (files.length) {
+            const result = await window.gitOps.stage(activeWorkDir, files);
+            if (result.ok) refreshChanges(activeWorkDir);
+            else showChangesStatus('Stage failed', 'error');
+          }
+        }
+        return;
+      }
+
+      // Stage all untracked
+      if (e.target.closest('.stage-all-untracked')) {
+        if (activeWorkDir) {
+          const files = [...changesBody.querySelectorAll('[data-untracked="true"]')].map(el => el.dataset.file);
+          if (files.length) {
+            const result = await window.gitOps.stage(activeWorkDir, files);
+            if (result.ok) refreshChanges(activeWorkDir);
+            else showChangesStatus('Stage failed', 'error');
+          }
+        }
+        return;
+      }
+
+      // File click (existing behavior)
+      const fileEl = e.target.closest('.changes-file');
+      if (fileEl) {
+        const file = fileEl.dataset.file;
+        const commitHash = fileEl.dataset.commit;
+        const untracked = fileEl.dataset.untracked === 'true';
+        const staged = fileEl.dataset.staged === 'true';
+        if (untracked) {
+          openFileEditor(activeWorkDir + '/' + file, file.split('/').pop());
+        } else if (commitHash) {
+          openDiffTab(activeWorkDir, file, false, commitHash);
+        } else {
+          openDiffTab(activeWorkDir, file, staged, null);
+        }
+        return;
+      }
+
+      // Commit expand (existing behavior)
+      const commitEl = e.target.closest('.changes-commit');
+      if (commitEl) {
+        const hash = commitEl.dataset.hash;
+        const filesEl = commitEl.querySelector('.changes-commit-files');
+        const isExpanded = commitEl.classList.toggle('expanded');
+        if (isExpanded && filesEl.children.length === 0) {
+          const files = await window.gitDiff.commitFiles(activeWorkDir, hash);
+          let fhtml = '';
+          for (const f of files)
+            fhtml += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-commit="${hash}"`, statSpan(f.added, f.deleted));
+          filesEl.innerHTML = fhtml || '<div class="changes-empty">No files</div>';
+        }
+      }
+    });
+
+    // Commit message input enables/disables commit button
+    changesCommitInput.addEventListener('input', () => {
+      const hasStaged = changesBody.querySelector('[data-staged="true"]');
+      changesCommitBtn.disabled = !changesCommitInput.value.trim() || !hasStaged;
+    });
+
+    // Commit button
+    changesCommitBtn.addEventListener('click', async () => {
+      const msg = changesCommitInput.value.trim();
+      if (!msg || !activeWorkDir) return;
+      changesCommitBtn.disabled = true;
+      changesCommitBtn.textContent = 'Committing...';
+      const result = await window.gitOps.commit(activeWorkDir, msg);
+      changesCommitBtn.textContent = 'Commit';
+      if (result.ok) {
+        changesCommitInput.value = '';
+        changesCommitBtn.disabled = true;
+        showChangesStatus('Committed', 'success');
+        refreshChanges(activeWorkDir);
+      } else {
+        showChangesStatus(result.error, 'error');
+        changesCommitBtn.disabled = false;
+      }
+    });
+
+    // Fetch button
+    document.getElementById('changes-fetch-btn').addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      const btn = document.getElementById('changes-fetch-btn');
+      btn.disabled = true;
+      const result = await window.gitOps.fetch(activeWorkDir);
+      btn.disabled = false;
+      if (result.ok) { showChangesStatus('Fetched', 'success'); refreshChanges(activeWorkDir); }
+      else showChangesStatus('Fetch failed', 'error');
+    });
+
+    // Pull button
+    document.getElementById('changes-pull-btn').addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      const btn = document.getElementById('changes-pull-btn');
+      btn.disabled = true;
+      const result = await window.gitOps.pull(activeWorkDir);
+      btn.disabled = false;
+      if (result.ok) { showChangesStatus('Pulled', 'success'); refreshChanges(activeWorkDir); }
+      else showChangesStatus(result.hasConflicts ? 'Pull conflicts' : 'Pull failed', 'error');
+    });
+
+    // Push button
+    document.getElementById('changes-push-btn').addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      const btn = document.getElementById('changes-push-btn');
+      btn.disabled = true;
+      const result = await window.gitOps.push(activeWorkDir);
+      if (result.ok) {
+        btn.disabled = false;
+        showChangesStatus('Pushed', 'success');
+        return;
+      }
+      if (result.noUpstream) {
+        const branch = await window.gitDiff.currentBranch(activeWorkDir);
+        if (branch && confirm(`No upstream branch. Push and set upstream to origin/${branch}?`)) {
+          const upResult = await window.gitOps.pushSetUpstream(activeWorkDir, branch);
+          btn.disabled = false;
+          if (upResult.ok) showChangesStatus('Pushed (upstream set)', 'success');
+          else showChangesStatus('Push failed', 'error');
+          return;
+        }
+      }
+      btn.disabled = false;
+      showChangesStatus('Push failed', 'error');
+    });
+
+    // Stash button (toolbar)
+    document.getElementById('changes-stash-btn').addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      const result = await window.gitOps.stashSave(activeWorkDir, '');
+      if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); }
+      else showChangesStatus(result.error, 'error');
+    });
+
+    // Branch modal
+    const branchModal = document.getElementById('branch-modal');
+    const branchList = document.getElementById('branch-list');
+    const branchError = document.getElementById('branch-error');
+    const branchCreateInput = document.getElementById('branch-create-input');
+
+    document.getElementById('changes-branch-btn').addEventListener('click', () => {
+      if (!activeWorkDir) return;
+      openBranchModal();
+    });
+
+    document.getElementById('branch-close-btn').addEventListener('click', () => {
+      branchModal.classList.remove('active');
+    });
+
+    branchModal.addEventListener('click', (e) => {
+      if (e.target === branchModal) branchModal.classList.remove('active');
+    });
+
+    async function openBranchModal() {
+      branchError.classList.remove('visible');
+      branchCreateInput.value = '';
+      branchList.innerHTML = '<div class="changes-empty">Loading...</div>';
+      branchModal.classList.add('active');
+      await refreshBranchList();
+    }
+
+    async function refreshBranchList() {
+      const branches = await window.gitDiff.branchList(activeWorkDir);
+      let html = '';
+      for (const b of branches) {
+        const currentCls = b.isCurrent ? ' current' : '';
+        const wtCls = b.inWorktree ? ' in-worktree' : '';
+        const badges = [];
+        if (b.isCurrent) badges.push('<span class="branch-badge">current</span>');
+        if (b.inWorktree) badges.push('<span class="branch-badge wt">worktree</span>');
+        if (b.tracking) badges.push(`<span class="branch-badge">${escHtml(b.tracking)}</span>`);
+        let syncHtml = '';
+        if (b.ahead || b.behind) {
+          const parts = [];
+          if (b.ahead) parts.push('+' + b.ahead);
+          if (b.behind) parts.push('-' + b.behind);
+          syncHtml = `<span class="branch-sync">${parts.join(' ')}</span>`;
+        }
+        const actions = [];
+        if (!b.isCurrent && !b.inWorktree) {
+          actions.push(`<button class="branch-action-btn switch" data-branch="${escHtml(b.name)}">Switch</button>`);
+          actions.push(`<button class="branch-action-btn delete" data-branch="${escHtml(b.name)}">Delete</button>`);
+        }
+        html += `<div class="branch-item${currentCls}${wtCls}">
+          <span class="branch-name">${escHtml(b.name)}</span>
+          ${badges.join('')}${syncHtml}
+          <div class="branch-actions">${actions.join('')}</div>
+        </div>`;
+      }
+      branchList.innerHTML = html || '<div class="changes-empty">No branches</div>';
+    }
+
+    // Branch create
+    document.getElementById('branch-create-btn').addEventListener('click', async () => {
+      const name = branchCreateInput.value.trim();
+      if (!name || !activeWorkDir) return;
+      branchError.classList.remove('visible');
+      const result = await window.gitOps.branchCreate(activeWorkDir, name);
+      if (result.ok) {
+        branchCreateInput.value = '';
+        await refreshBranchList();
+      } else {
+        branchError.textContent = result.error;
+        branchError.classList.add('visible');
+      }
+    });
+
+    // Branch switch / delete (delegated)
+    branchList.addEventListener('click', async (e) => {
+      const switchBtn = e.target.closest('.branch-action-btn.switch');
+      if (switchBtn) {
+        const name = switchBtn.dataset.branch;
+        branchError.classList.remove('visible');
+        const result = await window.gitOps.branchSwitch(activeWorkDir, name);
+        if (result.ok) {
+          await refreshBranchList();
+          refreshChanges(activeWorkDir);
+          loadProjects();
+        } else {
+          branchError.textContent = result.error;
+          branchError.classList.add('visible');
+        }
+        return;
+      }
+
+      const deleteBtn = e.target.closest('.branch-action-btn.delete');
+      if (deleteBtn) {
+        const name = deleteBtn.dataset.branch;
+        branchError.classList.remove('visible');
+        const result = await window.gitOps.branchDelete(activeWorkDir, name, false);
+        if (result.ok) {
+          await refreshBranchList();
+        } else if (result.notMerged) {
+          if (confirm(`Branch '${name}' is not fully merged. Force delete?`)) {
+            const forceResult = await window.gitOps.branchDelete(activeWorkDir, name, true);
+            if (forceResult.ok) {
+              await refreshBranchList();
+            } else {
+              branchError.textContent = forceResult.error;
+              branchError.classList.add('visible');
+            }
+          }
+        } else {
+          branchError.textContent = result.error;
+          branchError.classList.add('visible');
+        }
+        return;
+      }
+    });
+
+    function parseDiffOutput(text) {
+      const lines = text.split('\n');
+      const hunks = [];
+      let current = null;
+      let totalAdded = 0, totalDeleted = 0;
+
+      for (const line of lines) {
+        if (line.startsWith('@@')) {
+          const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)/);
+          if (m) {
+            current = { header: line, oldStart: +m[1], newStart: +m[2], lines: [] };
+            hunks.push(current);
+          }
+        } else if (current) {
+          if (line.startsWith('+')) {
+            current.lines.push({ type: 'added', text: line.slice(1) });
+            totalAdded++;
+          } else if (line.startsWith('-')) {
+            current.lines.push({ type: 'deleted', text: line.slice(1) });
+            totalDeleted++;
+          } else if (line.startsWith(' ') || line === '') {
+            current.lines.push({ type: 'context', text: line.slice(1) });
+          }
+        }
+      }
+      return { hunks, totalAdded, totalDeleted };
+    }
+
+    function renderDiffContent(parsed) {
+      let html = '';
+      for (const hunk of parsed.hunks) {
+        html += `<div class="diff-hunk-header">${escHtml(hunk.header)}</div>`;
+        let oldLine = hunk.oldStart, newLine = hunk.newStart;
+        let i = 0;
+        while (i < hunk.lines.length) {
+          const ln = hunk.lines[i];
+          if (ln.type === 'context') {
+            html += sbsRow(oldLine++, escHtml(ln.text), 'context', newLine++, escHtml(ln.text), 'context');
+            i++;
+          } else {
+            const del = [], add = [];
+            while (i < hunk.lines.length && hunk.lines[i].type === 'deleted') { del.push(hunk.lines[i].text); i++; }
+            while (i < hunk.lines.length && hunk.lines[i].type === 'added') { add.push(hunk.lines[i].text); i++; }
+            const max = Math.max(del.length, add.length);
+            for (let j = 0; j < max; j++) {
+              const hasOld = j < del.length, hasNew = j < add.length;
+              if (hasOld && hasNew) {
+                const [oh, nh] = wordDiff(del[j], add[j]);
+                html += sbsRow(oldLine++, oh, 'deleted', newLine++, nh, 'added');
+              } else {
+                html += sbsRow(
+                  hasOld ? oldLine++ : '', hasOld ? escHtml(del[j]) : '', hasOld ? 'deleted' : 'empty',
+                  hasNew ? newLine++ : '', hasNew ? escHtml(add[j]) : '', hasNew ? 'added' : 'empty'
+                );
+              }
+            }
+          }
+        }
+      }
+      return html;
+    }
+
+    function sbsRow(oN, oH, oT, nN, nH, nT) {
+      return `<div class="diff-sbs-row"><div class="diff-sbs-cell ${oT}"><span class="diff-line-num">${oN}</span><span class="diff-line-content">${oH}</span></div><div class="diff-sbs-cell ${nT}"><span class="diff-line-num">${nN}</span><span class="diff-line-content">${nH}</span></div></div>`;
+    }
+
+    function wordDiff(oldText, newText) {
+      const ot = oldText.match(/\S+|\s+/g) || [];
+      const nt = newText.match(/\S+|\s+/g) || [];
+      const m = ot.length, n = nt.length;
+      const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+      for (let i = 1; i <= m; i++)
+        for (let j = 1; j <= n; j++)
+          dp[i][j] = ot[i-1] === nt[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+      const oF = new Array(m).fill(false), nF = new Array(n).fill(false);
+      let ii = m, jj = n;
+      while (ii > 0 && jj > 0) {
+        if (ot[ii-1] === nt[jj-1]) { oF[--ii] = true; nF[--jj] = true; }
+        else if (dp[ii-1][jj] >= dp[ii][jj-1]) ii--;
+        else jj--;
+      }
+      let oh = '', nh = '';
+      for (let i = 0; i < m; i++) { const t = escHtml(ot[i]); oh += oF[i] ? t : `<span class="diff-word-del">${t}</span>`; }
+      for (let i = 0; i < n; i++) { const t = escHtml(nt[i]); nh += nF[i] ? t : `<span class="diff-word-add">${t}</span>`; }
+      return [oh, nh];
+    }
+
+    async function openDiffTab(workDir, filePath, staged, commitHash) {
+      const diffKey = commitHash ? `${commitHash}:${filePath}` : `${staged ? 'staged' : 'unstaged'}:${filePath}`;
+      for (const [id, tab] of tabs) {
+        if (tab.type === 'diff' && tab.diffKey === diffKey && tab.workDir === workDir) {
+          switchTab(id);
+          return;
+        }
+      }
+
+      mainPanel.style.display = 'none';
+      settingsPanel.classList.remove('active');
+      launchpad.classList.remove('active');
+      terminalView.classList.add('active');
+
+      const diffText = commitHash
+        ? await window.gitDiff.diffCommit(workDir, commitHash, filePath)
+        : await window.gitDiff.diff(workDir, filePath, staged);
+
+      const parsed = parseDiffOutput(diffText);
+      const id = nextBrowserTabId--;
+
+      const pane = document.createElement('div');
+      pane.className = 'terminal-pane diff-pane';
+      terminalContainers.appendChild(pane);
+
+      const suffix = commitHash ? commitHash.slice(0, 7) : (staged ? 'staged' : 'working');
+      const toolbar = document.createElement('div');
+      toolbar.className = 'diff-toolbar';
+      toolbar.innerHTML = `
+        <span class="diff-filepath">${escHtml(filePath)} <span style="color:#555">(${suffix})</span></span>
+        <div class="toolbar-spacer"></div>
+        <span class="diff-stats"><span class="changes-added">+${parsed.totalAdded}</span>&ensp;<span class="changes-deleted">&minus;${parsed.totalDeleted}</span></span>
+      `;
+      pane.appendChild(toolbar);
+
+      const content = document.createElement('div');
+      content.className = 'diff-content';
+      if (parsed.hunks.length > 0) {
+        content.innerHTML = renderDiffContent(parsed);
+      } else {
+        content.innerHTML = '<div class="changes-empty" style="padding:20px">No diff available</div>';
+      }
+      pane.appendChild(content);
+
+      const tabLabel = filePath.split('/').pop();
+      tabs.set(id, { type: 'diff', pane, tabEl: null, label: tabLabel, workDir, filePath, diffKey });
+      activeTabId = id;
+      renderTabBar();
+      switchTab(id);
+    }
+
+    // Notification bell & dropdown interactions
+    const notifBell = document.getElementById('notification-bell');
+    const notifDropdown = document.getElementById('notification-dropdown');
+
+    notifBell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isActive = notifDropdown.classList.toggle('active');
+      if (isActive) renderNotifDropdown();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!notifDropdown.contains(e.target) && e.target !== notifBell) {
+        notifDropdown.classList.remove('active');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && notifDropdown.classList.contains('active')) {
+        notifDropdown.classList.remove('active');
+      }
+    });
+
+    document.getElementById('notification-clear-btn').addEventListener('click', () => {
+      notifLog.length = 0;
+      notifActivity.clear();
+      updateNotifUI();
+      renderNotifDropdown();
+    });
+
+    document.getElementById('notification-list').addEventListener('click', (e) => {
+      const entry = e.target.closest('.notif-entry');
+      if (!entry) return;
+      const tabId = parseInt(entry.dataset.tabId);
+      const workDir = entry.dataset.workDir;
+
+      // Mark as seen
+      const logEntry = notifLog.find(n => n.tabId === tabId && !n.seen);
+      if (logEntry) logEntry.seen = true;
+
+      // Navigate to the tab if it still exists
+      if (tabs.has(tabId)) {
+        if (activeWorkDir !== workDir) openWorkDir(workDir);
+        switchTab(tabId);
+      }
+      notifDropdown.classList.remove('active');
+      updateNotifUI();
+    });
   </script>
 </body>
 </html>
