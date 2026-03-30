@@ -89,7 +89,12 @@ const dataCallbacks = new Map();
 const exitCallbacks = new Map();
 
 ipcRenderer.on('pty:data', (_ev, id, data) => { const cb = dataCallbacks.get(id); if (cb) cb(data); });
-ipcRenderer.on('pty:exit', (_ev, id, code) => { const cb = exitCallbacks.get(id); if (cb) cb(code); });
+ipcRenderer.on('pty:exit', (_ev, id, code) => {
+  const cb = exitCallbacks.get(id);
+  if (cb) cb(code);
+  dataCallbacks.delete(id);
+  exitCallbacks.delete(id);
+});
 
 contextBridge.exposeInMainWorld('pty', {
   spawn: (specialistName, workDir, dims, initialPrompt) => ipcRenderer.invoke('pty:spawn', specialistName, workDir, dims, initialPrompt),
