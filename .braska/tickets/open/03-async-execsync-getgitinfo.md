@@ -8,9 +8,9 @@
 
 ## Tasks
 
-- Replace `execSync` with `execFile` (promise-based) or `child_process.spawn`
-- Make `getGitInfo()` async
-- Update all callers to await the result
+- [x] Replace `execSync` with `execFile` (promise-based) or `child_process.spawn`
+- [x] Make `getGitInfo()` async
+- [x] Update all callers to await the result
 
 ## Impact
 

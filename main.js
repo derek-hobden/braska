@@ -37,7 +37,7 @@ async function saveProjects(projects) {
 async function getGitInfo(projectPath) {
   try {
     if (!await pathExists(path.join(projectPath, '.git'))) return { isGit: false, worktrees: [] };
-    const output = execSync('git worktree list --porcelain', {
+    const { stdout: output } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], {
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: 5000,
@@ -613,6 +613,11 @@ app.whenReady().then(async () => {
     const shell = process.env.SHELL || '/bin/zsh';
     let cwd, args;
 
+    // For Claude/specialist spawns, explicitly cd to workDir before running the command.
+    // Login shells (-l) read profile files that may change the working directory,
+    // so we cannot rely on cwd alone to guarantee the correct working directory.
+    const safeWorkDir = workDir.replace(/'/g, "'\"'\"'");
+
     if (specialistName === '__TERMINAL__') {
       cwd = workDir;
       args = ['-l'];
@@ -620,9 +625,9 @@ app.whenReady().then(async () => {
       cwd = workDir;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
-        args = ['-l', '-c', `claude --dangerously-skip-permissions -- '${safePrompt}'`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions -- '${safePrompt}'`];
       } else {
-        args = ['-l', '-c', 'claude --dangerously-skip-permissions'];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions`];
       }
     } else {
       // CWD is project dir so @ file autocompletion works.
@@ -630,7 +635,7 @@ app.whenReady().then(async () => {
       cwd = workDir;
       const specialistDir = path.join(await getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
-      const baseCmd = `claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
+      const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
