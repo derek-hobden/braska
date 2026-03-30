@@ -1,6 +1,6 @@
 {
   "name": "braska",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "productName": "Braska",
   "description": "",
   "main": "main.js",
@@ -22,10 +22,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "@electron/rebuild": "^3.7.2"
-  },
   "dependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "electron": "^41.1.0",
