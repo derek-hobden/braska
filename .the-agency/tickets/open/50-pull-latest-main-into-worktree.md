@@ -10,4 +10,5 @@ There needs to be a quick, easy, and intuitive way for users to pull the latest 
 - Implement fetch + merge/rebase from main into the worktree's current branch
 - Handle common edge cases (merge conflicts, uncommitted changes, dirty working tree)
 - Show clear feedback on success or failure (e.g. "Up to date", "Merged N commits", conflict notification)
+- When merge conflicts are detected, show a "Resolve Conflicts" button directly on the conflict notification screen so users can immediately start resolving without navigating elsewhere
 - Ensure the action is easily discoverable and accessible from the worktree context
