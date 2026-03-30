@@ -1275,8 +1275,7 @@
     }
     .changes-file:hover { background: #252525; }
     .changes-file-name {
-      flex: 1;
-      min-width: 0;
+      flex-shrink: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1315,6 +1314,7 @@
       color: #555;
       font-size: 0.75rem;
       flex-shrink: 1;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -4435,7 +4435,7 @@
       const idx = file.lastIndexOf('/');
       const name = idx >= 0 ? file.slice(idx + 1) : file;
       const folder = idx >= 0 ? file.slice(0, idx) : '';
-      return `<div class="changes-file" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span></div>`;
+      return `<div class="changes-file" title="${escHtml(file)}" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span></div>`;
     }
 
     function statSpan(added, deleted) {
