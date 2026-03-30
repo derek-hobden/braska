@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 const pty = require('node-pty');
 
 if (process.platform === 'darwin') {
-  app.setName('Yuna');
+  app.setName('Braska');
 }
 
 const ptyProcesses = new Map();
@@ -59,7 +59,7 @@ function getGitInfo(projectPath) {
 
 // Skills management
 function getSkillsDir() {
-  const dir = path.join(os.homedir(), '.yuna', 'skills');
+  const dir = path.join(os.homedir(), '.braska', 'skills');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -76,7 +76,7 @@ function listSkills() {
 
 // Specialists management
 function getSpecialistsDir() {
-  const dir = path.join(os.homedir(), '.yuna', 'specialists');
+  const dir = path.join(os.homedir(), '.braska', 'specialists');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -107,14 +107,14 @@ function ensureSystemSpecialists() {
   const ticketmasterDir = path.join(getSpecialistsDir(), 'ticketmaster');
   const claudeFile = path.join(ticketmasterDir, 'claude.md');
   fs.mkdirSync(ticketmasterDir, { recursive: true });
-  fs.writeFileSync(claudeFile, `You are the Ticketmaster for Yuna. Your job is to help the user create well-formatted ticket files.
+  fs.writeFileSync(claudeFile, `You are the Ticketmaster for Braska. Your job is to help the user create well-formatted ticket files.
 
 IMPORTANT RESTRICTIONS:
-- You may ONLY create, read, edit, move, and delete files inside \`.yuna/tickets/\`.
-- You must NEVER create, edit, delete, or modify any files outside \`.yuna/tickets/\`. This includes source code, configuration, documentation, scripts, and any other project files.
+- You may ONLY create, read, edit, move, and delete files inside \`.braska/tickets/\`.
+- You must NEVER create, edit, delete, or modify any files outside \`.braska/tickets/\`. This includes source code, configuration, documentation, scripts, and any other project files.
 - If the user asks you to make code changes, fix bugs, or edit non-ticket files, refuse and explain that you are the Ticketmaster and can only manage tickets. Suggest they use an appropriate specialist instead.
 
-Tickets are stored in .yuna/tickets/ relative to the current working directory.
+Tickets are stored in .braska/tickets/ relative to the current working directory.
 
 TICKET FILE FORMAT:
 \`\`\`markdown
@@ -131,11 +131,11 @@ Detailed description of the problem or feature request...
 \`\`\`
 
 FILE NAMING: NN-kebab-case-title.md (e.g. 03-fix-auth-crash.md) where NN is the next available number.
-SAVE LOCATION: .yuna/tickets/open/
+SAVE LOCATION: .braska/tickets/open/
 
 When you start:
-1. First ensure the tickets directory exists: mkdir -p .yuna/tickets/open
-2. Check existing ticket files in .yuna/tickets/open/, .yuna/tickets/done/, and .yuna/tickets/cancelled/ to determine the next number
+1. First ensure the tickets directory exists: mkdir -p .braska/tickets/open
+2. Check existing ticket files in .braska/tickets/open/, .braska/tickets/done/, and .braska/tickets/cancelled/ to determine the next number
 3. Ask the user what ticket they would like to create
 4. When you have enough information, write the file
 5. After writing, confirm the ticket was created with its number and title
@@ -166,11 +166,11 @@ When you start:
   fs.writeFileSync(protectFilesScript, `#!/bin/bash
 FILE_PATH=$(cat | jq -r '.tool_input.file_path // empty')
 
-if [[ "$FILE_PATH" == */.yuna/tickets/* ]]; then
+if [[ "$FILE_PATH" == */.braska/tickets/* ]]; then
   exit 0  # allowed
 fi
 
-echo "BLOCKED: Ticketmaster can only edit files inside .yuna/tickets/" >&2
+echo "BLOCKED: Ticketmaster can only edit files inside .braska/tickets/" >&2
 exit 2  # reject
 `, 'utf-8');
   fs.chmodSync(protectFilesScript, 0o755);
@@ -178,7 +178,7 @@ exit 2  # reject
   const debuggerDir = path.join(getSpecialistsDir(), 'debugger');
   const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
   fs.mkdirSync(debuggerDir, { recursive: true });
-  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for Yuna. Your job is to help the user systematically debug issues in their codebase.
+  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for Braska. Your job is to help the user systematically debug issues in their codebase.
 
 DEBUGGING METHODOLOGY — follow this sequence rigorously:
 
@@ -240,7 +240,7 @@ When you start:
   const codeReviewerDir = path.join(getSpecialistsDir(), 'code-reviewer');
   const codeReviewerClaudeFile = path.join(codeReviewerDir, 'claude.md');
   fs.mkdirSync(codeReviewerDir, { recursive: true });
-  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for Yuna. Your job is to perform thorough, structured code reviews.
+  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for Braska. Your job is to perform thorough, structured code reviews.
 
 IMPORTANT RESTRICTIONS:
 - You are READ-ONLY. You must NEVER create, edit, delete, or modify any source files, configuration files, or project files.
@@ -311,20 +311,24 @@ WORKING PRINCIPLES:
 // Per-project ticket tracking
 const migratedProjects = new Set();
 function getTicketsDir(workDir) {
-  // Migrate legacy .the-agency directory (once per project per session)
+  // Migrate legacy .the-agency / .yuna directories (once per project per session)
   if (!migratedProjects.has(workDir)) {
     migratedProjects.add(workDir);
-    const oldDir = path.join(workDir, '.the-agency');
-    const newDir = path.join(workDir, '.yuna');
+    const newDir = path.join(workDir, '.braska');
     try {
-      if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
-        fs.renameSync(oldDir, newDir);
+      const agencyDir = path.join(workDir, '.the-agency');
+      if (fs.existsSync(agencyDir) && !fs.existsSync(newDir)) {
+        fs.renameSync(agencyDir, newDir);
+      }
+      const yunaDir = path.join(workDir, '.yuna');
+      if (fs.existsSync(yunaDir) && !fs.existsSync(newDir)) {
+        fs.renameSync(yunaDir, newDir);
       }
     } catch (err) {
-      console.error(`Failed to migrate ${oldDir} to ${newDir}:`, err.message);
+      console.error(`Failed to migrate to ${newDir}:`, err.message);
     }
   }
-  return path.join(workDir, '.yuna', 'tickets');
+  return path.join(workDir, '.braska', 'tickets');
 }
 
 function ensureTicketsDirs(workDir) {
@@ -474,31 +478,37 @@ function createWindow() {
 }
 
 function migrateData() {
-  // Home directory: ~/.the-agency -> ~/.yuna
+  // Home directory: ~/.the-agency -> ~/.braska, ~/.yuna -> ~/.braska
+  const braskaHome = path.join(os.homedir(), '.braska');
   try {
-    const oldHome = path.join(os.homedir(), '.the-agency');
-    const newHome = path.join(os.homedir(), '.yuna');
-    if (fs.existsSync(oldHome) && !fs.existsSync(newHome)) {
-      fs.renameSync(oldHome, newHome);
+    const agencyHome = path.join(os.homedir(), '.the-agency');
+    if (fs.existsSync(agencyHome) && !fs.existsSync(braskaHome)) {
+      fs.renameSync(agencyHome, braskaHome);
+    }
+    const yunaHome = path.join(os.homedir(), '.yuna');
+    if (fs.existsSync(yunaHome) && !fs.existsSync(braskaHome)) {
+      fs.renameSync(yunaHome, braskaHome);
     }
   } catch (err) {
     console.error('Failed to migrate home directory:', err.message);
   }
 
   // Electron userData: projects.json
-  try {
-    const oldUserData = path.join(app.getPath('appData'), 'the-agency');
-    const newUserData = app.getPath('userData');
-    if (oldUserData !== newUserData) {
-      const oldProjects = path.join(oldUserData, 'projects.json');
-      const newProjects = path.join(newUserData, 'projects.json');
-      if (fs.existsSync(oldProjects) && !fs.existsSync(newProjects)) {
-        fs.mkdirSync(newUserData, { recursive: true });
-        fs.copyFileSync(oldProjects, newProjects);
+  const newUserData = app.getPath('userData');
+  const newProjects = path.join(newUserData, 'projects.json');
+  for (const legacyName of ['the-agency', 'Yuna']) {
+    try {
+      const oldUserData = path.join(app.getPath('appData'), legacyName);
+      if (oldUserData !== newUserData) {
+        const oldProjects = path.join(oldUserData, 'projects.json');
+        if (fs.existsSync(oldProjects) && !fs.existsSync(newProjects)) {
+          fs.mkdirSync(newUserData, { recursive: true });
+          fs.copyFileSync(oldProjects, newProjects);
+        }
       }
+    } catch (err) {
+      console.error(`Failed to migrate userData from ${legacyName}:`, err.message);
     }
-  } catch (err) {
-    console.error('Failed to migrate userData:', err.message);
   }
 }
 

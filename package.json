@@ -1,11 +1,11 @@
 {
-  "name": "yuna",
+  "name": "braska",
   "version": "1.0.0",
-  "productName": "Yuna",
+  "productName": "Braska",
   "description": "",
   "main": "main.js",
   "bin": {
-    "yuna": "./bin/cli.js"
+    "braska": "./bin/cli.js"
   },
   "files": [
     "bin/",
