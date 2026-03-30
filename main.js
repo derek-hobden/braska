@@ -135,6 +135,40 @@ When you start:
 5. After writing, confirm the ticket was created with its number and title
 `, 'utf-8');
 
+  // Ticketmaster file-edit hook enforcement (hard restriction)
+  const ticketmasterHooksDir = path.join(ticketmasterDir, '.claude', 'hooks');
+  fs.mkdirSync(ticketmasterHooksDir, { recursive: true });
+
+  const ticketmasterSettingsFile = path.join(ticketmasterDir, '.claude', 'settings.json');
+  fs.writeFileSync(ticketmasterSettingsFile, JSON.stringify({
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: "Edit|Write",
+          hooks: [
+            {
+              type: "command",
+              command: `bash '${path.join(ticketmasterHooksDir, 'protect-files.sh')}'`
+            }
+          ]
+        }
+      ]
+    }
+  }, null, 2), 'utf-8');
+
+  const protectFilesScript = path.join(ticketmasterHooksDir, 'protect-files.sh');
+  fs.writeFileSync(protectFilesScript, `#!/bin/bash
+FILE_PATH=$(cat | jq -r '.tool_input.file_path // empty')
+
+if [[ "$FILE_PATH" == */.the-agency/tickets/* ]]; then
+  exit 0  # allowed
+fi
+
+echo "BLOCKED: Ticketmaster can only edit files inside .the-agency/tickets/" >&2
+exit 2  # reject
+`, 'utf-8');
+  fs.chmodSync(protectFilesScript, 0o755);
+
   const debuggerDir = path.join(getExpertsDir(), 'debugger');
   const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
   fs.mkdirSync(debuggerDir, { recursive: true });
