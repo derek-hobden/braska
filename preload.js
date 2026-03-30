@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('worktree', {
   lock: (workDir, worktreePath, unlock) => ipcRenderer.invoke('git:worktree-lock', workDir, worktreePath, unlock),
   mergePreflight: (workDir, worktreePath) => ipcRenderer.invoke('git:merge-preflight', workDir, worktreePath),
   mergeAndCleanup: (workDir, worktreePath, force) => ipcRenderer.invoke('git:merge-and-cleanup', workDir, worktreePath, force),
+  metrics: (projectPath) => ipcRenderer.invoke('git:worktree-metrics', projectPath),
 });
 
 contextBridge.exposeInMainWorld('gitDiff', {
