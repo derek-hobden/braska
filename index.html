@@ -167,7 +167,34 @@
       overflow: hidden;
       text-overflow: ellipsis;
       position: relative;
+      display: flex;
+      align-items: center;
     }
+    .wt-branch-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+    .wt-metrics {
+      margin-left: auto;
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+      padding-left: 4px;
+    }
+    .wt-metric {
+      font-size: 0.6rem;
+      padding: 0 4px;
+      border-radius: 6px;
+      background: #333;
+      color: #888;
+      line-height: 1.4;
+    }
+    .wt-metric.changed { color: #d29922; }
+    .wt-metric.untracked { color: #3fb950; }
+    .wt-metric.ahead { color: #4a9eff; }
+    .wt-metric.behind { color: #f85149; }
     .worktree-item:hover {
       background: #252525;
       color: #ccc;
@@ -2543,7 +2570,7 @@
           const lockIcon = w.isLocked ? '<span class="wt-lock-icon" title="Locked">&#128274;</span>' : '';
           const mainAttr = w.isMain ? ' data-is-main="true"' : '';
           const lockedAttr = w.isLocked ? ' data-is-locked="true"' : '';
-          return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}>${w.branch || '(unknown)'}${lockIcon}</div>`;
+          return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
         }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
         return `
           <div class="project-entry${p.isGit ? ' is-git' : ''}" data-path="${esc}">
@@ -2575,6 +2602,27 @@
         const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(p)}"]`);
         if (entry) entry.classList.add('expanded');
       });
+      refreshWorktreeMetrics();
+    }
+
+    async function refreshWorktreeMetrics() {
+      const entries = projectList.querySelectorAll('.project-entry.is-git');
+      for (const entry of entries) {
+        const projectPath = entry.dataset.path;
+        try {
+          const metrics = await window.worktree.metrics(projectPath);
+          for (const m of metrics) {
+            const el = entry.querySelector(`.wt-metrics[data-wt-path="${CSS.escape(m.path)}"]`);
+            if (!el) continue;
+            const badges = [];
+            if (m.changed > 0) badges.push(`<span class="wt-metric changed" title="${m.changed} changed">${m.changed}M</span>`);
+            if (m.untracked > 0) badges.push(`<span class="wt-metric untracked" title="${m.untracked} untracked">${m.untracked}U</span>`);
+            if (m.ahead > 0) badges.push(`<span class="wt-metric ahead" title="${m.ahead} ahead of main">${m.ahead}&#8593;</span>`);
+            if (m.behind > 0) badges.push(`<span class="wt-metric behind" title="${m.behind} behind main">${m.behind}&#8595;</span>`);
+            el.innerHTML = badges.join('');
+          }
+        } catch {}
+      }
     }
 
     addBtn.addEventListener('click', async () => {
@@ -4663,7 +4711,7 @@
         const idx = parseInt(stashPopBtn.dataset.index);
         if (activeWorkDir) {
           const result = await window.gitOps.stashPop(activeWorkDir, idx);
-          if (result.ok) { showChangesStatus('Stash popped', 'success'); refreshChanges(activeWorkDir); }
+          if (result.ok) { showChangesStatus('Stash popped', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
           else showChangesStatus(result.hasConflicts ? 'Conflicts on stash pop' : result.error, 'error');
         }
         return;
@@ -4784,6 +4832,7 @@
         changesCommitBtn.disabled = true;
         showChangesStatus('Committed', 'success');
         refreshChanges(activeWorkDir);
+        refreshWorktreeMetrics();
       } else {
         showChangesStatus(result.error, 'error');
         changesCommitBtn.disabled = false;
@@ -4819,7 +4868,7 @@
       btn.disabled = true;
       const result = await window.gitOps.fetch(activeWorkDir);
       btn.disabled = false;
-      if (result.ok) { showChangesStatus('Fetched', 'success'); refreshChanges(activeWorkDir); }
+      if (result.ok) { showChangesStatus('Fetched', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
       else showChangesStatus('Fetch failed', 'error');
     });
 
@@ -4830,7 +4879,7 @@
       btn.disabled = true;
       const result = await window.gitOps.pull(activeWorkDir);
       btn.disabled = false;
-      if (result.ok) { showChangesStatus('Pulled', 'success'); refreshChanges(activeWorkDir); }
+      if (result.ok) { showChangesStatus('Pulled', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
       else showChangesStatus(result.hasConflicts ? 'Pull conflicts' : 'Pull failed', 'error');
     });
 
@@ -4843,6 +4892,7 @@
       if (result.ok) {
         btn.disabled = false;
         showChangesStatus('Pushed', 'success');
+        refreshWorktreeMetrics();
         return;
       }
       if (result.noUpstream) {
@@ -4892,7 +4942,7 @@
     document.getElementById('changes-stash-btn').addEventListener('click', async () => {
       if (!activeWorkDir) return;
       const result = await window.gitOps.stashSave(activeWorkDir, '');
-      if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); }
+      if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
       else showChangesStatus(result.error, 'error');
     });
 

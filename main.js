@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync, execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 const pty = require('node-pty');
 
 const ptyProcesses = new Map();
@@ -672,6 +674,57 @@ app.whenReady().then(() => {
       return { isGit: true, unstaged, staged, untracked };
     } catch {
       return { isGit: false, unstaged: [], staged: [], untracked: [] };
+    }
+  });
+
+  ipcMain.handle('git:worktree-metrics', async (_event, projectPath) => {
+    try {
+      const info = getGitInfo(projectPath);
+      if (!info.isGit) return [];
+
+      // Detect default branch name
+      let defaultBranch = 'main';
+      try {
+        const { stdout } = await execFileAsync('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'], { cwd: projectPath, encoding: 'utf-8', timeout: 5000 });
+        const ref = stdout.trim().replace('refs/remotes/origin/', '');
+        if (ref) defaultBranch = ref;
+      } catch {
+        // Fallback: check if 'main' or 'master' exists
+        try {
+          await execFileAsync('git', ['rev-parse', '--verify', 'master'], { cwd: projectPath, encoding: 'utf-8', timeout: 5000 });
+          defaultBranch = 'master';
+        } catch {}
+      }
+
+      const results = await Promise.all(info.worktrees.map(async (wt) => {
+        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0 };
+        const opts = { cwd: wt.path, encoding: 'utf-8', timeout: 10000 };
+        try {
+          const { stdout } = await execFileAsync('git', ['status', '--porcelain'], opts);
+          if (stdout.trim()) {
+            for (const line of stdout.trim().split('\n')) {
+              if (line.startsWith('?? ')) m.untracked++;
+              else m.changed++;
+            }
+          }
+        } catch {}
+        // Skip ahead/behind for the default branch itself
+        if (wt.branch && wt.branch !== defaultBranch && wt.branch !== '(detached)') {
+          try {
+            const { stdout } = await execFileAsync('git', ['rev-list', '--count', `${defaultBranch}..HEAD`], opts);
+            m.ahead = parseInt(stdout.trim(), 10) || 0;
+          } catch {}
+          try {
+            const { stdout } = await execFileAsync('git', ['rev-list', '--count', `HEAD..${defaultBranch}`], opts);
+            m.behind = parseInt(stdout.trim(), 10) || 0;
+          } catch {}
+        }
+        return m;
+      }));
+
+      return results;
+    } catch {
+      return [];
     }
   });
 
