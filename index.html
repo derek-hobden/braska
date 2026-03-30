@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
-  <title>The Agency</title>
+  <title>Yuna</title>
   <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
   <style>
     * { box-sizing: border-box; }
@@ -773,8 +773,8 @@
       background: #1a3a5c;
     }
 
-    /* Expert items & form */
-    .expert-item {
+    /* Specialist items & form */
+    .specialist-item {
       display: flex;
       align-items: center;
       padding: 8px 10px;
@@ -784,15 +784,15 @@
       font-size: 0.9rem;
       color: #ccc;
     }
-    .expert-item:hover { background: #252525; }
-    .expert-item .expert-name {
+    .specialist-item:hover { background: #252525; }
+    .specialist-item .specialist-name {
       flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .expert-remove-btn {
+    .specialist-remove-btn {
       background: none;
       border: none;
       color: #555;
@@ -803,25 +803,25 @@
       opacity: 0;
       flex-shrink: 0;
     }
-    .expert-item:hover .expert-remove-btn { opacity: 1; }
-    .expert-remove-btn:hover { color: #e55; background: #2a1515; }
-    .expert-skills-section {
+    .specialist-item:hover .specialist-remove-btn { opacity: 1; }
+    .specialist-remove-btn:hover { color: #e55; background: #2a1515; }
+    .specialist-skills-section {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .expert-skills-label {
+    .specialist-skills-label {
       font-size: 0.8rem;
       color: #888;
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
-    .expert-skills-list {
+    .specialist-skills-list {
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
-    .expert-skills-list label {
+    .specialist-skills-list label {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -831,8 +831,8 @@
       padding: 4px 6px;
       border-radius: 4px;
     }
-    .expert-skills-list label:hover { background: #252525; }
-    .expert-skills-empty {
+    .specialist-skills-list label:hover { background: #252525; }
+    .specialist-skills-empty {
       color: #555;
       font-size: 0.82rem;
       font-style: italic;
@@ -916,8 +916,8 @@
       color: #ccc;
     }
 
-    /* Expert picker modal */
-    #expert-picker {
+    /* Specialist picker modal */
+    #specialist-picker {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -926,8 +926,8 @@
       align-items: center;
       justify-content: center;
     }
-    #expert-picker.active { display: flex; }
-    #expert-picker-content {
+    #specialist-picker.active { display: flex; }
+    #specialist-picker-content {
       background: #252525;
       border: 1px solid #3a3a3a;
       border-radius: 10px;
@@ -935,41 +935,41 @@
       min-width: 280px;
       max-width: 400px;
     }
-    #expert-picker-content h3 {
+    #specialist-picker-content h3 {
       margin: 0 0 16px 0;
       font-size: 0.95rem;
       color: #ccc;
     }
-    .expert-picker-item {
+    .specialist-picker-item {
       padding: 10px 14px;
       cursor: pointer;
       border-radius: 6px;
       font-size: 0.9rem;
       color: #ccc;
     }
-    .expert-picker-item:hover {
+    .specialist-picker-item:hover {
       background: #333;
       color: #fff;
     }
-    .expert-picker-separator {
+    .specialist-picker-separator {
       height: 1px;
       background: #333;
       margin: 8px 0;
     }
-    .expert-picker-label {
+    .specialist-picker-label {
       padding: 4px 14px;
       font-size: 0.7rem;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .expert-picker-item.builtin {
+    .specialist-picker-item.builtin {
       color: #8b9fc7;
     }
-    .expert-picker-item.builtin:hover {
+    .specialist-picker-item.builtin:hover {
       color: #b0c4f0;
     }
-    #expert-picker-cancel {
+    #specialist-picker-cancel {
       margin-top: 12px;
       background: none;
       border: 1px solid #444;
@@ -980,7 +980,7 @@
       font-size: 0.82rem;
       width: 100%;
     }
-    #expert-picker-cancel:hover {
+    #specialist-picker-cancel:hover {
       background: #2a2a2a;
       color: #ccc;
     }
@@ -2289,7 +2289,7 @@
         <h2>Settings</h2>
       </div>
       <div id="settings-menu">
-        <button class="settings-menu-item" data-section="experts">Experts</button>
+        <button class="settings-menu-item" data-section="specialists">Specialists</button>
         <button class="settings-menu-item" data-section="skills">Skills</button>
         <button class="settings-menu-item" data-section="mcp-servers">MCP Servers</button>
       </div>
@@ -2322,7 +2322,7 @@
     </div>
     <div id="content-body">
       <div id="main">
-        <h1>The Agency</h1>
+        <h1>Yuna</h1>
         <p id="info"></p>
       </div>
       <div id="terminal-view">
@@ -2331,11 +2331,11 @@
       </div>
       <div id="launchpad">
         <div class="launchpad-content">
-          <h3 class="launchpad-heading">Open a new tab containing:</h3>
-          <div class="launchpad-card" id="launchpad-expert">
+          <h3 class="launchpad-heading">Summon a:</h3>
+          <div class="launchpad-card" id="launchpad-specialist">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <div class="launchpad-title">Expert</div>
-            <div class="launchpad-desc">Start a session with an AI expert</div>
+            <div class="launchpad-title">Specialist</div>
+            <div class="launchpad-desc">Start a session with an AI specialist</div>
           </div>
           <div class="launchpad-card" id="launchpad-terminal">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -2410,11 +2410,11 @@
   </div>
   <div id="tab-type-picker">
     <div id="tab-type-picker-content">
-      <h3>Open a new tab containing:</h3>
+      <h3>Summon a:</h3>
       <div id="tab-type-picker-list">
-        <div class="tab-type-picker-item" data-type="expert" data-hotkey="1">
+        <div class="tab-type-picker-item" data-type="specialist" data-hotkey="1">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Expert
+          Specialist
           <span class="tab-type-picker-hint">1</span>
         </div>
         <div class="tab-type-picker-item" data-type="terminal" data-hotkey="2">
@@ -2431,11 +2431,11 @@
       <button id="tab-type-picker-cancel">Cancel</button>
     </div>
   </div>
-  <div id="expert-picker">
-    <div id="expert-picker-content">
-      <h3>Choose an Expert</h3>
-      <div id="expert-picker-list"></div>
-      <button id="expert-picker-cancel">Cancel</button>
+  <div id="specialist-picker">
+    <div id="specialist-picker-content">
+      <h3>Choose a Specialist</h3>
+      <div id="specialist-picker-list"></div>
+      <button id="specialist-picker-cancel">Cancel</button>
     </div>
   </div>
 
@@ -2646,7 +2646,7 @@
         openWorktreeCreateModal(projectPath);
         return;
       }
-      // Worktree click → switch to its tabs or show expert picker
+      // Worktree click → switch to its tabs or show specialist picker
       const worktreeItem = e.target.closest('.worktree-item');
       if (worktreeItem) {
         openWorkDir(worktreeItem.dataset.path);
@@ -3151,11 +3151,11 @@
         settingsPanelAddBtn.style.display = '';
         settingsPanelAddBtn.onclick = () => showSkillForm('', '');
         loadSkillsPanel();
-      } else if (section === 'experts') {
-        settingsPanelTitle.textContent = 'Experts';
+      } else if (section === 'specialists') {
+        settingsPanelTitle.textContent = 'Specialists';
         settingsPanelAddBtn.style.display = '';
-        settingsPanelAddBtn.onclick = () => showExpertForm('', '', []);
-        loadExpertsPanel();
+        settingsPanelAddBtn.onclick = () => showSpecialistForm('', '', []);
+        loadSpecialistsPanel();
       } else if (section === 'mcp-servers') {
         settingsPanelTitle.textContent = 'MCP Servers';
         settingsPanelBody.innerHTML = '<div class="settings-empty">No MCP servers configured</div>';
@@ -3214,63 +3214,63 @@
       document.getElementById(isEdit ? 'skill-content-input' : 'skill-name-input').focus();
     }
 
-    // Experts panel
-    async function loadExpertsPanel() {
-      const experts = await window.experts.list();
-      renderExpertsList(experts);
+    // Specialists panel
+    async function loadSpecialistsPanel() {
+      const specialists = await window.specialists.list();
+      renderSpecialistsList(specialists);
     }
 
-    function renderExpertsList(experts) {
-      experts = experts.filter(ex => ex.name !== 'issue-creator' && !ex.builtin);
-      const listHtml = experts.length === 0
-        ? '<div class="settings-empty">No experts configured</div>'
-        : experts.map(ex => {
+    function renderSpecialistsList(specialists) {
+      specialists = specialists.filter(ex => ex.name !== 'issue-creator' && !ex.builtin);
+      const listHtml = specialists.length === 0
+        ? '<div class="settings-empty">No specialists configured</div>'
+        : specialists.map(ex => {
             const esc = ex.name.replace(/"/g, '&quot;');
-            return `<div class="expert-item" data-name="${esc}">
-              <span class="expert-name">${ex.name}</span>
-              <button class="expert-remove-btn" data-remove="${esc}" title="Remove expert">&times;</button>
+            return `<div class="specialist-item" data-name="${esc}">
+              <span class="specialist-name">${ex.name}</span>
+              <button class="specialist-remove-btn" data-remove="${esc}" title="Remove specialist">&times;</button>
             </div>`;
           }).join('');
-      settingsPanelBody.innerHTML = `<div id="experts-list">${listHtml}</div><div id="expert-form-container"></div>`;
+      settingsPanelBody.innerHTML = `<div id="specialists-list">${listHtml}</div><div id="specialist-form-container"></div>`;
     }
 
-    async function showExpertForm(name, instructions, assignedSkills) {
-      const container = document.getElementById('expert-form-container');
+    async function showSpecialistForm(name, instructions, assignedSkills) {
+      const container = document.getElementById('specialist-form-container');
       if (!container) return;
       const isEdit = name !== '';
       const nameEsc = name.replace(/"/g, '&quot;');
       const instrEsc = (instructions || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       const allSkills = await window.skills.list();
       const skillsHtml = allSkills.length === 0
-        ? '<div class="expert-skills-empty">No skills available — create skills first</div>'
+        ? '<div class="specialist-skills-empty">No skills available — create skills first</div>'
         : allSkills.map(s => {
             const checked = assignedSkills.includes(s.name) ? 'checked' : '';
             const sEsc = s.name.replace(/"/g, '&quot;');
             return `<label><input type="checkbox" value="${sEsc}" ${checked}> ${s.name}</label>`;
           }).join('');
       container.innerHTML = `<div class="skill-form">
-        <input type="text" id="expert-name-input" placeholder="Expert name" value="${nameEsc}" ${isEdit ? 'readonly style="opacity:0.6;cursor:default"' : ''} />
-        <textarea id="expert-instructions-input" placeholder="Instructions (saved to claude.md)">${instrEsc}</textarea>
-        <div class="expert-skills-section">
-          <span class="expert-skills-label">Assigned Skills</span>
-          <div class="expert-skills-list">${skillsHtml}</div>
+        <input type="text" id="specialist-name-input" placeholder="Specialist name" value="${nameEsc}" ${isEdit ? 'readonly style="opacity:0.6;cursor:default"' : ''} />
+        <textarea id="specialist-instructions-input" placeholder="Instructions (saved to claude.md)">${instrEsc}</textarea>
+        <div class="specialist-skills-section">
+          <span class="specialist-skills-label">Assigned Skills</span>
+          <div class="specialist-skills-list">${skillsHtml}</div>
         </div>
         <div class="skill-form-actions">
-          <button id="expert-cancel-btn">Cancel</button>
-          <button id="expert-save-btn" class="save-btn">Save</button>
+          <button id="specialist-cancel-btn">Cancel</button>
+          <button id="specialist-save-btn" class="save-btn">Save</button>
         </div>
       </div>`;
-      document.getElementById('expert-cancel-btn').addEventListener('click', () => { container.innerHTML = ''; });
-      document.getElementById('expert-save-btn').addEventListener('click', async () => {
-        const n = document.getElementById('expert-name-input').value.trim();
-        const instr = document.getElementById('expert-instructions-input').value;
+      document.getElementById('specialist-cancel-btn').addEventListener('click', () => { container.innerHTML = ''; });
+      document.getElementById('specialist-save-btn').addEventListener('click', async () => {
+        const n = document.getElementById('specialist-name-input').value.trim();
+        const instr = document.getElementById('specialist-instructions-input').value;
         if (!n) return;
-        const checkedSkills = [...container.querySelectorAll('.expert-skills-list input:checked')].map(cb => cb.value);
-        const experts = await window.experts.save(n, instr, checkedSkills);
+        const checkedSkills = [...container.querySelectorAll('.specialist-skills-list input:checked')].map(cb => cb.value);
+        const specialists = await window.specialists.save(n, instr, checkedSkills);
         container.innerHTML = '';
-        renderExpertsList(experts);
+        renderSpecialistsList(specialists);
       });
-      document.getElementById(isEdit ? 'expert-instructions-input' : 'expert-name-input').focus();
+      document.getElementById(isEdit ? 'specialist-instructions-input' : 'specialist-name-input').focus();
     }
 
     settingsPanelBody.addEventListener('click', async (e) => {
@@ -3288,25 +3288,25 @@
         if (skill) showSkillForm(skill.name, skill.content);
         return;
       }
-      // Experts
-      const expertRemoveBtn = e.target.closest('.expert-remove-btn');
-      if (expertRemoveBtn) {
-        const experts = await window.experts.remove(expertRemoveBtn.dataset.remove);
-        renderExpertsList(experts);
+      // Specialists
+      const specialistRemoveBtn = e.target.closest('.specialist-remove-btn');
+      if (specialistRemoveBtn) {
+        const specialists = await window.specialists.remove(specialistRemoveBtn.dataset.remove);
+        renderSpecialistsList(specialists);
         return;
       }
-      const expertItem = e.target.closest('.expert-item');
-      if (expertItem) {
-        const all = await window.experts.list();
-        const expert = all.find(ex => ex.name === expertItem.dataset.name);
-        if (expert) showExpertForm(expert.name, expert.instructions, expert.skills);
+      const specialistItem = e.target.closest('.specialist-item');
+      if (specialistItem) {
+        const all = await window.specialists.list();
+        const specialist = all.find(ex => ex.name === specialistItem.dataset.name);
+        if (specialist) showSpecialistForm(specialist.name, specialist.instructions, specialist.skills);
       }
     });
 
-    // Expert picker & terminal management
+    // Specialist picker & terminal management
     const tabTypePicker = document.getElementById('tab-type-picker');
-    const expertPicker = document.getElementById('expert-picker');
-    const expertPickerList = document.getElementById('expert-picker-list');
+    const specialistPicker = document.getElementById('specialist-picker');
+    const specialistPickerList = document.getElementById('specialist-picker-list');
     const terminalView = document.getElementById('terminal-view');
     const terminalHeader = document.getElementById('terminal-header');
     const terminalContainers = document.getElementById('terminal-containers');
@@ -3333,57 +3333,57 @@
         startBrowser(pendingWorkDir);
         pendingWorkDir = null;
       } else {
-        showExpertPicker(pendingWorkDir);
+        showSpecialistPicker(pendingWorkDir);
       }
     });
 
     let pendingTicketPath = null;
 
-    function renderExpertPickerItems(experts) {
-      const builtinExperts = experts.filter(ex => ex.builtin);
-      const customExperts = experts.filter(ex => !ex.builtin);
-      const claudeItem = '<div class="expert-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
-      const builtinItems = builtinExperts.map(ex => {
+    function renderSpecialistPickerItems(specialists) {
+      const builtinSpecialists = specialists.filter(ex => ex.builtin);
+      const customSpecialists = specialists.filter(ex => !ex.builtin);
+      const claudeItem = '<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
+      const builtinItems = builtinSpecialists.map(ex => {
         const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="expert-picker-item builtin" data-name="${esc}">${ex.name}</div>`;
+        return `<div class="specialist-picker-item builtin" data-name="${esc}">${ex.name}</div>`;
       }).join('');
-      const customItems = customExperts.map(ex => {
+      const customItems = customSpecialists.map(ex => {
         const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="expert-picker-item" data-name="${esc}">${ex.name}</div>`;
+        return `<div class="specialist-picker-item" data-name="${esc}">${ex.name}</div>`;
       }).join('');
-      let html = '<div class="expert-picker-label">System</div>' + claudeItem + builtinItems;
+      let html = '<div class="specialist-picker-label">System</div>' + claudeItem + builtinItems;
       if (customItems) {
-        html += '<div class="expert-picker-separator"></div><div class="expert-picker-label">Custom</div>' + customItems;
+        html += '<div class="specialist-picker-separator"></div><div class="specialist-picker-label">Custom</div>' + customItems;
       }
       return html;
     }
 
-    async function showExpertPicker(workDir) {
+    async function showSpecialistPicker(workDir) {
       pendingWorkDir = workDir;
-      const experts = (await window.experts.list()).filter(ex => ex.name !== 'issue-creator');
-      expertPickerList.innerHTML = renderExpertPickerItems(experts);
-      expertPicker.classList.add('active');
+      const specialists = (await window.specialists.list()).filter(ex => ex.name !== 'issue-creator');
+      specialistPickerList.innerHTML = renderSpecialistPickerItems(specialists);
+      specialistPicker.classList.add('active');
     }
 
-    async function showExpertPickerForTicket(workDir, ticketPath) {
+    async function showSpecialistPickerForTicket(workDir, ticketPath) {
       pendingTicketPath = ticketPath;
       pendingWorkDir = workDir;
-      const experts = (await window.experts.list()).filter(ex => ex.name !== 'issue-creator');
-      expertPickerList.innerHTML = renderExpertPickerItems(experts);
-      expertPicker.classList.add('active');
+      const specialists = (await window.specialists.list()).filter(ex => ex.name !== 'issue-creator');
+      specialistPickerList.innerHTML = renderSpecialistPickerItems(specialists);
+      specialistPicker.classList.add('active');
     }
 
-    document.getElementById('expert-picker-cancel').addEventListener('click', () => {
-      expertPicker.classList.remove('active');
+    document.getElementById('specialist-picker-cancel').addEventListener('click', () => {
+      specialistPicker.classList.remove('active');
       pendingWorkDir = null;
       pendingTicketPath = null;
     });
 
-    expertPickerList.addEventListener('click', (e) => {
-      const item = e.target.closest('.expert-picker-item');
+    specialistPickerList.addEventListener('click', (e) => {
+      const item = e.target.closest('.specialist-picker-item');
       if (!item || !pendingWorkDir) return;
-      const expertName = item.dataset.name;
-      expertPicker.classList.remove('active');
+      const specialistName = item.dataset.name;
+      specialistPicker.classList.remove('active');
 
       if (pendingTicketPath) {
         const ticketPath = pendingTicketPath;
@@ -3392,12 +3392,12 @@
           ? ticketPath.slice(pendingWorkDir.length + 1)
           : ticketPath;
         const ticketNum = ticketPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
-        startTask(expertName, pendingWorkDir, {
+        startTask(specialistName, pendingWorkDir, {
           initialPrompt: `Read the ticket file at ${relPath} and let me know once done`,
           ticketNumber: ticketNum
         });
       } else {
-        startTask(expertName, pendingWorkDir);
+        startTask(specialistName, pendingWorkDir);
       }
       pendingWorkDir = null;
     });
@@ -3418,8 +3418,8 @@
         if (!activeWorkDir) return;
         const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
         if (activePanel === 'tickets') {
-          if (filename && !filename.includes('.the-agency/tickets/') &&
-              !filename.includes('.the-agency\\tickets\\')) return;
+          if (filename && !filename.includes('.yuna/tickets/') &&
+              !filename.includes('.yuna\\tickets\\')) return;
         }
         refreshRightPanel(activeWorkDir);
       }, 300);
@@ -3453,7 +3453,7 @@
     let notifNextId = 1;
     let notifUpdateTimer = null;
     const notifDebounceTimers = new Map(); // tabId → setTimeout handle for output-idle detection
-    const busyTabs = new Set(); // tab IDs currently receiving PTY output (Claude/expert only)
+    const busyTabs = new Set(); // tab IDs currently receiving PTY output (Claude/specialist only)
     const busyDebounceTimers = new Map(); // tabId → setTimeout handle for busy-idle detection
 
     function stripAnsi(str) {
@@ -3685,8 +3685,8 @@
       }
     }
 
-    document.getElementById('launchpad-expert').addEventListener('click', () => {
-      if (activeWorkDir) showExpertPicker(activeWorkDir);
+    document.getElementById('launchpad-specialist').addEventListener('click', () => {
+      if (activeWorkDir) showSpecialistPicker(activeWorkDir);
     });
 
     document.getElementById('launchpad-terminal').addEventListener('click', () => {
@@ -3895,7 +3895,7 @@
       renderTabBar();
     }
 
-    async function startTask(expertName, workDir, options = {}) {
+    async function startTask(specialistName, workDir, options = {}) {
       const workDirChanged = activeWorkDir !== workDir;
       activeWorkDir = workDir;
       if (workDirChanged) refreshRightPanel(workDir);
@@ -3906,7 +3906,7 @@
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const baseName = expertName === '__CLAUDE__' ? 'Claude' : expertName === '__TERMINAL__' ? 'Terminal' : expertName === 'ticketmaster' ? 'Ticketmaster' : expertName === 'debugger' ? 'Debugger' : expertName === 'code-reviewer' ? 'Code Reviewer' : expertName;
+      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'ticketmaster' ? 'Ticketmaster' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName;
       const label = options.ticketNumber ? `#${options.ticketNumber} - ${baseName}` : baseName;
 
       // Create pane
@@ -3932,23 +3932,23 @@
 
       // Spawn pty — returns tab id
       const dims = fitAddon.proposeDimensions();
-      const id = await window.pty.spawn(expertName, workDir, dims, options.initialPrompt || null);
+      const id = await window.pty.spawn(specialistName, workDir, dims, options.initialPrompt || null);
 
       const resizeObs = new ResizeObserver(() => {
         if (activeTabId === id) fitAddon.fit();
       });
       resizeObs.observe(pane);
 
-      tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, expertName });
+      tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, specialistName });
       addTabToOrder(id, workDir);
       activeTabId = id;
 
       // Wire data
-      const isClaudeTab = expertName !== '__TERMINAL__';
+      const isClaudeTab = specialistName !== '__TERMINAL__';
       window.pty.onData(id, data => {
         term.write(data);
         if (isClaudeTab && activeTabId !== id) {
-          // Claude/expert in background: green busy dot while active, blue when done
+          // Claude/specialist in background: green busy dot while active, blue when done
           // Filter escape-only data (cursor moves, TUI redraws) — only real content triggers busy
           const meaningful = stripAnsi(data).trim().length;
           if (meaningful > 0) {
@@ -4011,9 +4011,9 @@
         const paths = window.dragDrop.getLastDroppedPaths();
         if (paths.length === 0) return;
 
-        const isClaudeSession = expertName !== '__TERMINAL__';
+        const isClaudeSession = specialistName !== '__TERMINAL__';
         const parts = paths.map(p => {
-          // For Claude/expert sessions, prefix with @ so Claude Code attaches the file
+          // For Claude/specialist sessions, prefix with @ so Claude Code attaches the file
           if (isClaudeSession) {
             return p.includes(' ') ? `@"${p}"` : `@${p}`;
           }
@@ -4481,7 +4481,7 @@
       if (entry) entry.classList.add('expanded');
       await loadProjects();
       openWorkDir(wtPath);
-      showExpertPickerForTicket(wtPath, ticketPath);
+      showSpecialistPickerForTicket(wtPath, ticketPath);
     }
 
     ticketsBody.addEventListener('click', async (e) => {
@@ -4494,7 +4494,7 @@
       const workBtn = e.target.closest('.ticket-work-btn');
       if (workBtn) {
         const ticketPath = workBtn.dataset.ticketPath;
-        showExpertPickerForTicket(activeWorkDir, ticketPath);
+        showSpecialistPickerForTicket(activeWorkDir, ticketPath);
         return;
       }
 

@@ -1,10 +1,11 @@
 {
-  "name": "the-agency",
+  "name": "yuna",
   "version": "1.0.0",
+  "productName": "Yuna",
   "description": "",
   "main": "main.js",
   "bin": {
-    "the-agency": "./bin/cli.js"
+    "yuna": "./bin/cli.js"
   },
   "scripts": {
     "start": "electron .",

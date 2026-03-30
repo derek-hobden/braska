@@ -1,4 +1,4 @@
-# The Agency — Project Log
+# Yuna — Project Log
 
 ## Progress
 

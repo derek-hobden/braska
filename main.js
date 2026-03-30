@@ -7,6 +7,10 @@ const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 const pty = require('node-pty');
 
+if (process.platform === 'darwin') {
+  app.setName('Yuna');
+}
+
 const ptyProcesses = new Map();
 let nextPtyId = 1;
 let activeWatcher = null;
@@ -55,7 +59,7 @@ function getGitInfo(projectPath) {
 
 // Skills management
 function getSkillsDir() {
-  const dir = path.join(os.homedir(), '.the-agency', 'skills');
+  const dir = path.join(os.homedir(), '.yuna', 'skills');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -70,47 +74,47 @@ function listSkills() {
     });
 }
 
-// Experts management
-function getExpertsDir() {
-  const dir = path.join(os.homedir(), '.the-agency', 'experts');
+// Specialists management
+function getSpecialistsDir() {
+  const dir = path.join(os.homedir(), '.yuna', 'specialists');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
-const BUILTIN_EXPERTS = ['ticketmaster', 'debugger', 'code-reviewer', 'issue-creator'];
+const BUILTIN_SPECIALISTS = ['ticketmaster', 'debugger', 'code-reviewer', 'issue-creator'];
 
-function listExperts() {
-  const dir = getExpertsDir();
+function listSpecialists() {
+  const dir = getSpecialistsDir();
   return fs.readdirSync(dir, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => {
-      const expertDir = path.join(dir, d.name);
-      const claudeFile = path.join(expertDir, 'claude.md');
+      const specialistDir = path.join(dir, d.name);
+      const claudeFile = path.join(specialistDir, 'claude.md');
       const instructions = fs.existsSync(claudeFile) ? fs.readFileSync(claudeFile, 'utf-8') : '';
-      const skillsDir = path.join(expertDir, '.claude', 'skills');
+      const skillsDir = path.join(specialistDir, '.claude', 'skills');
       let skills = [];
       if (fs.existsSync(skillsDir)) {
         skills = fs.readdirSync(skillsDir, { withFileTypes: true })
           .filter(d => d.isDirectory())
           .map(d => d.name);
       }
-      return { name: d.name, instructions, skills, builtin: BUILTIN_EXPERTS.includes(d.name) };
+      return { name: d.name, instructions, skills, builtin: BUILTIN_SPECIALISTS.includes(d.name) };
     });
 }
 
-// System experts — auto-created on startup
-function ensureSystemExperts() {
-  const ticketmasterDir = path.join(getExpertsDir(), 'ticketmaster');
+// System specialists — auto-created on startup
+function ensureSystemSpecialists() {
+  const ticketmasterDir = path.join(getSpecialistsDir(), 'ticketmaster');
   const claudeFile = path.join(ticketmasterDir, 'claude.md');
   fs.mkdirSync(ticketmasterDir, { recursive: true });
-  fs.writeFileSync(claudeFile, `You are the Ticketmaster for The Agency. Your job is to help the user create well-formatted ticket files.
+  fs.writeFileSync(claudeFile, `You are the Ticketmaster for Yuna. Your job is to help the user create well-formatted ticket files.
 
 IMPORTANT RESTRICTIONS:
-- You may ONLY create, read, edit, move, and delete files inside \`.the-agency/tickets/\`.
-- You must NEVER create, edit, delete, or modify any files outside \`.the-agency/tickets/\`. This includes source code, configuration, documentation, scripts, and any other project files.
-- If the user asks you to make code changes, fix bugs, or edit non-ticket files, refuse and explain that you are the Ticketmaster and can only manage tickets. Suggest they use an appropriate expert instead.
+- You may ONLY create, read, edit, move, and delete files inside \`.yuna/tickets/\`.
+- You must NEVER create, edit, delete, or modify any files outside \`.yuna/tickets/\`. This includes source code, configuration, documentation, scripts, and any other project files.
+- If the user asks you to make code changes, fix bugs, or edit non-ticket files, refuse and explain that you are the Ticketmaster and can only manage tickets. Suggest they use an appropriate specialist instead.
 
-Tickets are stored in .the-agency/tickets/ relative to the current working directory.
+Tickets are stored in .yuna/tickets/ relative to the current working directory.
 
 TICKET FILE FORMAT:
 \`\`\`markdown
@@ -127,11 +131,11 @@ Detailed description of the problem or feature request...
 \`\`\`
 
 FILE NAMING: NN-kebab-case-title.md (e.g. 03-fix-auth-crash.md) where NN is the next available number.
-SAVE LOCATION: .the-agency/tickets/open/
+SAVE LOCATION: .yuna/tickets/open/
 
 When you start:
-1. First ensure the tickets directory exists: mkdir -p .the-agency/tickets/open
-2. Check existing ticket files in .the-agency/tickets/open/, .the-agency/tickets/done/, and .the-agency/tickets/cancelled/ to determine the next number
+1. First ensure the tickets directory exists: mkdir -p .yuna/tickets/open
+2. Check existing ticket files in .yuna/tickets/open/, .yuna/tickets/done/, and .yuna/tickets/cancelled/ to determine the next number
 3. Ask the user what ticket they would like to create
 4. When you have enough information, write the file
 5. After writing, confirm the ticket was created with its number and title
@@ -162,19 +166,19 @@ When you start:
   fs.writeFileSync(protectFilesScript, `#!/bin/bash
 FILE_PATH=$(cat | jq -r '.tool_input.file_path // empty')
 
-if [[ "$FILE_PATH" == */.the-agency/tickets/* ]]; then
+if [[ "$FILE_PATH" == */.yuna/tickets/* ]]; then
   exit 0  # allowed
 fi
 
-echo "BLOCKED: Ticketmaster can only edit files inside .the-agency/tickets/" >&2
+echo "BLOCKED: Ticketmaster can only edit files inside .yuna/tickets/" >&2
 exit 2  # reject
 `, 'utf-8');
   fs.chmodSync(protectFilesScript, 0o755);
 
-  const debuggerDir = path.join(getExpertsDir(), 'debugger');
+  const debuggerDir = path.join(getSpecialistsDir(), 'debugger');
   const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
   fs.mkdirSync(debuggerDir, { recursive: true });
-  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for The Agency. Your job is to help the user systematically debug issues in their codebase.
+  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for Yuna. Your job is to help the user systematically debug issues in their codebase.
 
 DEBUGGING METHODOLOGY — follow this sequence rigorously:
 
@@ -233,14 +237,14 @@ When you start:
 3. Work through the methodology step by step, reporting progress as you go.
 `, 'utf-8');
 
-  const codeReviewerDir = path.join(getExpertsDir(), 'code-reviewer');
+  const codeReviewerDir = path.join(getSpecialistsDir(), 'code-reviewer');
   const codeReviewerClaudeFile = path.join(codeReviewerDir, 'claude.md');
   fs.mkdirSync(codeReviewerDir, { recursive: true });
-  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for The Agency. Your job is to perform thorough, structured code reviews.
+  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for Yuna. Your job is to perform thorough, structured code reviews.
 
 IMPORTANT RESTRICTIONS:
 - You are READ-ONLY. You must NEVER create, edit, delete, or modify any source files, configuration files, or project files.
-- Your sole purpose is to review code and provide feedback. If the user asks you to fix something, explain the issue and suggest a fix, but do NOT make the change yourself. Suggest they use an appropriate expert instead.
+- Your sole purpose is to review code and provide feedback. If the user asks you to fix something, explain the issue and suggest a fix, but do NOT make the change yourself. Suggest they use an appropriate specialist instead.
 
 When you start:
 1. Ask the user what they would like you to review. Offer these options:
@@ -305,8 +309,22 @@ WORKING PRINCIPLES:
 }
 
 // Per-project ticket tracking
+const migratedProjects = new Set();
 function getTicketsDir(workDir) {
-  return path.join(workDir, '.the-agency', 'tickets');
+  // Migrate legacy .the-agency directory (once per project per session)
+  if (!migratedProjects.has(workDir)) {
+    migratedProjects.add(workDir);
+    const oldDir = path.join(workDir, '.the-agency');
+    const newDir = path.join(workDir, '.yuna');
+    try {
+      if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
+        fs.renameSync(oldDir, newDir);
+      }
+    } catch (err) {
+      console.error(`Failed to migrate ${oldDir} to ${newDir}:`, err.message);
+    }
+  }
+  return path.join(workDir, '.yuna', 'tickets');
 }
 
 function ensureTicketsDirs(workDir) {
@@ -455,8 +473,38 @@ function createWindow() {
   win.loadFile('index.html');
 }
 
+function migrateData() {
+  // Home directory: ~/.the-agency -> ~/.yuna
+  try {
+    const oldHome = path.join(os.homedir(), '.the-agency');
+    const newHome = path.join(os.homedir(), '.yuna');
+    if (fs.existsSync(oldHome) && !fs.existsSync(newHome)) {
+      fs.renameSync(oldHome, newHome);
+    }
+  } catch (err) {
+    console.error('Failed to migrate home directory:', err.message);
+  }
+
+  // Electron userData: projects.json
+  try {
+    const oldUserData = path.join(app.getPath('appData'), 'the-agency');
+    const newUserData = app.getPath('userData');
+    if (oldUserData !== newUserData) {
+      const oldProjects = path.join(oldUserData, 'projects.json');
+      const newProjects = path.join(newUserData, 'projects.json');
+      if (fs.existsSync(oldProjects) && !fs.existsSync(newProjects)) {
+        fs.mkdirSync(newUserData, { recursive: true });
+        fs.copyFileSync(oldProjects, newProjects);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to migrate userData:', err.message);
+  }
+}
+
 app.whenReady().then(() => {
-  ensureSystemExperts();
+  migrateData();
+  ensureSystemSpecialists();
   createWindow();
 
   ipcMain.handle('projects:list', () => loadProjects().map(p => ({ ...p, ...getGitInfo(p.path) })));
@@ -496,14 +544,14 @@ app.whenReady().then(() => {
     return listSkills();
   });
 
-  ipcMain.handle('experts:list', () => listExperts());
+  ipcMain.handle('specialists:list', () => listSpecialists());
 
-  ipcMain.handle('experts:save', (_event, name, instructions, skillNames) => {
+  ipcMain.handle('specialists:save', (_event, name, instructions, skillNames) => {
     const safe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const expertDir = path.join(getExpertsDir(), safe);
-    const skillsDir = path.join(expertDir, '.claude', 'skills');
+    const specialistDir = path.join(getSpecialistsDir(), safe);
+    const skillsDir = path.join(specialistDir, '.claude', 'skills');
     fs.mkdirSync(skillsDir, { recursive: true });
-    fs.writeFileSync(path.join(expertDir, 'claude.md'), instructions, 'utf-8');
+    fs.writeFileSync(path.join(specialistDir, 'claude.md'), instructions, 'utf-8');
     // Clear existing skill directories
     for (const f of fs.readdirSync(skillsDir)) {
       const p = path.join(skillsDir, f);
@@ -518,13 +566,13 @@ app.whenReady().then(() => {
       fs.mkdirSync(skillDir, { recursive: true });
       fs.symlinkSync(target, path.join(skillDir, 'SKILL.md'));
     }
-    return listExperts();
+    return listSpecialists();
   });
 
-  ipcMain.handle('experts:remove', (_event, name) => {
-    const expertDir = path.join(getExpertsDir(), name);
-    if (fs.existsSync(expertDir)) fs.rmSync(expertDir, { recursive: true, force: true });
-    return listExperts();
+  ipcMain.handle('specialists:remove', (_event, name) => {
+    const specialistDir = path.join(getSpecialistsDir(), name);
+    if (fs.existsSync(specialistDir)) fs.rmSync(specialistDir, { recursive: true, force: true });
+    return listSpecialists();
   });
 
   // Ticket tracking
@@ -543,15 +591,15 @@ app.whenReady().then(() => {
   });
 
   // PTY / terminal management (multi-tab)
-  ipcMain.handle('pty:spawn', (event, expertName, workDir, dims, initialPrompt) => {
+  ipcMain.handle('pty:spawn', (event, specialistName, workDir, dims, initialPrompt) => {
     const id = nextPtyId++;
     const shell = process.env.SHELL || '/bin/zsh';
     let cwd, args;
 
-    if (expertName === '__TERMINAL__') {
+    if (specialistName === '__TERMINAL__') {
       cwd = workDir;
       args = ['-l'];
-    } else if (expertName === '__CLAUDE__') {
+    } else if (specialistName === '__CLAUDE__') {
       cwd = workDir;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
@@ -561,11 +609,11 @@ app.whenReady().then(() => {
       }
     } else {
       // CWD is project dir so @ file autocompletion works.
-      // Expert's claude.md loaded via --add-dir + env var. Skills auto-load from --add-dir.
+      // Specialist's claude.md loaded via --add-dir + env var. Skills auto-load from --add-dir.
       cwd = workDir;
-      const expertDir = path.join(getExpertsDir(), expertName);
-      const safeExpertDir = expertDir.replace(/'/g, "'\"'\"'");
-      const baseCmd = `claude --dangerously-skip-permissions --add-dir '${safeExpertDir}'`;
+      const specialistDir = path.join(getSpecialistsDir(), specialistName);
+      const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
+      const baseCmd = `claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
