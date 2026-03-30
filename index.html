@@ -2701,7 +2701,15 @@
           alert('Failed to prune worktrees: ' + result.error);
         }
       } else if (action === 'pull-main') {
-        const result = await window.gitOps.pullLatestMain(wtPath);
+        let result = await window.gitOps.pullLatestMain(wtPath);
+        if (result.isDirty) {
+          const count = result.dirtyCount || 'some';
+          if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
+            result = await window.gitOps.pullLatestMain(wtPath, true);
+          } else {
+            return;
+          }
+        }
         if (result.ok) {
           if (result.alreadyUpToDate) alert('Already up to date with main.');
           else { alert('Successfully merged latest main.'); loadProjects(); }
@@ -4771,7 +4779,17 @@
       if (!activeWorkDir) return;
       const btn = document.getElementById('changes-pull-main-btn');
       btn.disabled = true;
-      const result = await window.gitOps.pullLatestMain(activeWorkDir);
+      let result = await window.gitOps.pullLatestMain(activeWorkDir);
+      if (result.isDirty) {
+        const count = result.dirtyCount || 'some';
+        if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
+          result = await window.gitOps.pullLatestMain(activeWorkDir, true);
+        } else {
+          btn.disabled = false;
+          showChangesStatus('Cancelled', 'error');
+          return;
+        }
+      }
       btn.disabled = false;
       if (result.ok) {
         if (result.alreadyUpToDate) {
@@ -4782,8 +4800,6 @@
         }
       } else if (result.hasConflicts) {
         showChangesStatus('Conflicts with main (aborted)', 'error');
-      } else if (result.isDirty) {
-        showChangesStatus('Commit or stash changes first', 'error');
       } else {
         showChangesStatus(result.error || 'Pull main failed', 'error');
       }

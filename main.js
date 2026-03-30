@@ -789,7 +789,7 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:pull-latest-main', (_event, workDir) => {
+  ipcMain.handle('git:pull-latest-main', (_event, workDir, autoCommit) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
 
@@ -819,21 +819,38 @@ app.whenReady().then(() => {
       const status = execSync('git status --porcelain', opts).trim();
       if (status) {
         const count = status.split('\n').length;
-        return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true };
+        if (autoCommit) {
+          execSync('git add -A', opts);
+          execSync(`git commit -m 'Auto-commit before pulling latest main'`, opts);
+        } else {
+          return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true, dirtyCount: count };
+        }
       }
 
-      // Fetch from origin
-      execSync('git fetch origin 2>&1', opts);
+      // Determine merge target: origin/main if remote exists, otherwise local main
+      let hasRemote = false;
+      try {
+        const remotes = execSync('git remote', { ...opts, timeout: 5000 }).trim();
+        hasRemote = remotes.length > 0;
+      } catch { /* no remotes */ }
+
+      let mergeTarget;
+      if (hasRemote) {
+        execSync('git fetch origin 2>&1', opts);
+        mergeTarget = `origin/${safe(mainBranch)}`;
+      } else {
+        mergeTarget = safe(mainBranch);
+      }
 
       // Check if already up to date
       try {
-        execSync(`git merge-base --is-ancestor 'origin/${safe(mainBranch)}' HEAD`, { ...opts, timeout: 10000 });
+        execSync(`git merge-base --is-ancestor '${mergeTarget}' HEAD`, { ...opts, timeout: 10000 });
         return { ok: true, alreadyUpToDate: true };
       } catch { /* not ancestor — there are changes to merge */ }
 
-      // Merge origin/main into current branch
+      // Merge main into current branch
       try {
-        const out = execSync(`git merge 'origin/${safe(mainBranch)}' 2>&1`, opts);
+        const out = execSync(`git merge '${mergeTarget}' 2>&1`, opts);
         return { ok: true, output: out.trim() };
       } catch (mergeErr) {
         const msg = (mergeErr.stderr || mergeErr.stdout || mergeErr.message || '').toString();

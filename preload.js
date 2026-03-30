@@ -79,7 +79,7 @@ contextBridge.exposeInMainWorld('gitOps', {
   stashSave: (workDir, message) => ipcRenderer.invoke('git:stash-save', workDir, message),
   stashPop: (workDir, index) => ipcRenderer.invoke('git:stash-pop', workDir, index),
   stashDrop: (workDir, index) => ipcRenderer.invoke('git:stash-drop', workDir, index),
-  pullLatestMain: (workDir) => ipcRenderer.invoke('git:pull-latest-main', workDir),
+  pullLatestMain: (workDir, autoCommit) => ipcRenderer.invoke('git:pull-latest-main', workDir, autoCommit),
 });
 
 // PTY bridge — thin IPC layer, multi-tab support
