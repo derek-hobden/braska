@@ -606,6 +606,11 @@ app.whenReady().then(() => {
     const shell = process.env.SHELL || '/bin/zsh';
     let cwd, args;
 
+    // For Claude/specialist spawns, explicitly cd to workDir before running the command.
+    // Login shells (-l) read profile files that may change the working directory,
+    // so we cannot rely on cwd alone to guarantee the correct working directory.
+    const safeWorkDir = workDir.replace(/'/g, "'\"'\"'");
+
     if (specialistName === '__TERMINAL__') {
       cwd = workDir;
       args = ['-l'];
@@ -613,9 +618,9 @@ app.whenReady().then(() => {
       cwd = workDir;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
-        args = ['-l', '-c', `claude --dangerously-skip-permissions -- '${safePrompt}'`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions -- '${safePrompt}'`];
       } else {
-        args = ['-l', '-c', 'claude --dangerously-skip-permissions'];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions`];
       }
     } else {
       // CWD is project dir so @ file autocompletion works.
@@ -623,7 +628,7 @@ app.whenReady().then(() => {
       cwd = workDir;
       const specialistDir = path.join(getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
-      const baseCmd = `claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
+      const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
