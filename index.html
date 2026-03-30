@@ -2256,7 +2256,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="notif-count hidden" id="notif-count">0</span>
       </button>
-      <button class="toolbar-btn active" id="toggle-filetree-btn" title="Toggle Explorer (⌘E)">
+      <button class="toolbar-btn" id="toggle-filetree-btn" title="Toggle Explorer (⌘E)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="10.5" y1="2" x2="10.5" y2="14"/></svg>
       </button>
       <div id="notification-dropdown">
@@ -2305,8 +2305,8 @@
         </div>
         <div id="settings-panel-body"></div>
       </div>
-      <div class="resize-handle" id="filetree-resize"></div>
-      <div id="filetree-panel">
+      <div class="resize-handle hidden" id="filetree-resize"></div>
+      <div id="filetree-panel" class="hidden">
         <div id="filetree-header">
           <div class="filetree-tabs">
             <button class="filetree-tab active" data-panel="explorer">Explorer</button>
@@ -4002,7 +4002,7 @@
     const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
     const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 
-    let filetreeVisible = true;
+    let filetreeVisible = false;
     let sidebarVisible = true;
     const workDirExplorerVisible = new Map(); // per-worktree explorer state
 
