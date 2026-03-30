@@ -1417,6 +1417,7 @@
       transition: opacity 0.3s;
     }
     .changes-toolbar-status.success { color: #3fb950; }
+    .changes-toolbar-status.info { color: #d29922; }
     .changes-toolbar-status.error { color: #f85149; }
     .changes-commit-area {
       display: flex;
@@ -2726,38 +2727,11 @@
       } else if (action === 'pull-main') {
         let result = await window.gitOps.pullLatestMain(wtPath);
         if (result.isDirty) {
-          const count = result.dirtyCount || 'some';
-          if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
-            // Switch to Changes tab and flash it
-            switchRightPanelTab('changes');
-            const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
-            changesTab.classList.add('attention');
-            showChangesStatus('Auto-committing\u2026', 'success');
-            // Stage all
-            const stageResult = await window.gitOps.stageAll(wtPath);
-            if (!stageResult.ok) {
-              changesTab.classList.remove('attention');
-              alert('Stage failed: ' + stageResult.error);
-              return;
-            }
-            // Generate commit message via Haiku
-            showChangesStatus('Generating commit message\u2026', 'success');
-            const msgResult = await window.gitOps.generateCommitMsg(wtPath);
-            const commitMsg = msgResult.ok ? msgResult.message : 'Auto-commit before pulling latest main';
-            // Commit
-            const commitResult = await window.gitOps.commit(wtPath, commitMsg);
-            changesTab.classList.remove('attention');
-            if (!commitResult.ok) {
-              alert('Commit failed: ' + commitResult.error);
-              return;
-            }
-            refreshChanges(wtPath);
-            showChangesStatus('Committed, pulling main\u2026', 'success');
-            // Retry pull-latest-main
-            result = await window.gitOps.pullLatestMain(wtPath);
-          } else {
-            return;
-          }
+          const stageOutcome = await stageAndPromptCommit(wtPath, result.dirtyCount);
+          if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
+          else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'error');
+          else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
+          return;
         }
         if (result.ok) {
           if (result.alreadyUpToDate) alert('Already up to date with main.');
@@ -4548,6 +4522,27 @@
       el._timer = setTimeout(() => { el.textContent = ''; el.className = 'changes-toolbar-status'; }, 4000);
     }
 
+    let _stageAttentionTimeout = null;
+    async function stageAndPromptCommit(path, dirtyCount) {
+      if (!dirtyCount || dirtyCount <= 0) return 'cancelled';
+      if (!confirm(`${dirtyCount} uncommitted change${dirtyCount !== 1 ? 's' : ''}. Stage all changes? You'll need to commit before pulling main.`)) {
+        return 'cancelled';
+      }
+      const stageResult = await window.gitOps.stageAll(path);
+      if (!stageResult.ok) {
+        return 'error';
+      }
+      switchRightPanelTab('changes');
+      const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
+      if (changesTab) {
+        changesTab.classList.add('attention');
+        clearTimeout(_stageAttentionTimeout);
+        _stageAttentionTimeout = setTimeout(() => changesTab.classList.remove('attention'), 3000);
+      }
+      refreshChanges(path);
+      return 'ok';
+    }
+
     async function refreshChanges(workDir) {
       changesBody.innerHTML = '<div class="changes-empty">Loading...</div>';
       const [status, commits, stashes] = await Promise.all([
@@ -4871,42 +4866,12 @@
       btn.disabled = true;
       let result = await window.gitOps.pullLatestMain(activeWorkDir);
       if (result.isDirty) {
-        const count = result.dirtyCount || 'some';
-        if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
-          // Switch to Changes tab and flash it
-          switchRightPanelTab('changes');
-          const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
-          changesTab.classList.add('attention');
-          showChangesStatus('Auto-committing\u2026', 'success');
-          // Stage all
-          const stageResult = await window.gitOps.stageAll(activeWorkDir);
-          if (!stageResult.ok) {
-            changesTab.classList.remove('attention');
-            btn.disabled = false;
-            showChangesStatus('Stage failed: ' + stageResult.error, 'error');
-            return;
-          }
-          // Generate commit message via Haiku
-          showChangesStatus('Generating commit message\u2026', 'success');
-          const msgResult = await window.gitOps.generateCommitMsg(activeWorkDir);
-          const commitMsg = msgResult.ok ? msgResult.message : 'Auto-commit before pulling latest main';
-          // Commit
-          const commitResult = await window.gitOps.commit(activeWorkDir, commitMsg);
-          changesTab.classList.remove('attention');
-          if (!commitResult.ok) {
-            btn.disabled = false;
-            showChangesStatus('Commit failed: ' + commitResult.error, 'error');
-            return;
-          }
-          refreshChanges(activeWorkDir);
-          showChangesStatus('Committed, pulling main\u2026', 'success');
-          // Retry pull-latest-main
-          result = await window.gitOps.pullLatestMain(activeWorkDir);
-        } else {
-          btn.disabled = false;
-          showChangesStatus('Cancelled', 'error');
-          return;
-        }
+        const stageOutcome = await stageAndPromptCommit(activeWorkDir, result.dirtyCount);
+        btn.disabled = false;
+        if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
+        else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'error');
+        else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
+        return;
       }
       btn.disabled = false;
       if (result.ok) {
