@@ -477,7 +477,7 @@ app.whenReady().then(() => {
   ipcMain.handle('projects:remove', (_event, projectPath) => {
     const projects = loadProjects().filter((p) => p.path !== projectPath);
     saveProjects(projects);
-    return projects;
+    return projects.map(p => ({ ...p, ...getGitInfo(p.path) }));
   });
 
   ipcMain.handle('skills:list', () => listSkills());
