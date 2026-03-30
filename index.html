@@ -3650,6 +3650,7 @@
       const visible = workDirExplorerVisible.has(workDir) ? workDirExplorerVisible.get(workDir) : true;
       filetreeVisible = visible;
       filetreePanel.classList.toggle('hidden', !filetreeVisible);
+      document.getElementById('filetree-resize').classList.toggle('hidden', !filetreeVisible);
       toggleFiletreeBtn.classList.toggle('active', filetreeVisible);
     }
 
