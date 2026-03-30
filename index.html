@@ -1264,6 +1264,8 @@
       padding: 0 2px;
     }
     .changes-section-action:hover { color: #ccc; }
+    .review-staged { color: #5b8fbf; margin-right: 6px; }
+    .review-staged:hover { color: #7db3e0; }
     .changes-file {
       display: flex;
       align-items: center;
@@ -4506,25 +4508,37 @@
       const stageBtn = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
 
       if (status.staged.length > 0) {
-        html += `<div class="changes-section-header">Staged<span class="changes-section-count">${status.staged.length}</span><button class="changes-section-action unstage-all" title="Unstage all">&minus; All</button></div>`;
+        html += `<div class="changes-section-header">Staged`
+          + `<span class="changes-section-count">${status.staged.length}</span>`
+          + `<button class="changes-section-action review-staged" title="Review staged changes">Review</button>`
+          + `<button class="changes-section-action unstage-all" title="Unstage all">&minus; All</button>`
+          + `</div>`;
         for (const f of status.staged)
           html += changeEntry(f.file, 'A', 'changes-badge-a', `data-file="${escHtml(f.file)}" data-staged="true"`, statSpan(f.added, f.deleted), unstageBtn);
       }
 
       if (status.unstaged.length > 0) {
-        html += `<div class="changes-section-header">Changes<span class="changes-section-count">${status.unstaged.length}</span><button class="changes-section-action stage-all-unstaged" title="Stage all changes">+ All</button></div>`;
+        html += `<div class="changes-section-header">Changes`
+          + `<span class="changes-section-count">${status.unstaged.length}</span>`
+          + `<button class="changes-section-action stage-all-unstaged" title="Stage all changes">+ All</button>`
+          + `</div>`;
         for (const f of status.unstaged)
           html += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-staged="false"`, statSpan(f.added, f.deleted), stageBtn);
       }
 
       if (status.untracked.length > 0) {
-        html += `<div class="changes-section-header">Untracked<span class="changes-section-count">${status.untracked.length}</span><button class="changes-section-action stage-all-untracked" title="Stage all untracked">+ All</button></div>`;
+        html += `<div class="changes-section-header">Untracked`
+          + `<span class="changes-section-count">${status.untracked.length}</span>`
+          + `<button class="changes-section-action stage-all-untracked" title="Stage all untracked">+ All</button>`
+          + `</div>`;
         for (const f of status.untracked)
           html += changeEntry(f, 'U', 'changes-badge-u', `data-file="${escHtml(f)}" data-untracked="true"`, '<span class="changes-added">new</span>', stageBtn);
       }
 
       if (stashes.length > 0) {
-        html += `<div class="changes-section-header">Stashes<span class="changes-section-count">${stashes.length}</span></div>`;
+        html += `<div class="changes-section-header">Stashes`
+          + `<span class="changes-section-count">${stashes.length}</span>`
+          + `</div>`;
         for (let i = 0; i < stashes.length; i++) {
           const s = stashes[i];
           html += `<div class="changes-stash-entry">
@@ -4603,6 +4617,18 @@
           const result = await window.gitOps.stashDrop(activeWorkDir, idx);
           if (result.ok) { showChangesStatus('Stash dropped', 'success'); refreshChanges(activeWorkDir); }
           else showChangesStatus(result.error, 'error');
+        }
+        return;
+      }
+
+      // Review staged files
+      if (e.target.closest('.review-staged')) {
+        if (activeWorkDir) {
+          startTask('code-reviewer', activeWorkDir, {
+            initialPrompt: 'Review the currently staged changes (git diff --cached). Provide feedback on code quality, potential bugs, and suggestions for improvement.'
+          });
+        } else {
+          showChangesStatus('No active directory', 'error');
         }
         return;
       }
