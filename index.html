@@ -1189,6 +1189,13 @@
     }
     .filetree-tab:hover { color: #888; }
     .filetree-tab.active { color: #ccc; border-bottom-color: #4a9eff; }
+    @keyframes tab-attention {
+      0%, 100% { color: #ccc; background: transparent; }
+      50% { color: #fff; background: rgba(74, 158, 255, 0.15); }
+    }
+    .filetree-tab.attention {
+      animation: tab-attention 1s ease-in-out infinite;
+    }
     #filetree-body {
       flex: 1;
       overflow-y: auto;
@@ -2721,7 +2728,33 @@
         if (result.isDirty) {
           const count = result.dirtyCount || 'some';
           if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
-            result = await window.gitOps.pullLatestMain(wtPath, true);
+            // Switch to Changes tab and flash it
+            switchRightPanelTab('changes');
+            const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
+            changesTab.classList.add('attention');
+            showChangesStatus('Auto-committing\u2026', 'success');
+            // Stage all
+            const stageResult = await window.gitOps.stageAll(wtPath);
+            if (!stageResult.ok) {
+              changesTab.classList.remove('attention');
+              alert('Stage failed: ' + stageResult.error);
+              return;
+            }
+            // Generate commit message via Haiku
+            showChangesStatus('Generating commit message\u2026', 'success');
+            const msgResult = await window.gitOps.generateCommitMsg(wtPath);
+            const commitMsg = msgResult.ok ? msgResult.message : 'Auto-commit before pulling latest main';
+            // Commit
+            const commitResult = await window.gitOps.commit(wtPath, commitMsg);
+            changesTab.classList.remove('attention');
+            if (!commitResult.ok) {
+              alert('Commit failed: ' + commitResult.error);
+              return;
+            }
+            refreshChanges(wtPath);
+            showChangesStatus('Committed, pulling main\u2026', 'success');
+            // Retry pull-latest-main
+            result = await window.gitOps.pullLatestMain(wtPath);
           } else {
             return;
           }
@@ -4840,7 +4873,35 @@
       if (result.isDirty) {
         const count = result.dirtyCount || 'some';
         if (confirm(`${count} uncommitted change${count !== 1 ? 's' : ''}. Commit all and pull main?`)) {
-          result = await window.gitOps.pullLatestMain(activeWorkDir, true);
+          // Switch to Changes tab and flash it
+          switchRightPanelTab('changes');
+          const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
+          changesTab.classList.add('attention');
+          showChangesStatus('Auto-committing\u2026', 'success');
+          // Stage all
+          const stageResult = await window.gitOps.stageAll(activeWorkDir);
+          if (!stageResult.ok) {
+            changesTab.classList.remove('attention');
+            btn.disabled = false;
+            showChangesStatus('Stage failed: ' + stageResult.error, 'error');
+            return;
+          }
+          // Generate commit message via Haiku
+          showChangesStatus('Generating commit message\u2026', 'success');
+          const msgResult = await window.gitOps.generateCommitMsg(activeWorkDir);
+          const commitMsg = msgResult.ok ? msgResult.message : 'Auto-commit before pulling latest main';
+          // Commit
+          const commitResult = await window.gitOps.commit(activeWorkDir, commitMsg);
+          changesTab.classList.remove('attention');
+          if (!commitResult.ok) {
+            btn.disabled = false;
+            showChangesStatus('Commit failed: ' + commitResult.error, 'error');
+            return;
+          }
+          refreshChanges(activeWorkDir);
+          showChangesStatus('Committed, pulling main\u2026', 'success');
+          // Retry pull-latest-main
+          result = await window.gitOps.pullLatestMain(activeWorkDir);
         } else {
           btn.disabled = false;
           showChangesStatus('Cancelled', 'error');

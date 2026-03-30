@@ -725,6 +725,16 @@ app.whenReady().then(() => {
   // Git operations — staging, commit, network, branches, stash
   const safe = s => s.replace(/'/g, "'\"'\"'");
 
+  ipcMain.handle('git:stage-all', (_event, workDir) => {
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
+      execSync('git add -A', opts);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.stderr || err.message };
+    }
+  });
+
   ipcMain.handle('git:stage', (_event, workDir, filePaths) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
@@ -823,7 +833,7 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:pull-latest-main', (_event, workDir, autoCommit) => {
+  ipcMain.handle('git:pull-latest-main', (_event, workDir) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
 
@@ -853,12 +863,7 @@ app.whenReady().then(() => {
       const status = execSync('git status --porcelain', opts).trim();
       if (status) {
         const count = status.split('\n').length;
-        if (autoCommit) {
-          execSync('git add -A', opts);
-          execSync(`git commit -m 'Auto-commit before pulling latest main'`, opts);
-        } else {
-          return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true, dirtyCount: count };
-        }
+        return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true, dirtyCount: count };
       }
 
       // Determine merge target: origin/main if remote exists, otherwise local main
