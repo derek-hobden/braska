@@ -25,22 +25,22 @@ contextBridge.exposeInMainWorld('specialists', {
 });
 
 contextBridge.exposeInMainWorld('filetree', {
-  list: (dirPath) => ipcRenderer.invoke('filetree:list', dirPath),
+  list: (workDir, relDir) => ipcRenderer.invoke('filetree:list', workDir, relDir),
   watch: (dirPath) => ipcRenderer.send('filetree:watch', dirPath),
   unwatch: () => ipcRenderer.send('filetree:unwatch'),
   onChange: (cb) => ipcRenderer.on('filetree:changed', (_ev, filename) => cb(filename)),
 });
 
 contextBridge.exposeInMainWorld('fileEditor', {
-  read: (filePath) => ipcRenderer.invoke('file:read', filePath),
-  save: (filePath, content) => ipcRenderer.invoke('file:save', filePath, content),
+  read: (workDir, relPath) => ipcRenderer.invoke('file:read', workDir, relPath),
+  save: (workDir, relPath, content) => ipcRenderer.invoke('file:save', workDir, relPath, content),
 });
 
 contextBridge.exposeInMainWorld('tickets', {
   init: (workDir) => ipcRenderer.invoke('tickets:init', workDir),
   list: (workDir) => ipcRenderer.invoke('tickets:list', workDir),
-  read: (filePath) => ipcRenderer.invoke('tickets:read', filePath),
-  close: (filePath, status) => ipcRenderer.invoke('tickets:close', filePath, status),
+  read: (workDir, relPath) => ipcRenderer.invoke('tickets:read', workDir, relPath),
+  close: (workDir, relPath, status) => ipcRenderer.invoke('tickets:close', workDir, relPath, status),
 });
 
 contextBridge.exposeInMainWorld('worktree', {

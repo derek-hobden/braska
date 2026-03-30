@@ -20,6 +20,15 @@ async function pathExists(p) {
   try { await fsp.access(p); return true; } catch { return false; }
 }
 
+function resolveInDir(baseDir, relPath) {
+  const resolved = path.resolve(baseDir, relPath);
+  const base = path.resolve(baseDir);
+  if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+    throw new Error('Path traversal detected');
+  }
+  return resolved;
+}
+
 function getProjectsFile() {
   return path.join(app.getPath('userData'), 'projects.json');
 }
@@ -372,7 +381,7 @@ async function listTickets(workDir) {
           title: titleMatch ? titleMatch[1].trim() : f.replace(/\.md$/, ''),
           priority: prioMatch ? prioMatch[1].trim() : null,
           status,
-          path: filePath,
+          path: path.relative(workDir, filePath),
         });
       }
     } catch {}
@@ -556,7 +565,8 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('skills:remove', async (_event, name) => {
-    const file = path.join(await getSkillsDir(), `${name}.md`);
+    const dir = await getSkillsDir();
+    const file = resolveInDir(dir, `${name}.md`);
     if (await pathExists(file)) await fsp.unlink(file);
     return listSkills();
   });
@@ -587,7 +597,8 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('specialists:remove', async (_event, name) => {
-    const specialistDir = path.join(await getSpecialistsDir(), name);
+    const dir = await getSpecialistsDir();
+    const specialistDir = resolveInDir(dir, name);
     if (await pathExists(specialistDir)) await fsp.rm(specialistDir, { recursive: true, force: true });
     return listSpecialists();
   });
@@ -595,16 +606,18 @@ app.whenReady().then(async () => {
   // Ticket tracking
   ipcMain.handle('tickets:init', (_event, workDir) => ensureTicketsDirs(workDir));
   ipcMain.handle('tickets:list', (_event, workDir) => listTickets(workDir));
-  ipcMain.handle('tickets:read', async (_event, filePath) => {
-    try { return await fsp.readFile(filePath, 'utf-8'); }
+  ipcMain.handle('tickets:read', async (_event, workDir, relPath) => {
+    try { return await fsp.readFile(resolveInDir(workDir, relPath), 'utf-8'); }
     catch { return ''; }
   });
-  ipcMain.handle('tickets:close', async (_event, filePath, status) => {
-    const targetDir = path.join(path.dirname(path.dirname(filePath)), status);
+  ipcMain.handle('tickets:close', async (_event, workDir, relPath, status) => {
+    if (!['done', 'cancelled'].includes(status)) throw new Error('Invalid status');
+    const filePath = resolveInDir(workDir, relPath);
+    const ticketsDir = await getTicketsDir(workDir);
+    const targetDir = path.join(ticketsDir, status);
     await fsp.mkdir(targetDir, { recursive: true });
     const dest = path.join(targetDir, path.basename(filePath));
     await fsp.rename(filePath, dest);
-    return dest;
   });
 
   // PTY / terminal management (multi-tab)
@@ -675,21 +688,22 @@ app.whenReady().then(async () => {
     try { ptyProcesses.get(id)?.resize(cols, rows); } catch {}
   });
 
-  ipcMain.handle('file:read', async (_event, filePath) => {
-    return fsp.readFile(filePath, 'utf-8');
+  ipcMain.handle('file:read', async (_event, workDir, relPath) => {
+    return fsp.readFile(resolveInDir(workDir, relPath), 'utf-8');
   });
 
-  ipcMain.handle('file:save', async (_event, filePath, content) => {
-    await fsp.writeFile(filePath, content, 'utf-8');
+  ipcMain.handle('file:save', async (_event, workDir, relPath, content) => {
+    await fsp.writeFile(resolveInDir(workDir, relPath), content, 'utf-8');
   });
 
-  ipcMain.handle('filetree:list', async (_event, dirPath) => {
+  ipcMain.handle('filetree:list', async (_event, workDir, relDir) => {
     try {
-      const entries = await fsp.readdir(dirPath, { withFileTypes: true });
+      const absDir = resolveInDir(workDir, relDir || '');
+      const entries = await fsp.readdir(absDir, { withFileTypes: true });
       return entries
         .map(e => ({
           name: e.name,
-          path: path.join(dirPath, e.name),
+          path: path.relative(workDir, path.join(absDir, e.name)),
           isDirectory: e.isDirectory(),
         }))
         .sort((a, b) => {
