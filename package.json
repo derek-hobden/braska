@@ -7,6 +7,13 @@
   "bin": {
     "yuna": "./bin/cli.js"
   },
+  "files": [
+    "bin/",
+    "main.js",
+    "preload.js",
+    "index.html",
+    "splash.html"
+  ],
   "scripts": {
     "start": "electron .",
     "postinstall": "electron-rebuild -f -w node-pty",
