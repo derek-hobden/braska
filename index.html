@@ -1814,6 +1814,20 @@
       outline: none;
     }
     .tickets-filter input:focus { border-color: #555; }
+    .tickets-new-btn {
+      flex-shrink: 0;
+      margin-left: 6px;
+      background: none;
+      border: 1px solid #4a9eff;
+      color: #4a9eff;
+      font-size: 0.78rem;
+      font-family: inherit;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tickets-new-btn:hover { background: #1a3a5c; }
     .tickets-empty {
       color: #444;
       font-size: 0.8rem;
@@ -2256,7 +2270,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="notif-count hidden" id="notif-count">0</span>
       </button>
-      <button class="toolbar-btn active" id="toggle-filetree-btn" title="Toggle Explorer (⌘E)">
+      <button class="toolbar-btn" id="toggle-filetree-btn" title="Toggle Explorer (⌘E)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><line x1="10.5" y1="2" x2="10.5" y2="14"/></svg>
       </button>
       <div id="notification-dropdown">
@@ -2305,8 +2319,8 @@
         </div>
         <div id="settings-panel-body"></div>
       </div>
-      <div class="resize-handle" id="filetree-resize"></div>
-      <div id="filetree-panel">
+      <div class="resize-handle hidden" id="filetree-resize"></div>
+      <div id="filetree-panel" class="hidden">
         <div id="filetree-header">
           <div class="filetree-tabs">
             <button class="filetree-tab active" data-panel="explorer">Explorer</button>
@@ -2555,8 +2569,8 @@
       if (removeBtn) {
         const entry = removeBtn.closest('.project-entry');
         const projectPath = entry.dataset.path;
-        const projects = await window.projects.remove(projectPath);
-        renderProjects(projects);
+        await window.projects.remove(projectPath);
+        await loadProjects();
         return;
       }
       // "Add worktree" button click
@@ -2997,8 +3011,12 @@
     const settingsPanelAddBtn = document.getElementById('settings-panel-add-btn');
     const settingsMenu = document.getElementById('settings-menu');
     let activeSection = null;
+    let savedActiveTabId = null;
+    let savedActiveWorkDir = null;
 
     function enterSettings() {
+      savedActiveTabId = activeTabId;
+      savedActiveWorkDir = activeWorkDir;
       activeTabId = null;
       sidebarHeader.style.display = 'none';
       projectList.style.display = 'none';
@@ -3012,15 +3030,23 @@
     }
 
     function exitSettings() {
-      setBreadcrumb(null);
       settingsView.classList.remove('active');
       sidebarHeader.style.display = '';
       projectList.style.display = '';
       sidebarFooter.style.display = '';
       settingsPanel.classList.remove('active');
-      mainPanel.style.display = '';
       activeSection = null;
       settingsMenu.querySelectorAll('.settings-menu-item').forEach(b => b.classList.remove('active'));
+
+      if (savedActiveWorkDir) {
+        activeTabId = savedActiveTabId;
+        openWorkDir(savedActiveWorkDir);
+      } else {
+        setBreadcrumb(null);
+        mainPanel.style.display = '';
+      }
+      savedActiveTabId = null;
+      savedActiveWorkDir = null;
     }
 
     function openSection(section) {
@@ -4002,7 +4028,7 @@
     const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
     const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 
-    let filetreeVisible = true;
+    let filetreeVisible = false;
     let sidebarVisible = true;
     const workDirExplorerVisible = new Map(); // per-worktree explorer state
 
@@ -4249,7 +4275,7 @@
       const doneTickets = tickets.filter(i => i.status === 'done');
       const cancelledTickets = tickets.filter(i => i.status === 'cancelled');
 
-      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /></div>';
+      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /><button class="tickets-new-btn" id="tickets-new-btn" title="Create a new ticket">+ New</button></div>';
 
       if (openTickets.length > 0) {
         html += `<div class="tickets-section-header">Open<span class="changes-section-count">${openTickets.length}</span></div>`;
@@ -4302,6 +4328,11 @@
             el.style.display = title.includes(query) ? '' : 'none';
           });
         });
+      }
+
+      const newTicketBtn = document.getElementById('tickets-new-btn');
+      if (newTicketBtn) {
+        newTicketBtn.addEventListener('click', () => startTask('ticketmaster', workDir));
       }
     }
 
