@@ -3388,12 +3388,9 @@
       if (pendingTicketPath) {
         const ticketPath = pendingTicketPath;
         pendingTicketPath = null;
-        const relPath = ticketPath.startsWith(pendingWorkDir)
-          ? ticketPath.slice(pendingWorkDir.length + 1)
-          : ticketPath;
         const ticketNum = ticketPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
         startTask(specialistName, pendingWorkDir, {
-          initialPrompt: `Read the ticket file at ${relPath} and let me know once done`,
+          initialPrompt: `Read the ticket file at ${ticketPath} and let me know once done`,
           ticketNumber: ticketNum
         });
       } else {
@@ -4032,21 +4029,23 @@
       switchTab(id);
     }
     // File editor tabs
-    async function openFileEditor(filePath, fileName) {
+    async function openFileEditor(relPath, fileName) {
       // If already open, just switch to it
       for (const [id, tab] of tabs) {
-        if (tab.type === 'editor' && tab.filePath === filePath) {
+        if (tab.type === 'editor' && tab.filePath === relPath && tab.workDir === activeWorkDir) {
           switchTab(id);
           return;
         }
       }
+
+      const editorWorkDir = activeWorkDir;
 
       mainPanel.style.display = 'none';
       settingsPanel.classList.remove('active');
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const content = await window.fileEditor.read(filePath);
+      const content = await window.fileEditor.read(editorWorkDir, relPath);
       const id = nextBrowserTabId--;
 
       const pane = document.createElement('div');
@@ -4094,7 +4093,7 @@
       });
 
       const saveFile = async () => {
-        await window.fileEditor.save(filePath, textarea.value);
+        await window.fileEditor.save(editorWorkDir, relPath, textarea.value);
         savedContent = textarea.value;
         updateDirty();
       };
@@ -4103,9 +4102,9 @@
 
       tabs.set(id, {
         type: 'editor', pane, tabEl: null, label: fileName,
-        workDir: activeWorkDir, filePath, textarea, saveFile, dirty: false,
+        workDir: editorWorkDir, filePath: relPath, textarea, saveFile, dirty: false,
       });
-      addTabToOrder(id, activeWorkDir);
+      addTabToOrder(id, editorWorkDir);
 
       activeTabId = id;
       renderTabBar();
@@ -4275,17 +4274,17 @@
       });
     })();
 
-    async function refreshFileTree(dirPath) {
-      if (!dirPath) {
+    async function refreshFileTree(workDir) {
+      if (!workDir) {
         filetreeBody.innerHTML = '<div class="ft-empty">No project selected</div>';
         return;
       }
       filetreeBody.innerHTML = '';
-      await renderFileTreeLevel(dirPath, filetreeBody, 0);
+      await renderFileTreeLevel(workDir, '', filetreeBody, 0);
     }
 
-    async function renderFileTreeLevel(dirPath, container, depth) {
-      const entries = await window.filetree.list(dirPath);
+    async function renderFileTreeLevel(workDir, relDir, container, depth) {
+      const entries = await window.filetree.list(workDir, relDir);
       if (entries.length === 0 && depth === 0) {
         container.innerHTML = '<div class="ft-empty">Empty directory</div>';
         return;
@@ -4307,7 +4306,7 @@
             const expanding = entryEl.classList.toggle('expanded');
             if (expanding && !loaded) {
               loaded = true;
-              await renderFileTreeLevel(entry.path, childrenEl, depth + 1);
+              await renderFileTreeLevel(workDir, entry.path, childrenEl, depth + 1);
             }
           });
           entryEl.appendChild(itemEl);
@@ -4451,7 +4450,7 @@
       const projectRoot = getProjectRootForWorkDir(activeWorkDir);
       if (!projectRoot) return;
 
-      const content = await window.tickets.read(ticketPath);
+      const content = await window.tickets.read(activeWorkDir, ticketPath);
       const titleMatch = content.match(/^# (.+)$/m);
       const ticketFilename = ticketPath.split('/').pop();
       const ticketTitle = titleMatch ? titleMatch[1].trim() : ticketFilename.replace(/\.md$/, '');
@@ -4509,7 +4508,7 @@
       const doneBtn = e.target.closest('.ticket-done-btn');
       if (doneBtn) {
         const ticketPath = doneBtn.dataset.ticketPath;
-        await window.tickets.close(ticketPath, 'done');
+        await window.tickets.close(activeWorkDir, ticketPath, 'done');
         refreshTickets(activeWorkDir);
         return;
       }
@@ -4517,7 +4516,7 @@
       const cancelBtn = e.target.closest('.ticket-cancel-btn');
       if (cancelBtn) {
         const ticketPath = cancelBtn.dataset.ticketPath;
-        await window.tickets.close(ticketPath, 'cancelled');
+        await window.tickets.close(activeWorkDir, ticketPath, 'cancelled');
         refreshTickets(activeWorkDir);
         return;
       }
@@ -4526,7 +4525,7 @@
       if (!item) return;
 
       const ticketPath = item.dataset.path;
-      const content = await window.tickets.read(ticketPath);
+      const content = await window.tickets.read(activeWorkDir, ticketPath);
 
       const rendered = escHtml(content)
         .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -4789,7 +4788,7 @@
         const untracked = fileEl.dataset.untracked === 'true';
         const staged = fileEl.dataset.staged === 'true';
         if (untracked) {
-          openFileEditor(activeWorkDir + '/' + file, file.split('/').pop());
+          openFileEditor(file, file.split('/').pop());
         } else if (commitHash) {
           openDiffTab(activeWorkDir, file, false, commitHash);
         } else {

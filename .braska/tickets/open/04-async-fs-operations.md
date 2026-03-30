@@ -8,9 +8,9 @@
 
 ## Tasks
 
-- Replace all `fs.*Sync` calls with `fs.promises.*` equivalents
-- Update function signatures to be async where needed
-- Ensure proper error handling with try/catch on awaited calls
+- [x] Replace all `fs.*Sync` calls with `fs.promises.*` equivalents
+- [x] Update function signatures to be async where needed
+- [x] Ensure proper error handling with try/catch on awaited calls
 
 ## Impact
 

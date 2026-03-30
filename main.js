@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const fsp = fs.promises;
 const os = require('os');
 const { execSync, execFile } = require('child_process');
 const { promisify } = require('util');
@@ -15,23 +16,36 @@ const ptyProcesses = new Map();
 let nextPtyId = 1;
 let activeWatcher = null;
 
+async function pathExists(p) {
+  try { await fsp.access(p); return true; } catch { return false; }
+}
+
+function resolveInDir(baseDir, relPath) {
+  const resolved = path.resolve(baseDir, relPath);
+  const base = path.resolve(baseDir);
+  if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+    throw new Error('Path traversal detected');
+  }
+  return resolved;
+}
+
 function getProjectsFile() {
   return path.join(app.getPath('userData'), 'projects.json');
 }
 
-function loadProjects() {
+async function loadProjects() {
   const file = getProjectsFile();
-  if (!fs.existsSync(file)) return [];
-  return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  if (!await pathExists(file)) return [];
+  return JSON.parse(await fsp.readFile(file, 'utf-8'));
 }
 
-function saveProjects(projects) {
-  fs.writeFileSync(getProjectsFile(), JSON.stringify(projects, null, 2));
+async function saveProjects(projects) {
+  await fsp.writeFile(getProjectsFile(), JSON.stringify(projects, null, 2));
 }
 
 async function getGitInfo(projectPath) {
   try {
-    if (!fs.existsSync(path.join(projectPath, '.git'))) return { isGit: false, worktrees: [] };
+    if (!await pathExists(path.join(projectPath, '.git'))) return { isGit: false, worktrees: [] };
     const { stdout: output } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], {
       cwd: projectPath,
       encoding: 'utf-8',
@@ -58,56 +72,55 @@ async function getGitInfo(projectPath) {
 }
 
 // Skills management
-function getSkillsDir() {
+async function getSkillsDir() {
   const dir = path.join(os.homedir(), '.braska', 'skills');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  await fsp.mkdir(dir, { recursive: true });
   return dir;
 }
 
-function listSkills() {
-  const dir = getSkillsDir();
-  return fs.readdirSync(dir)
-    .filter(f => f.endsWith('.md'))
-    .map(f => {
-      const content = fs.readFileSync(path.join(dir, f), 'utf-8');
-      return { name: f.replace(/\.md$/, ''), content };
-    });
+async function listSkills() {
+  const dir = await getSkillsDir();
+  const files = (await fsp.readdir(dir)).filter(f => f.endsWith('.md'));
+  return Promise.all(files.map(async f => {
+    const content = await fsp.readFile(path.join(dir, f), 'utf-8');
+    return { name: f.replace(/\.md$/, ''), content };
+  }));
 }
 
 // Specialists management
-function getSpecialistsDir() {
+async function getSpecialistsDir() {
   const dir = path.join(os.homedir(), '.braska', 'specialists');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  await fsp.mkdir(dir, { recursive: true });
   return dir;
 }
 
 const BUILTIN_SPECIALISTS = ['ticketmaster', 'debugger', 'code-reviewer', 'issue-creator'];
 
-function listSpecialists() {
-  const dir = getSpecialistsDir();
-  return fs.readdirSync(dir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => {
-      const specialistDir = path.join(dir, d.name);
-      const claudeFile = path.join(specialistDir, 'claude.md');
-      const instructions = fs.existsSync(claudeFile) ? fs.readFileSync(claudeFile, 'utf-8') : '';
-      const skillsDir = path.join(specialistDir, '.claude', 'skills');
-      let skills = [];
-      if (fs.existsSync(skillsDir)) {
-        skills = fs.readdirSync(skillsDir, { withFileTypes: true })
-          .filter(d => d.isDirectory())
-          .map(d => d.name);
-      }
-      return { name: d.name, instructions, skills, builtin: BUILTIN_SPECIALISTS.includes(d.name) };
-    });
+async function listSpecialists() {
+  const dir = await getSpecialistsDir();
+  const dirents = (await fsp.readdir(dir, { withFileTypes: true })).filter(d => d.isDirectory());
+  return Promise.all(dirents.map(async d => {
+    const specialistDir = path.join(dir, d.name);
+    const claudeFile = path.join(specialistDir, 'claude.md');
+    let instructions = '';
+    try { instructions = await fsp.readFile(claudeFile, 'utf-8'); } catch {}
+    const skillsDir = path.join(specialistDir, '.claude', 'skills');
+    let skills = [];
+    if (await pathExists(skillsDir)) {
+      skills = (await fsp.readdir(skillsDir, { withFileTypes: true }))
+        .filter(d => d.isDirectory())
+        .map(d => d.name);
+    }
+    return { name: d.name, instructions, skills, builtin: BUILTIN_SPECIALISTS.includes(d.name) };
+  }));
 }
 
 // System specialists — auto-created on startup
-function ensureSystemSpecialists() {
-  const ticketmasterDir = path.join(getSpecialistsDir(), 'ticketmaster');
+async function ensureSystemSpecialists() {
+  const ticketmasterDir = path.join(await getSpecialistsDir(), 'ticketmaster');
   const claudeFile = path.join(ticketmasterDir, 'claude.md');
-  fs.mkdirSync(ticketmasterDir, { recursive: true });
-  fs.writeFileSync(claudeFile, `You are the Ticketmaster for Braska. Your job is to help the user create well-formatted ticket files.
+  await fsp.mkdir(ticketmasterDir, { recursive: true });
+  await fsp.writeFile(claudeFile, `You are the Ticketmaster for Braska. Your job is to help the user create well-formatted ticket files.
 
 IMPORTANT RESTRICTIONS:
 - You may ONLY create, read, edit, move, and delete files inside \`.braska/tickets/\`.
@@ -143,10 +156,10 @@ When you start:
 
   // Ticketmaster file-edit hook enforcement (hard restriction)
   const ticketmasterHooksDir = path.join(ticketmasterDir, '.claude', 'hooks');
-  fs.mkdirSync(ticketmasterHooksDir, { recursive: true });
+  await fsp.mkdir(ticketmasterHooksDir, { recursive: true });
 
   const ticketmasterSettingsFile = path.join(ticketmasterDir, '.claude', 'settings.json');
-  fs.writeFileSync(ticketmasterSettingsFile, JSON.stringify({
+  await fsp.writeFile(ticketmasterSettingsFile, JSON.stringify({
     hooks: {
       PreToolUse: [
         {
@@ -163,7 +176,7 @@ When you start:
   }, null, 2), 'utf-8');
 
   const protectFilesScript = path.join(ticketmasterHooksDir, 'protect-files.sh');
-  fs.writeFileSync(protectFilesScript, `#!/bin/bash
+  await fsp.writeFile(protectFilesScript, `#!/bin/bash
 FILE_PATH=$(cat | jq -r '.tool_input.file_path // empty')
 
 if [[ "$FILE_PATH" == */.braska/tickets/* ]]; then
@@ -173,12 +186,12 @@ fi
 echo "BLOCKED: Ticketmaster can only edit files inside .braska/tickets/" >&2
 exit 2  # reject
 `, 'utf-8');
-  fs.chmodSync(protectFilesScript, 0o755);
+  await fsp.chmod(protectFilesScript, 0o755);
 
-  const debuggerDir = path.join(getSpecialistsDir(), 'debugger');
+  const debuggerDir = path.join(await getSpecialistsDir(), 'debugger');
   const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
-  fs.mkdirSync(debuggerDir, { recursive: true });
-  fs.writeFileSync(debuggerClaudeFile, `You are the Master Debugger for Braska. Your job is to help the user systematically debug issues in their codebase.
+  await fsp.mkdir(debuggerDir, { recursive: true });
+  await fsp.writeFile(debuggerClaudeFile, `You are the Master Debugger for Braska. Your job is to help the user systematically debug issues in their codebase.
 
 DEBUGGING METHODOLOGY — follow this sequence rigorously:
 
@@ -237,10 +250,10 @@ When you start:
 3. Work through the methodology step by step, reporting progress as you go.
 `, 'utf-8');
 
-  const codeReviewerDir = path.join(getSpecialistsDir(), 'code-reviewer');
+  const codeReviewerDir = path.join(await getSpecialistsDir(), 'code-reviewer');
   const codeReviewerClaudeFile = path.join(codeReviewerDir, 'claude.md');
-  fs.mkdirSync(codeReviewerDir, { recursive: true });
-  fs.writeFileSync(codeReviewerClaudeFile, `You are the Code Reviewer for Braska. Your job is to perform thorough, structured code reviews.
+  await fsp.mkdir(codeReviewerDir, { recursive: true });
+  await fsp.writeFile(codeReviewerClaudeFile, `You are the Code Reviewer for Braska. Your job is to perform thorough, structured code reviews.
 
 IMPORTANT RESTRICTIONS:
 - You are READ-ONLY. You must NEVER create, edit, delete, or modify any source files, configuration files, or project files.
@@ -310,19 +323,19 @@ WORKING PRINCIPLES:
 
 // Per-project ticket tracking
 const migratedProjects = new Set();
-function getTicketsDir(workDir) {
+async function getTicketsDir(workDir) {
   // Migrate legacy .the-agency / .yuna directories (once per project per session)
   if (!migratedProjects.has(workDir)) {
     migratedProjects.add(workDir);
     const newDir = path.join(workDir, '.braska');
     try {
       const agencyDir = path.join(workDir, '.the-agency');
-      if (fs.existsSync(agencyDir) && !fs.existsSync(newDir)) {
-        fs.renameSync(agencyDir, newDir);
+      if (await pathExists(agencyDir) && !await pathExists(newDir)) {
+        await fsp.rename(agencyDir, newDir);
       }
       const yunaDir = path.join(workDir, '.yuna');
-      if (fs.existsSync(yunaDir) && !fs.existsSync(newDir)) {
-        fs.renameSync(yunaDir, newDir);
+      if (await pathExists(yunaDir) && !await pathExists(newDir)) {
+        await fsp.rename(yunaDir, newDir);
       }
     } catch (err) {
       console.error(`Failed to migrate to ${newDir}:`, err.message);
@@ -331,36 +344,36 @@ function getTicketsDir(workDir) {
   return path.join(workDir, '.braska', 'tickets');
 }
 
-function ensureTicketsDirs(workDir) {
-  const dir = getTicketsDir(workDir);
+async function ensureTicketsDirs(workDir) {
+  const dir = await getTicketsDir(workDir);
   const openDir = path.join(dir, 'open');
   const doneDir = path.join(dir, 'done');
   const cancelledDir = path.join(dir, 'cancelled');
-  if (!fs.existsSync(openDir)) fs.mkdirSync(openDir, { recursive: true });
-  if (!fs.existsSync(doneDir)) fs.mkdirSync(doneDir, { recursive: true });
-  if (!fs.existsSync(cancelledDir)) fs.mkdirSync(cancelledDir, { recursive: true });
+  await fsp.mkdir(openDir, { recursive: true });
+  await fsp.mkdir(doneDir, { recursive: true });
+  await fsp.mkdir(cancelledDir, { recursive: true });
   // Migrate legacy closed/ tickets to done/
   const legacyClosedDir = path.join(dir, 'closed');
-  if (fs.existsSync(legacyClosedDir)) {
+  if (await pathExists(legacyClosedDir)) {
     try {
-      for (const f of fs.readdirSync(legacyClosedDir)) {
-        fs.renameSync(path.join(legacyClosedDir, f), path.join(doneDir, f));
+      for (const f of await fsp.readdir(legacyClosedDir)) {
+        await fsp.rename(path.join(legacyClosedDir, f), path.join(doneDir, f));
       }
-      fs.rmdirSync(legacyClosedDir);
+      await fsp.rmdir(legacyClosedDir);
     } catch {}
   }
 }
 
-function listTickets(workDir) {
-  const dir = getTicketsDir(workDir);
+async function listTickets(workDir) {
+  const dir = await getTicketsDir(workDir);
   const results = [];
   for (const status of ['open', 'done', 'cancelled']) {
     const subdir = path.join(dir, status);
     try {
-      for (const f of fs.readdirSync(subdir)) {
+      for (const f of await fsp.readdir(subdir)) {
         if (!f.endsWith('.md')) continue;
         const filePath = path.join(subdir, f);
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = await fsp.readFile(filePath, 'utf-8');
         const titleMatch = content.match(/^# (.+)$/m);
         const prioMatch = content.match(/^## Priority:\s*(.+)$/m);
         results.push({
@@ -368,7 +381,7 @@ function listTickets(workDir) {
           title: titleMatch ? titleMatch[1].trim() : f.replace(/\.md$/, ''),
           priority: prioMatch ? prioMatch[1].trim() : null,
           status,
-          path: filePath,
+          path: path.relative(workDir, filePath),
         });
       }
     } catch {}
@@ -477,17 +490,17 @@ function createWindow() {
   win.loadFile('index.html');
 }
 
-function migrateData() {
+async function migrateData() {
   // Home directory: ~/.the-agency -> ~/.braska, ~/.yuna -> ~/.braska
   const braskaHome = path.join(os.homedir(), '.braska');
   try {
     const agencyHome = path.join(os.homedir(), '.the-agency');
-    if (fs.existsSync(agencyHome) && !fs.existsSync(braskaHome)) {
-      fs.renameSync(agencyHome, braskaHome);
+    if (await pathExists(agencyHome) && !await pathExists(braskaHome)) {
+      await fsp.rename(agencyHome, braskaHome);
     }
     const yunaHome = path.join(os.homedir(), '.yuna');
-    if (fs.existsSync(yunaHome) && !fs.existsSync(braskaHome)) {
-      fs.renameSync(yunaHome, braskaHome);
+    if (await pathExists(yunaHome) && !await pathExists(braskaHome)) {
+      await fsp.rename(yunaHome, braskaHome);
     }
   } catch (err) {
     console.error('Failed to migrate home directory:', err.message);
@@ -501,9 +514,9 @@ function migrateData() {
       const oldUserData = path.join(app.getPath('appData'), legacyName);
       if (oldUserData !== newUserData) {
         const oldProjects = path.join(oldUserData, 'projects.json');
-        if (fs.existsSync(oldProjects) && !fs.existsSync(newProjects)) {
-          fs.mkdirSync(newUserData, { recursive: true });
-          fs.copyFileSync(oldProjects, newProjects);
+        if (await pathExists(oldProjects) && !await pathExists(newProjects)) {
+          await fsp.mkdir(newUserData, { recursive: true });
+          await fsp.copyFile(oldProjects, newProjects);
         }
       }
     } catch (err) {
@@ -512,13 +525,13 @@ function migrateData() {
   }
 }
 
-app.whenReady().then(() => {
-  migrateData();
-  ensureSystemSpecialists();
+app.whenReady().then(async () => {
+  await migrateData();
+  await ensureSystemSpecialists();
   createWindow();
 
   ipcMain.handle('projects:list', async () => {
-    const projects = loadProjects();
+    const projects = await loadProjects();
     return Promise.all(projects.map(async p => ({ ...p, ...(await getGitInfo(p.path)) })));
   });
 
@@ -529,82 +542,86 @@ app.whenReady().then(() => {
     });
     if (canceled || filePaths.length === 0) return null;
     const folderPath = filePaths[0];
-    const projects = loadProjects();
+    const projects = await loadProjects();
     if (projects.some((p) => p.path === folderPath)) return null;
     const project = { path: folderPath, name: path.basename(folderPath) };
     projects.push(project);
-    saveProjects(projects);
+    await saveProjects(projects);
     return project;
   });
 
   ipcMain.handle('projects:remove', async (_event, projectPath) => {
-    const projects = loadProjects().filter((p) => p.path !== projectPath);
-    saveProjects(projects);
+    const projects = (await loadProjects()).filter((p) => p.path !== projectPath);
+    await saveProjects(projects);
     return Promise.all(projects.map(async p => ({ ...p, ...(await getGitInfo(p.path)) })));
   });
 
   ipcMain.handle('skills:list', () => listSkills());
 
-  ipcMain.handle('skills:save', (_event, name, content) => {
+  ipcMain.handle('skills:save', async (_event, name, content) => {
     const safe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    fs.writeFileSync(path.join(getSkillsDir(), `${safe}.md`), content, 'utf-8');
+    await fsp.writeFile(path.join(await getSkillsDir(), `${safe}.md`), content, 'utf-8');
     return listSkills();
   });
 
-  ipcMain.handle('skills:remove', (_event, name) => {
-    const file = path.join(getSkillsDir(), `${name}.md`);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
+  ipcMain.handle('skills:remove', async (_event, name) => {
+    const dir = await getSkillsDir();
+    const file = resolveInDir(dir, `${name}.md`);
+    if (await pathExists(file)) await fsp.unlink(file);
     return listSkills();
   });
 
   ipcMain.handle('specialists:list', () => listSpecialists());
 
-  ipcMain.handle('specialists:save', (_event, name, instructions, skillNames) => {
+  ipcMain.handle('specialists:save', async (_event, name, instructions, skillNames) => {
     const safe = name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const specialistDir = path.join(getSpecialistsDir(), safe);
+    const specialistDir = path.join(await getSpecialistsDir(), safe);
     const skillsDir = path.join(specialistDir, '.claude', 'skills');
-    fs.mkdirSync(skillsDir, { recursive: true });
-    fs.writeFileSync(path.join(specialistDir, 'claude.md'), instructions, 'utf-8');
+    await fsp.mkdir(skillsDir, { recursive: true });
+    await fsp.writeFile(path.join(specialistDir, 'claude.md'), instructions, 'utf-8');
     // Clear existing skill directories
-    for (const f of fs.readdirSync(skillsDir)) {
+    for (const f of await fsp.readdir(skillsDir)) {
       const p = path.join(skillsDir, f);
-      try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
+      try { await fsp.rm(p, { recursive: true, force: true }); } catch {}
     }
     // Create skill directories with SKILL.md symlinks
-    const srcSkillsDir = getSkillsDir();
+    const srcSkillsDir = await getSkillsDir();
     for (const sk of skillNames) {
       const target = path.join(srcSkillsDir, `${sk}.md`);
-      if (!fs.existsSync(target)) continue;
+      if (!await pathExists(target)) continue;
       const skillDir = path.join(skillsDir, sk);
-      fs.mkdirSync(skillDir, { recursive: true });
-      fs.symlinkSync(target, path.join(skillDir, 'SKILL.md'));
+      await fsp.mkdir(skillDir, { recursive: true });
+      await fsp.symlink(target, path.join(skillDir, 'SKILL.md'));
     }
     return listSpecialists();
   });
 
-  ipcMain.handle('specialists:remove', (_event, name) => {
-    const specialistDir = path.join(getSpecialistsDir(), name);
-    if (fs.existsSync(specialistDir)) fs.rmSync(specialistDir, { recursive: true, force: true });
+  ipcMain.handle('specialists:remove', async (_event, name) => {
+    const dir = await getSpecialistsDir();
+    const specialistDir = resolveInDir(dir, name);
+    if (await pathExists(specialistDir)) await fsp.rm(specialistDir, { recursive: true, force: true });
     return listSpecialists();
   });
 
   // Ticket tracking
   ipcMain.handle('tickets:init', (_event, workDir) => ensureTicketsDirs(workDir));
   ipcMain.handle('tickets:list', (_event, workDir) => listTickets(workDir));
-  ipcMain.handle('tickets:read', (_event, filePath) => {
-    try { return fs.readFileSync(filePath, 'utf-8'); }
+  ipcMain.handle('tickets:read', async (_event, workDir, relPath) => {
+    try { return await fsp.readFile(resolveInDir(workDir, relPath), 'utf-8'); }
     catch { return ''; }
   });
-  ipcMain.handle('tickets:close', (_event, filePath, status) => {
-    const targetDir = path.join(path.dirname(path.dirname(filePath)), status);
-    if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+  ipcMain.handle('tickets:close', async (_event, workDir, relPath, status) => {
+    if (!['done', 'cancelled'].includes(status)) throw new Error('Invalid status');
+    const filePath = resolveInDir(workDir, relPath);
+    const ticketsDir = await getTicketsDir(workDir);
+    const targetDir = path.join(ticketsDir, status);
+    await fsp.mkdir(targetDir, { recursive: true });
     const dest = path.join(targetDir, path.basename(filePath));
-    fs.renameSync(filePath, dest);
-    return dest;
+    await fsp.rename(filePath, dest);
   });
 
   // PTY / terminal management (multi-tab)
-  ipcMain.handle('pty:spawn', (event, specialistName, workDir, dims, initialPrompt) => {
+  ipcMain.handle('pty:spawn', async (event, specialistName, workDir, dims, initialPrompt) => {
     const id = nextPtyId++;
     const shell = process.env.SHELL || '/bin/zsh';
     let cwd, args;
@@ -629,7 +646,7 @@ app.whenReady().then(() => {
       // CWD is project dir so @ file autocompletion works.
       // Specialist's claude.md loaded via --add-dir + env var. Skills auto-load from --add-dir.
       cwd = workDir;
-      const specialistDir = path.join(getSpecialistsDir(), specialistName);
+      const specialistDir = path.join(await getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
       const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
       if (initialPrompt) {
@@ -671,21 +688,22 @@ app.whenReady().then(() => {
     try { ptyProcesses.get(id)?.resize(cols, rows); } catch {}
   });
 
-  ipcMain.handle('file:read', (_event, filePath) => {
-    return fs.readFileSync(filePath, 'utf-8');
+  ipcMain.handle('file:read', async (_event, workDir, relPath) => {
+    return fsp.readFile(resolveInDir(workDir, relPath), 'utf-8');
   });
 
-  ipcMain.handle('file:save', (_event, filePath, content) => {
-    fs.writeFileSync(filePath, content, 'utf-8');
+  ipcMain.handle('file:save', async (_event, workDir, relPath, content) => {
+    await fsp.writeFile(resolveInDir(workDir, relPath), content, 'utf-8');
   });
 
-  ipcMain.handle('filetree:list', (_event, dirPath) => {
+  ipcMain.handle('filetree:list', async (_event, workDir, relDir) => {
     try {
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      const absDir = resolveInDir(workDir, relDir || '');
+      const entries = await fsp.readdir(absDir, { withFileTypes: true });
       return entries
         .map(e => ({
           name: e.name,
-          path: path.join(dirPath, e.name),
+          path: path.relative(workDir, path.join(absDir, e.name)),
           isDirectory: e.isDirectory(),
         }))
         .sort((a, b) => {
@@ -1174,7 +1192,7 @@ app.whenReady().then(() => {
     } catch { return []; }
   });
 
-  ipcMain.handle('git:worktree-add', (_event, workDir, worktreePath, branch, createNew) => {
+  ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, createNew) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
       const safePath = worktreePath.replace(/'/g, "'\"'\"'");
@@ -1188,7 +1206,7 @@ app.whenReady().then(() => {
       if (err.stderr && err.stderr.includes('already exists')) {
         try {
           // Remove leftover worktree directory if it exists but isn't a valid worktree
-          if (fs.existsSync(worktreePath)) {
+          if (await pathExists(worktreePath)) {
             execSync(`git worktree remove '${worktreePath.replace(/'/g, "'\"'\"'")}' --force`, { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
           }
           const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
