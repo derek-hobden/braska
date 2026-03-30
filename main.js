@@ -789,6 +789,65 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('git:pull-latest-main', (_event, workDir) => {
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
+
+      // Determine main branch name
+      let mainBranch = 'main';
+      try {
+        const root = execSync('git rev-parse --show-toplevel', { ...opts, timeout: 5000 }).trim();
+        const info = getGitInfo(root);
+        const mainWt = info.worktrees.find(w => w.isMain);
+        if (mainWt && mainWt.branch && mainWt.branch !== '(detached)') {
+          mainBranch = mainWt.branch;
+        }
+      } catch { /* use fallback */ }
+
+      // Check current branch
+      let currentBranch;
+      try {
+        currentBranch = execSync('git symbolic-ref --short HEAD', { ...opts, timeout: 5000 }).trim();
+      } catch {
+        return { ok: false, error: 'Cannot determine current branch (detached HEAD?)' };
+      }
+      if (currentBranch === mainBranch) {
+        return { ok: false, error: 'Already on the main branch. Use Pull instead.' };
+      }
+
+      // Check for uncommitted changes
+      const status = execSync('git status --porcelain', opts).trim();
+      if (status) {
+        const count = status.split('\n').length;
+        return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true };
+      }
+
+      // Fetch from origin
+      execSync('git fetch origin 2>&1', opts);
+
+      // Check if already up to date
+      try {
+        execSync(`git merge-base --is-ancestor 'origin/${safe(mainBranch)}' HEAD`, { ...opts, timeout: 10000 });
+        return { ok: true, alreadyUpToDate: true };
+      } catch { /* not ancestor — there are changes to merge */ }
+
+      // Merge origin/main into current branch
+      try {
+        const out = execSync(`git merge 'origin/${safe(mainBranch)}' 2>&1`, opts);
+        return { ok: true, output: out.trim() };
+      } catch (mergeErr) {
+        const msg = (mergeErr.stderr || mergeErr.stdout || mergeErr.message || '').toString();
+        if (msg.includes('CONFLICT') || msg.includes('Automatic merge failed')) {
+          try { execSync('git merge --abort', opts); } catch { /* ignore */ }
+          return { ok: false, hasConflicts: true, error: 'Merge conflicts with main. The merge has been aborted.' };
+        }
+        return { ok: false, error: msg };
+      }
+    } catch (err) {
+      return { ok: false, error: err.stderr || err.message };
+    }
+  });
+
   ipcMain.handle('git:current-branch', (_event, workDir) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 5000 };
