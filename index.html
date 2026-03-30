@@ -2555,8 +2555,8 @@
       if (removeBtn) {
         const entry = removeBtn.closest('.project-entry');
         const projectPath = entry.dataset.path;
-        const projects = await window.projects.remove(projectPath);
-        renderProjects(projects);
+        await window.projects.remove(projectPath);
+        await loadProjects();
         return;
       }
       // "Add worktree" button click
@@ -2997,8 +2997,12 @@
     const settingsPanelAddBtn = document.getElementById('settings-panel-add-btn');
     const settingsMenu = document.getElementById('settings-menu');
     let activeSection = null;
+    let savedActiveTabId = null;
+    let savedActiveWorkDir = null;
 
     function enterSettings() {
+      savedActiveTabId = activeTabId;
+      savedActiveWorkDir = activeWorkDir;
       activeTabId = null;
       sidebarHeader.style.display = 'none';
       projectList.style.display = 'none';
@@ -3012,15 +3016,23 @@
     }
 
     function exitSettings() {
-      setBreadcrumb(null);
       settingsView.classList.remove('active');
       sidebarHeader.style.display = '';
       projectList.style.display = '';
       sidebarFooter.style.display = '';
       settingsPanel.classList.remove('active');
-      mainPanel.style.display = '';
       activeSection = null;
       settingsMenu.querySelectorAll('.settings-menu-item').forEach(b => b.classList.remove('active'));
+
+      if (savedActiveWorkDir) {
+        activeTabId = savedActiveTabId;
+        openWorkDir(savedActiveWorkDir);
+      } else {
+        setBreadcrumb(null);
+        mainPanel.style.display = '';
+      }
+      savedActiveTabId = null;
+      savedActiveWorkDir = null;
     }
 
     function openSection(section) {
