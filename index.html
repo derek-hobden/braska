@@ -1814,6 +1814,20 @@
       outline: none;
     }
     .tickets-filter input:focus { border-color: #555; }
+    .tickets-new-btn {
+      flex-shrink: 0;
+      margin-left: 6px;
+      background: none;
+      border: 1px solid #4a9eff;
+      color: #4a9eff;
+      font-size: 0.78rem;
+      font-family: inherit;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tickets-new-btn:hover { background: #1a3a5c; }
     .tickets-empty {
       color: #444;
       font-size: 0.8rem;
@@ -4249,7 +4263,7 @@
       const doneTickets = tickets.filter(i => i.status === 'done');
       const cancelledTickets = tickets.filter(i => i.status === 'cancelled');
 
-      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /></div>';
+      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /><button class="tickets-new-btn" id="tickets-new-btn" title="Create a new ticket">+ New</button></div>';
 
       if (openTickets.length > 0) {
         html += `<div class="tickets-section-header">Open<span class="changes-section-count">${openTickets.length}</span></div>`;
@@ -4302,6 +4316,11 @@
             el.style.display = title.includes(query) ? '' : 'none';
           });
         });
+      }
+
+      const newTicketBtn = document.getElementById('tickets-new-btn');
+      if (newTicketBtn) {
+        newTicketBtn.addEventListener('click', () => startTask('ticketmaster', workDir));
       }
     }
 
