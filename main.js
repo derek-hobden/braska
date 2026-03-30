@@ -29,10 +29,10 @@ function saveProjects(projects) {
   fs.writeFileSync(getProjectsFile(), JSON.stringify(projects, null, 2));
 }
 
-function getGitInfo(projectPath) {
+async function getGitInfo(projectPath) {
   try {
     if (!fs.existsSync(path.join(projectPath, '.git'))) return { isGit: false, worktrees: [] };
-    const output = execSync('git worktree list --porcelain', {
+    const { stdout: output } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], {
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: 5000,
@@ -517,7 +517,10 @@ app.whenReady().then(() => {
   ensureSystemSpecialists();
   createWindow();
 
-  ipcMain.handle('projects:list', () => loadProjects().map(p => ({ ...p, ...getGitInfo(p.path) })));
+  ipcMain.handle('projects:list', async () => {
+    const projects = loadProjects();
+    return Promise.all(projects.map(async p => ({ ...p, ...(await getGitInfo(p.path)) })));
+  });
 
   ipcMain.handle('projects:add', async () => {
     const win = BrowserWindow.getFocusedWindow();
@@ -534,10 +537,10 @@ app.whenReady().then(() => {
     return project;
   });
 
-  ipcMain.handle('projects:remove', (_event, projectPath) => {
+  ipcMain.handle('projects:remove', async (_event, projectPath) => {
     const projects = loadProjects().filter((p) => p.path !== projectPath);
     saveProjects(projects);
-    return projects.map(p => ({ ...p, ...getGitInfo(p.path) }));
+    return Promise.all(projects.map(async p => ({ ...p, ...(await getGitInfo(p.path)) })));
   });
 
   ipcMain.handle('skills:list', () => listSkills());
@@ -737,7 +740,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('git:worktree-metrics', async (_event, projectPath) => {
     try {
-      const info = getGitInfo(projectPath);
+      const info = await getGitInfo(projectPath);
       if (!info.isGit) return [];
 
       // Detect default branch name
@@ -944,7 +947,7 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:pull-latest-main', (_event, workDir) => {
+  ipcMain.handle('git:pull-latest-main', async (_event, workDir) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
 
@@ -952,7 +955,7 @@ app.whenReady().then(() => {
       let mainBranch = 'main';
       try {
         const root = execSync('git rev-parse --show-toplevel', { ...opts, timeout: 5000 }).trim();
-        const info = getGitInfo(root);
+        const info = await getGitInfo(root);
         const mainWt = info.worktrees.find(w => w.isMain);
         if (mainWt && mainWt.branch && mainWt.branch !== '(detached)') {
           mainBranch = mainWt.branch;
@@ -1027,13 +1030,13 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:branch-list', (_event, workDir) => {
+  ipcMain.handle('git:branch-list', async (_event, workDir) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 5000 };
       const fmt = '%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)';
       const out = execSync(`git branch --format="${fmt}"`, opts).trim();
       if (!out) return [];
-      const wtInfo = getGitInfo(workDir);
+      const wtInfo = await getGitInfo(workDir);
       const wtBranches = new Map();
       for (const w of wtInfo.worktrees) {
         if (w.branch && w.branch !== '(detached)') wtBranches.set(w.branch, w.path);
@@ -1068,10 +1071,10 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:branch-switch', (_event, workDir, name) => {
+  ipcMain.handle('git:branch-switch', async (_event, workDir, name) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
-      const wtInfo = getGitInfo(workDir);
+      const wtInfo = await getGitInfo(workDir);
       for (const w of wtInfo.worktrees) {
         if (w.branch === name && !w.isMain) {
           return { ok: false, error: `Branch '${name}' is checked out in worktree at ${w.path}`, inWorktree: true };
@@ -1084,10 +1087,10 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:branch-delete', (_event, workDir, name, force) => {
+  ipcMain.handle('git:branch-delete', async (_event, workDir, name, force) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
-      const wtInfo = getGitInfo(workDir);
+      const wtInfo = await getGitInfo(workDir);
       for (const w of wtInfo.worktrees) {
         if (w.branch === name) {
           return { ok: false, error: `Branch '${name}' is checked out in a worktree at ${w.path}` };
@@ -1153,14 +1156,14 @@ app.whenReady().then(() => {
   });
 
   // Worktree management
-  ipcMain.handle('git:branches', (_event, workDir) => {
+  ipcMain.handle('git:branches', async (_event, workDir) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 5000 };
       const out = execSync('git branch --format="%(refname:short)"', opts).trim();
       if (!out) return [];
       const allBranches = out.split('\n').filter(Boolean);
       // Filter out branches already checked out in other worktrees
-      const wtInfo = getGitInfo(workDir);
+      const wtInfo = await getGitInfo(workDir);
       const checkedOut = new Set(wtInfo.worktrees.map(w => w.branch).filter(Boolean));
       return allBranches.filter(b => !checkedOut.has(b));
     } catch { return []; }
@@ -1196,14 +1199,14 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:worktree-remove', (_event, workDir, worktreePath, force, deleteBranch) => {
+  ipcMain.handle('git:worktree-remove', async (_event, workDir, worktreePath, force, deleteBranch) => {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
 
       // Resolve the branch for this worktree before removing it
       let wtBranch = null;
       if (deleteBranch) {
-        const info = getGitInfo(workDir);
+        const info = await getGitInfo(workDir);
         const wt = info.worktrees.find(w => w.path === worktreePath);
         if (wt && wt.branch && !wt.isMain) wtBranch = wt.branch;
       }
@@ -1257,9 +1260,9 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:merge-preflight', (_event, workDir, featureWorktreePath) => {
+  ipcMain.handle('git:merge-preflight', async (_event, workDir, featureWorktreePath) => {
     try {
-      const info = getGitInfo(workDir);
+      const info = await getGitInfo(workDir);
       if (!info.isGit) return { ok: false, error: 'Not a git repository' };
 
       const featureWt = info.worktrees.find(w => w.path === featureWorktreePath);
@@ -1322,9 +1325,9 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('git:merge-and-cleanup', (_event, workDir, featureWorktreePath, force) => {
+  ipcMain.handle('git:merge-and-cleanup', async (_event, workDir, featureWorktreePath, force) => {
     try {
-      const info = getGitInfo(workDir);
+      const info = await getGitInfo(workDir);
       if (!info.isGit) return { ok: false, error: 'Not a git repository' };
 
       const featureWt = info.worktrees.find(w => w.path === featureWorktreePath);
