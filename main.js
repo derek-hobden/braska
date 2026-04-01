@@ -1201,25 +1201,20 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, createNew) => {
     try {
-      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
-      const safePath = worktreePath.replace(/'/g, "'\"'\"'");
-      const safeBranch = branch.replace(/'/g, "'\"'\"'");
-      const cmd = createNew
-        ? `git worktree add -b '${safeBranch}' '${safePath}'`
-        : `git worktree add '${safePath}' '${safeBranch}'`;
-      execSync(cmd, opts);
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
+      const addArgs = createNew
+        ? ['worktree', 'add', '-b', branch, worktreePath]
+        : ['worktree', 'add', worktreePath, branch];
+      await execFileAsync('git', addArgs, opts);
       return { ok: true };
     } catch (err) {
       if (err.stderr && err.stderr.includes('already exists')) {
         try {
           // Remove leftover worktree directory if it exists but isn't a valid worktree
           if (await pathExists(worktreePath)) {
-            execSync(`git worktree remove '${worktreePath.replace(/'/g, "'\"'\"'")}' --force`, { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+            await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: workDir, encoding: 'utf-8', timeout: 60000 });
           }
-          const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
-          const safePath = worktreePath.replace(/'/g, "'\"'\"'");
-          const safeBranch = branch.replace(/'/g, "'\"'\"'");
-          execSync(`git worktree add '${safePath}' '${safeBranch}'`, opts);
+          await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
           return { ok: true };
         } catch (retryErr) {
           return { ok: false, error: retryErr.stderr || retryErr.message };
@@ -1231,7 +1226,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('git:worktree-remove', async (_event, workDir, worktreePath, force, deleteBranch) => {
     try {
-      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 60000 };
 
       // Resolve the branch for this worktree before removing it
       let wtBranch = null;
@@ -1241,19 +1236,17 @@ app.whenReady().then(async () => {
         if (wt && wt.branch && !wt.isMain) wtBranch = wt.branch;
       }
 
-      const safePath = worktreePath.replace(/'/g, "'\"'\"'");
-      const cmd = force
-        ? `git worktree remove --force '${safePath}'`
-        : `git worktree remove '${safePath}'`;
-      execSync(cmd, opts);
+      const removeArgs = force
+        ? ['worktree', 'remove', '--force', worktreePath]
+        : ['worktree', 'remove', worktreePath];
+      await execFileAsync('git', removeArgs, opts);
 
       // Delete the branch after worktree removal
       if (wtBranch) {
-        const safeBranch = wtBranch.replace(/'/g, "'\"'\"'");
-        try { execSync(`git branch -d '${safeBranch}'`, opts); }
+        try { await execFileAsync('git', ['branch', '-d', wtBranch], opts); }
         catch {
           // -d fails if not fully merged; use -D to force
-          try { execSync(`git branch -D '${safeBranch}'`, opts); } catch {}
+          try { await execFileAsync('git', ['branch', '-D', wtBranch], opts); } catch {}
         }
       }
 
@@ -1385,16 +1378,15 @@ app.whenReady().then(async () => {
 
       // Cleanup: remove worktree then delete branch
       try {
-        const safePath = featureWorktreePath.replace(/'/g, "'\"'\"'");
-        const removeCmd = force
-          ? `git worktree remove --force '${safePath}'`
-          : `git worktree remove '${safePath}'`;
-        execSync(removeCmd, { ...opts, cwd: workDir });
+        const removeArgs = force
+          ? ['worktree', 'remove', '--force', featureWorktreePath]
+          : ['worktree', 'remove', featureWorktreePath];
+        await execFileAsync('git', removeArgs, { ...opts, timeout: 60000, cwd: workDir });
 
         try {
-          execSync(`git branch -d '${safe(featureBranch)}'`, { ...opts, cwd: workDir });
+          await execFileAsync('git', ['branch', '-d', featureBranch], { ...opts, cwd: workDir });
         } catch {
-          execSync(`git branch -D '${safe(featureBranch)}'`, { ...opts, cwd: workDir });
+          await execFileAsync('git', ['branch', '-D', featureBranch], { ...opts, cwd: workDir });
         }
       } catch (cleanupErr) {
         return { ok: false, mergeSucceeded: true, cleanupError: cleanupErr.stderr || cleanupErr.message };
