@@ -65,9 +65,16 @@ async function getGitInfo(projectPath) {
       }
       if (wt.path) worktrees.push(wt);
     }
-    return { isGit: true, worktrees };
+    let isGitHub = false;
+    try {
+      const { stdout: remoteUrl } = await execFileAsync('git', ['remote', 'get-url', 'origin'], {
+        cwd: projectPath, encoding: 'utf-8', timeout: 3000,
+      });
+      isGitHub = /github\.com/i.test(remoteUrl);
+    } catch { /* no origin remote */ }
+    return { isGit: true, isGitHub, worktrees };
   } catch {
-    return { isGit: false, worktrees: [] };
+    return { isGit: false, isGitHub: false, worktrees: [] };
   }
 }
 
