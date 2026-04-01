@@ -2657,6 +2657,7 @@
         const entry = item.closest('.project-entry');
         if (entry && entry.classList.contains('is-git')) {
           entry.classList.toggle('expanded');
+          updateNotifUI();
         } else if (entry) {
           openWorkDir(entry.dataset.path);
         }
@@ -3518,8 +3519,9 @@
         }
         const pi = el.querySelector('.project-item');
         if (pi) {
-          pi.classList.toggle('has-busy', busy);
-          pi.classList.toggle('has-notification', !busy && notif);
+          const isExpanded = el.classList.contains('expanded');
+          pi.classList.toggle('has-busy', busy && !isExpanded);
+          pi.classList.toggle('has-notification', !busy && notif && !isExpanded);
         }
       });
       // Bell count
@@ -3625,6 +3627,9 @@
         if (w.dataset.path === workDir) {
           w.classList.add('active');
           const entry = w.closest('.project-entry');
+          if (entry && !entry.classList.contains('expanded')) {
+            entry.classList.add('expanded');
+          }
           const projectName = entry?.querySelector('.project-name')?.textContent || '';
           const branch = w.textContent.trim();
           label = projectName ? `${projectName} / ${branch}` : branch;
@@ -5242,6 +5247,7 @@
 
       // Navigate to the tab if it still exists
       if (tabs.has(tabId)) {
+        if (settingsView.classList.contains('active')) exitSettings();
         if (activeWorkDir !== workDir) openWorkDir(workDir);
         switchTab(tabId);
       }
