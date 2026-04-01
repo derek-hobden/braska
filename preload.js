@@ -84,6 +84,27 @@ contextBridge.exposeInMainWorld('gitOps', {
   pullLatestMain: (workDir) => ipcRenderer.invoke('git:pull-latest-main', workDir),
 });
 
+contextBridge.exposeInMainWorld('github', {
+  authStatus: (workDir) => ipcRenderer.invoke('gh:auth-status', workDir),
+  prList: (workDir, state) => ipcRenderer.invoke('gh:pr-list', workDir, state),
+  prView: (workDir, number) => ipcRenderer.invoke('gh:pr-view', workDir, number),
+  prCreate: (workDir, title, body, base, draft) => ipcRenderer.invoke('gh:pr-create', workDir, title, body, base, draft),
+  prMerge: (workDir, number, method, deleteBranch) => ipcRenderer.invoke('gh:pr-merge', workDir, number, method, deleteBranch),
+  prClose: (workDir, number) => ipcRenderer.invoke('gh:pr-close', workDir, number),
+  prComment: (workDir, number, body) => ipcRenderer.invoke('gh:pr-comment', workDir, number, body),
+  issueList: (workDir, state, labels) => ipcRenderer.invoke('gh:issue-list', workDir, state, labels),
+  issueView: (workDir, number) => ipcRenderer.invoke('gh:issue-view', workDir, number),
+  issueCreate: (workDir, title, body, labels) => ipcRenderer.invoke('gh:issue-create', workDir, title, body, labels),
+  issueClose: (workDir, number) => ipcRenderer.invoke('gh:issue-close', workDir, number),
+  issueComment: (workDir, number, body) => ipcRenderer.invoke('gh:issue-comment', workDir, number, body),
+  issueLabels: (workDir) => ipcRenderer.invoke('gh:issue-labels', workDir),
+  runList: (workDir, branch) => ipcRenderer.invoke('gh:run-list', workDir, branch),
+  runView: (workDir, runId) => ipcRenderer.invoke('gh:run-view', workDir, runId),
+  notifications: (workDir) => ipcRenderer.invoke('gh:notifications', workDir),
+  linkTicket: (workDir, ticketPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, ticketPath, issueNumber),
+  unlinkTicket: (workDir, ticketPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, ticketPath),
+});
+
 // PTY bridge — thin IPC layer, multi-tab support
 const dataCallbacks = new Map();
 const exitCallbacks = new Map();
