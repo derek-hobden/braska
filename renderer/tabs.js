@@ -152,7 +152,7 @@ export async function closeTab(id) {
   tabState.tabs.delete(id);
 
   const terminalView = document.getElementById('terminal-view');
-  const settingsPanel = document.getElementById('settings-view');
+  const settingsPanel = document.getElementById('settings-panel');
   const launchpad = document.getElementById('launchpad');
 
   const remaining = tabsForWorkDir(closedWorkDir);

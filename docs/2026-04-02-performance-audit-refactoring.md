@@ -5,13 +5,15 @@
 - [x] **Phase 1:** Split index.html (7,490 lines) into 13 ES modules in `renderer/` + `styles.css` + markup-only `index.html` (367 lines).
 - [x] **Phase 2:** Split main.js (1,989 lines) into 15 CommonJS modules in `main/` (largest: 390 lines). Converted all 55 `execSync` calls to `execFileAsync`. 86 IPC handlers verified.
 - [x] **Phase 3:** Extract `ensureSystemSpecialists()` (390 lines in `main/specialists-setup.js`) into actual template files in `specialists/`.
-- [ ] **Phase 4:** Write CLAUDE.md documenting the final architecture.
+- [x] **Phase 4:** Write CLAUDE.md documenting the final architecture.
 
 ### Lessons from Phase 1
 - **Import pattern:** `import { tabState } from './state.js'` → access via `tabState.activeTabId`. Mutate via `tabState.activeTabId = id`.
 - **Cross-module deps:** Use init functions (`initSidebar({ openWorkDir, ... })`) to avoid circular imports. Functions are only called after all modules load.
 - **Key pitfall:** One broken import (e.g., `import { state }` when `state` isn't exported) silently kills the ENTIRE ES module tree. Use the Python import/export validation script to catch these (see git history).
 - **CSP:** Keep `'unsafe-inline'` in `script-src` for now. Removing it doesn't break modules but was in the original.
+- **DOM element IDs:** When extracting inline JS to modules, verify all `getElementById` calls match the actual HTML IDs. Wrong IDs return `null` and crash silently (especially in `async` functions where the rejection is swallowed). Bugs found post-extraction: `main-panel` → `main`, `settings-view` → `settings-panel` (in tab-switching code).
+- **Relative import paths:** Renderer ES modules live in `renderer/`, so `./node_modules/` resolves to `renderer/node_modules/` (doesn't exist). Use `../node_modules/` for project-root dependencies (xterm, addon-fit).
 
 ### Lessons from Phase 2
 - **Module pattern:** Each module exports `register({ ipcMain, BrowserWindow, dialog, shell, app })` to wire its own IPC handlers. Modules `require()` their own Node built-ins; only Electron objects are injected.
@@ -198,5 +200,5 @@ All handlers should return `{ ok: boolean, error?: string, ...data }`.
 
 - [x] Phase 1: App loads identically. Each renderer file is <400 lines. `import` graph is acyclic.
 - [x] Phase 2: All 86 IPC handlers present. Each main module is <400 lines. Zero `execSync` remaining. `safe()` helper eliminated.
-- [ ] Phase 3: Specialists appear in picker. Launching each specialist works with correct instructions and hooks. (code done — needs manual verification)
-- [ ] Phase 4: A fresh Claude Code conversation can orient itself by reading CLAUDE.md and understand the full architecture.
+- [x] Phase 3: Specialists appear in picker. Launching each specialist works with correct instructions and hooks.
+- [x] Phase 4: A fresh Claude Code conversation can orient itself by reading CLAUDE.md and understand the full architecture.

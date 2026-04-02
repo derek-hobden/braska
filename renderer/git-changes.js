@@ -811,13 +811,13 @@ export async function openDiffTab(workDir, filePath, staged, commitHash) {
     }
   }
 
-  const mainPanel = document.getElementById('main-panel');
-  const settingsPanel = document.getElementById('settings-view');
+  const mainIntro = document.getElementById('main');
+  const settingsPanel = document.getElementById('settings-panel');
   const launchpad = document.getElementById('launchpad');
   const terminalView = document.getElementById('terminal-view');
   const terminalContainers = document.getElementById('terminal-containers');
 
-  mainPanel.style.display = 'none';
+  mainIntro.style.display = 'none';
   settingsPanel.classList.remove('active');
   launchpad.classList.remove('active');
   terminalView.classList.add('active');

@@ -16,13 +16,13 @@ export async function startTask(specialistName, workDir, options = {}) {
   if (workDirChanged) refreshRightPanel(workDir);
 
   // Show terminal view
-  const mainPanel = document.getElementById('main-panel');
-  const settingsPanel = document.getElementById('settings-view');
+  const mainIntro = document.getElementById('main');
+  const settingsPanel = document.getElementById('settings-panel');
   const launchpad = document.getElementById('launchpad');
   const terminalView = document.getElementById('terminal-view');
   const terminalContainers = document.getElementById('terminal-containers');
 
-  mainPanel.style.display = 'none';
+  mainIntro.style.display = 'none';
   settingsPanel.classList.remove('active');
   launchpad.classList.remove('active');
   terminalView.classList.add('active');
@@ -37,8 +37,8 @@ export async function startTask(specialistName, workDir, options = {}) {
 
   // Load xterm via ESM dynamic import
   const [{ Terminal }, { FitAddon }] = await Promise.all([
-    import('./node_modules/@xterm/xterm/lib/xterm.mjs'),
-    import('./node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
+    import('../node_modules/@xterm/xterm/lib/xterm.mjs'),
+    import('../node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
   ]);
 
   const term = new Terminal({
@@ -159,13 +159,13 @@ export function startBrowser(workDir) {
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
 
-  const mainPanel = document.getElementById('main-panel');
-  const settingsPanel = document.getElementById('settings-view');
+  const mainIntro = document.getElementById('main');
+  const settingsPanel = document.getElementById('settings-panel');
   const launchpad = document.getElementById('launchpad');
   const terminalView = document.getElementById('terminal-view');
   const terminalContainers = document.getElementById('terminal-containers');
 
-  mainPanel.style.display = 'none';
+  mainIntro.style.display = 'none';
   settingsPanel.classList.remove('active');
   launchpad.classList.remove('active');
   terminalView.classList.add('active');
@@ -241,13 +241,13 @@ export async function openFileEditor(relPath, fileName) {
 
   const editorWorkDir = tabState.activeWorkDir;
 
-  const mainPanel = document.getElementById('main-panel');
-  const settingsPanel = document.getElementById('settings-view');
+  const mainIntro = document.getElementById('main');
+  const settingsPanel = document.getElementById('settings-panel');
   const launchpad = document.getElementById('launchpad');
   const terminalView = document.getElementById('terminal-view');
   const terminalContainers = document.getElementById('terminal-containers');
 
-  mainPanel.style.display = 'none';
+  mainIntro.style.display = 'none';
   settingsPanel.classList.remove('active');
   launchpad.classList.remove('active');
   terminalView.classList.add('active');
