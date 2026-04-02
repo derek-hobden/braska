@@ -29,8 +29,18 @@ function activeWorkDir() { return tabState.activeWorkDir; }
 
 export function toggleSidebar() {
   explorerState.sidebarVisible = !explorerState.sidebarVisible;
-  document.getElementById('sidebar').classList.toggle('collapsed', !explorerState.sidebarVisible);
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed', !explorerState.sidebarVisible);
   toggleSidebarBtn.classList.toggle('active', explorerState.sidebarVisible);
+  // Inline styles from resize override the .collapsed CSS — clear them when
+  // collapsing, restore from localStorage when expanding.
+  if (!explorerState.sidebarVisible) {
+    sidebar.style.width = '';
+    sidebar.style.minWidth = '';
+  } else {
+    const saved = localStorage.getItem('sidebar-width');
+    if (saved) { sidebar.style.width = saved + 'px'; sidebar.style.minWidth = '180px'; }
+  }
 }
 
 // ── File tree visibility ────────────────────────────────────────
