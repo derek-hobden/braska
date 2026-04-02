@@ -12,6 +12,10 @@
     "main.js",
     "preload.js",
     "index.html",
+    "styles.css",
+    "renderer/",
+    "main/",
+    "specialists/",
     "splash.html"
   ],
   "scripts": {

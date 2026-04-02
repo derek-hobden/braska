@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.braska/specialists/todoist/.claude/hooks/protect-files.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.braska/specialists/todoist/.claude/hooks/restrict-bash.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'BLOCKED: Todoist cannot spawn agents. Your only job is to ask questions and create todos.' >&2 && exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}
