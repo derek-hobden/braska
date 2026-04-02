@@ -1194,9 +1194,11 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('git:pull-latest-main', async (_event, workDir) => {
+  ipcMain.handle('git:pull-latest-main', async (_event, workDir, options = {}) => {
     try {
+      const { autoStash = false } = options;
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
+      let didStash = false;
 
       // Determine main branch name
       let mainBranch = 'main';
@@ -1224,7 +1226,11 @@ app.whenReady().then(async () => {
       const status = execSync('git status --porcelain', opts).trim();
       if (status) {
         const count = status.split('\n').length;
-        return { ok: false, error: `${count} uncommitted change${count !== 1 ? 's' : ''}. Commit or stash before pulling main.`, isDirty: true, dirtyCount: count };
+        if (!autoStash) {
+          return { ok: false, isDirty: true, dirtyCount: count };
+        }
+        execSync(`git stash push -u -m 'WIP: before pulling main'`, opts);
+        didStash = true;
       }
 
       // Determine merge target: origin/main if remote exists, otherwise local main
@@ -1245,21 +1251,61 @@ app.whenReady().then(async () => {
       // Check if already up to date
       try {
         execSync(`git merge-base --is-ancestor '${mergeTarget}' HEAD`, { ...opts, timeout: 10000 });
+        if (didStash) {
+          try { execSync('git stash pop', opts); } catch { /* nothing to restore */ }
+        }
         return { ok: true, alreadyUpToDate: true };
       } catch { /* not ancestor — there are changes to merge */ }
 
       // Merge main into current branch
       try {
         const out = execSync(`git merge '${mergeTarget}' 2>&1`, opts);
+        // Merge succeeded — restore stash if we created one
+        if (didStash) {
+          try {
+            execSync('git stash pop', opts);
+            return { ok: true, output: out.trim(), stashPopped: true };
+          } catch (popErr) {
+            const popMsg = (popErr.stderr || popErr.stdout || popErr.message || '').toString();
+            if (popMsg.includes('CONFLICT') || popMsg.includes('could not apply')) {
+              const conflictedFiles = execSync('git diff --name-only --diff-filter=U', { ...opts, timeout: 5000 }).trim().split('\n').filter(Boolean);
+              return { ok: true, output: out.trim(), stashPopConflicts: true, conflictedFiles };
+            }
+            return { ok: true, output: out.trim(), stashPopError: popMsg.split('\n')[0] };
+          }
+        }
         return { ok: true, output: out.trim() };
       } catch (mergeErr) {
         const msg = (mergeErr.stderr || mergeErr.stdout || mergeErr.message || '').toString();
         if (msg.includes('CONFLICT') || msg.includes('Automatic merge failed')) {
-          try { execSync('git merge --abort', opts); } catch { /* ignore */ }
-          return { ok: false, hasConflicts: true, error: 'Merge conflicts with main. The merge has been aborted.' };
+          // Leave merge in progress — return conflicted file list so UI can guide resolution
+          const conflictedFiles = execSync('git diff --name-only --diff-filter=U', { ...opts, timeout: 5000 }).trim().split('\n').filter(Boolean);
+          return { ok: false, hasConflicts: true, conflictedFiles, autoStashed: didStash };
+        }
+        // Non-conflict error — restore stash if we created one
+        if (didStash) {
+          try { execSync('git stash pop', opts); } catch { /* ignore */ }
         }
         return { ok: false, error: msg.split('\n')[0] };
       }
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:abort-merge', (_event, workDir) => {
+    try {
+      execSync('git merge --abort', { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:restore-working-tree', (_event, workDir) => {
+    try {
+      execSync('git restore .', { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: errMsg(err) };
     }

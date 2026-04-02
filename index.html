@@ -548,6 +548,93 @@
     }
     #wt-merge-open-merger:hover { background: #3a2860; color: #d0bcff; }
 
+    /* Pull Latest Main modals */
+    #pull-main-dirty-modal,
+    #pull-main-conflicts-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #pull-main-dirty-modal.active,
+    #pull-main-conflicts-modal.active { display: flex; }
+    .pull-main-modal-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 380px;
+      max-width: 460px;
+    }
+    .pull-main-modal-content h3 {
+      margin: 0 0 10px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .pull-main-modal-content p {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin: 0 0 12px 0;
+      line-height: 1.4;
+    }
+    .pull-main-modal-content code {
+      background: #1e1e1e;
+      border-radius: 3px;
+      padding: 1px 4px;
+      color: #8ab4f8;
+      font-size: 0.8rem;
+    }
+    #pull-main-conflict-files {
+      margin: 0 0 12px 0;
+      padding: 0 0 0 16px;
+      font-size: 0.78rem;
+      color: #e8965a;
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    #pull-main-conflict-files li { padding: 2px 0; }
+    #pull-main-stash-note {
+      background: #1a2535;
+      border: 1px solid #2a3a55;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #8ab4f8;
+      margin: 0 0 12px 0;
+    }
+    .pull-main-modal-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .pull-main-modal-buttons button {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      background: none;
+      border: 1px solid #444;
+      color: #888;
+    }
+    .pull-main-modal-buttons button:hover { background: #2a2a2a; color: #ccc; }
+    .pull-main-modal-buttons button.pull-main-primary {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+    .pull-main-modal-buttons button.pull-main-primary:hover { background: #3a8eef; }
+    #pull-main-open-merger-btn {
+      background: #2d1f4a !important;
+      border-color: #6a4fc8 !important;
+      color: #b49ef0 !important;
+    }
+    #pull-main-open-merger-btn:hover { background: #3a2860 !important; color: #d0bcff !important; }
+
     /* Sidebar footer */
     #sidebar-footer {
       padding: 12px 16px;
@@ -3171,6 +3258,33 @@
     </div>
   </div>
 
+  <!-- Pull Latest Main: dirty state modal -->
+  <div id="pull-main-dirty-modal">
+    <div class="pull-main-modal-content">
+      <h3>Uncommitted Changes</h3>
+      <p id="pull-main-dirty-msg"></p>
+      <div class="pull-main-modal-buttons">
+        <button id="pull-main-stash-btn" class="pull-main-primary">Auto-stash &amp; Pull</button>
+        <button id="pull-main-commit-btn">Commit First</button>
+        <button id="pull-main-dirty-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pull Latest Main: conflicts modal -->
+  <div id="pull-main-conflicts-modal">
+    <div class="pull-main-modal-content">
+      <h3 id="pull-main-conflicts-title">Merge Conflicts</h3>
+      <p id="pull-main-conflicts-msg"></p>
+      <ul id="pull-main-conflict-files"></ul>
+      <p id="pull-main-stash-note" style="display:none">Your stashed changes will be restored after conflicts are resolved.</p>
+      <div class="pull-main-modal-buttons">
+        <button id="pull-main-open-merger-btn">Open Merger to Resolve</button>
+        <button id="pull-main-abort-btn">Abort Merge</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Branch management modal -->
   <div id="branch-modal">
     <div class="branch-modal-content">
@@ -3418,20 +3532,7 @@
           alert('Failed to prune worktrees: ' + result.error);
         }
       } else if (action === 'pull-main') {
-        let result = await window.gitOps.pullLatestMain(wtPath);
-        if (result.isDirty) {
-          const stageOutcome = await stageAndPromptCommit(wtPath, result.dirtyCount);
-          if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
-          else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'error');
-          else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
-          return;
-        }
-        if (result.ok) {
-          if (result.alreadyUpToDate) alert('Already up to date with main.');
-          else { alert('Successfully merged latest main.'); loadProjects(); }
-        } else {
-          alert('Pull latest main failed: ' + result.error);
-        }
+        await doPullLatestMain(wtPath);
       } else if (action === 'merge') {
         openMergeModal(projectPath, wtPath);
       }
@@ -6909,38 +7010,141 @@
       showChangesStatus('Push failed: ' + (result.error || '').split('\n')[0], 'error');
     });
 
+    // Pull Latest Main — shared logic
+    let currentPullMainWorkDir = null;
+    let _pullMainIsStashConflict = false;
+    let _pullMainDirtyResolve = null;
+
+    function showPullMainDirtyModal(workDir, dirtyCount) {
+      currentPullMainWorkDir = workDir;
+      document.getElementById('pull-main-dirty-msg').textContent =
+        `You have ${dirtyCount} uncommitted change${dirtyCount !== 1 ? 's' : ''}. Stash them automatically before merging, or commit them first.`;
+      document.getElementById('pull-main-dirty-modal').classList.add('active');
+      return new Promise(resolve => { _pullMainDirtyResolve = resolve; });
+    }
+
+    function closePullMainDirtyModal() {
+      document.getElementById('pull-main-dirty-modal').classList.remove('active');
+      _pullMainDirtyResolve = null;
+    }
+
+    function showPullMainConflictsModal(workDir, conflictedFiles, isStashConflict) {
+      currentPullMainWorkDir = workDir;
+      _pullMainIsStashConflict = isStashConflict;
+      const title = document.getElementById('pull-main-conflicts-title');
+      const msg = document.getElementById('pull-main-conflicts-msg');
+      const abortBtn = document.getElementById('pull-main-abort-btn');
+      if (isStashConflict) {
+        title.textContent = 'Stash Restore Conflicts';
+        msg.textContent = `Your stash was restored after a successful merge, but caused conflicts in ${conflictedFiles.length} file(s):`;
+        abortBtn.textContent = 'Discard Stashed Changes';
+      } else {
+        title.textContent = 'Merge Conflicts';
+        msg.innerHTML = `Merging <code>origin/main</code> caused conflicts in ${conflictedFiles.length} file(s):`;
+        abortBtn.textContent = 'Abort Merge';
+      }
+      const ul = document.getElementById('pull-main-conflict-files');
+      ul.innerHTML = conflictedFiles.map(f => `<li>${escHtml(f)}</li>`).join('');
+      document.getElementById('pull-main-stash-note').style.display = 'none';
+      document.getElementById('pull-main-conflicts-modal').classList.add('active');
+    }
+
+    function closePullMainConflictsModal() {
+      document.getElementById('pull-main-conflicts-modal').classList.remove('active');
+    }
+
+    async function doPullLatestMain(workDir) {
+      let result = await window.gitOps.pullLatestMain(workDir, { autoStash: false });
+
+      if (result.isDirty) {
+        const choice = await showPullMainDirtyModal(workDir, result.dirtyCount);
+        closePullMainDirtyModal();
+        if (choice === 'cancel') return;
+        if (choice === 'commit') {
+          const stageOutcome = await stageAndPromptCommit(workDir, result.dirtyCount);
+          if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
+          else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'info');
+          else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
+          return;
+        }
+        // choice === 'stash'
+        showChangesStatus('Stashing & merging...', 'info');
+        result = await window.gitOps.pullLatestMain(workDir, { autoStash: true });
+      }
+
+      if (result.hasConflicts) {
+        showPullMainConflictsModal(workDir, result.conflictedFiles || [], false);
+        refreshChanges(workDir);
+        refreshWorktreeMetrics();
+        return;
+      }
+
+      if (result.stashPopConflicts) {
+        showPullMainConflictsModal(workDir, result.conflictedFiles || [], true);
+        refreshChanges(workDir);
+        refreshWorktreeMetrics();
+        return;
+      }
+
+      if (!result.ok) {
+        showChangesStatus((result.error || 'Pull main failed').split('\n')[0], 'error');
+        return;
+      }
+
+      if (result.alreadyUpToDate) {
+        showChangesStatus('Already up to date with main', 'success');
+      } else if (result.stashPopped) {
+        showChangesStatus('Merged & restored your changes', 'success');
+      } else {
+        showChangesStatus('Merged latest main', 'success');
+      }
+      refreshChanges(workDir);
+      refreshWorktreeMetrics();
+    }
+
+    document.getElementById('pull-main-stash-btn').addEventListener('click', () => {
+      if (_pullMainDirtyResolve) _pullMainDirtyResolve('stash');
+    });
+    document.getElementById('pull-main-commit-btn').addEventListener('click', () => {
+      if (_pullMainDirtyResolve) _pullMainDirtyResolve('commit');
+    });
+    document.getElementById('pull-main-dirty-cancel').addEventListener('click', () => {
+      if (_pullMainDirtyResolve) _pullMainDirtyResolve('cancel');
+    });
+
+    document.getElementById('pull-main-open-merger-btn').addEventListener('click', () => {
+      const workDir = currentPullMainWorkDir;
+      const isStash = _pullMainIsStashConflict;
+      const initialPrompt = isStash
+        ? `Your stashed changes (WIP: before pulling main) were being restored after a successful merge of \`origin/main\`, but caused conflicts.\n\nWorking directory: ${workDir}\n\nThe stash restore is already in progress. Resolve each conflicted file by opening it, fixing the conflict markers, then staging it:\n  git -C '${workDir}' add <file>\n\nOnce all conflicts are resolved, drop the stash:\n  git -C '${workDir}' stash drop stash@{0}\n\nUse AskUserQuestion whenever you are unsure which side to keep.`
+        : `The merge of \`origin/main\` into your branch is in progress and has conflicts.\n\nWorking directory: ${workDir}\n\nThe merge is already started — do NOT run git merge again. Resolve each conflicted file by opening it, fixing the conflict markers, then staging it:\n  git -C '${workDir}' add <file>\n\nOnce all conflicts are resolved, commit the merge:\n  git -C '${workDir}' commit\n\nUse AskUserQuestion whenever you are unsure which side to keep.`;
+      closePullMainConflictsModal();
+      startTask('merger', workDir, { initialPrompt });
+    });
+
+    document.getElementById('pull-main-abort-btn').addEventListener('click', async () => {
+      const workDir = currentPullMainWorkDir;
+      const isStash = _pullMainIsStashConflict;
+      closePullMainConflictsModal();
+      if (isStash) {
+        await window.gitOps.restoreWorkingTree(workDir);
+        await window.gitOps.stashDrop(workDir, 0);
+        showChangesStatus('Stash discarded', 'info');
+      } else {
+        await window.gitOps.abortMerge(workDir);
+        showChangesStatus('Merge aborted', 'info');
+      }
+      refreshChanges(workDir);
+      refreshWorktreeMetrics();
+    });
+
     // Pull Latest Main button
     document.getElementById('changes-pull-main-btn').addEventListener('click', async () => {
       if (!activeWorkDir) return;
       const btn = document.getElementById('changes-pull-main-btn');
       btn.disabled = true;
-      let result = await window.gitOps.pullLatestMain(activeWorkDir);
-      if (result.isDirty) {
-        const stageOutcome = await stageAndPromptCommit(activeWorkDir, result.dirtyCount);
-        btn.disabled = false;
-        if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
-        else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'error');
-        else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
-        return;
-      }
+      await doPullLatestMain(activeWorkDir);
       btn.disabled = false;
-      if (result.ok) {
-        if (result.alreadyUpToDate) {
-          showChangesStatus('Up to date with main', 'success');
-          refreshChanges(activeWorkDir);
-          refreshWorktreeMetrics();
-        } else {
-          showChangesStatus('Merged latest main', 'success');
-          refreshChanges(activeWorkDir);
-          refreshWorktreeMetrics();
-        }
-      } else if (result.hasConflicts) {
-        refreshChanges(activeWorkDir);
-        refreshWorktreeMetrics();
-        showChangesStatus('Conflicts with main (aborted)', 'error');
-      } else {
-        showChangesStatus((result.error || 'Pull main failed').split('\n')[0], 'error');
-      }
     });
 
     // Stash button (toolbar)
