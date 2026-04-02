@@ -535,6 +535,18 @@
     }
     #wt-merge-cancel:hover { background: #2a2a2a; color: #ccc; }
     #wt-merge-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+    #wt-merge-open-merger {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      background: #2d1f4a;
+      border: 1px solid #6a4fc8;
+      color: #b49ef0;
+    }
+    #wt-merge-open-merger:hover { background: #3a2860; color: #d0bcff; }
 
     /* Sidebar footer */
     #sidebar-footer {
@@ -3155,6 +3167,7 @@
         <button id="wt-merge-cancel">Cancel</button>
         <button id="wt-merge-confirm">Merge &amp; Clean Up</button>
       </div>
+      <button id="wt-merge-open-merger" style="display:none">Open Merger to resolve conflicts</button>
     </div>
   </div>
 
@@ -3593,6 +3606,7 @@
     let wtMergeForce = false;
     let wtMergeAlreadyMerged = false;
     let wtMergeDone = false;
+    let wtMergeFeatureBranch = null;
     const wtMergeModal = document.getElementById('wt-merge-modal');
 
     async function openMergeModal(projectPath, wtPath) {
@@ -3601,6 +3615,7 @@
       wtMergeForce = false;
       wtMergeAlreadyMerged = false;
       wtMergeDone = false;
+      wtMergeFeatureBranch = null;
 
       // Reset to loading state
       document.getElementById('wt-merge-loading').style.display = '';
@@ -3611,6 +3626,7 @@
       document.getElementById('wt-merge-confirm').disabled = true;
       document.getElementById('wt-merge-cancel').style.display = '';
       document.getElementById('wt-merge-buttons').style.display = '';
+      document.getElementById('wt-merge-open-merger').style.display = 'none';
       wtMergeModal.classList.add('active');
 
       const preflight = await window.worktree.mergePreflight(projectPath, wtPath);
@@ -3639,6 +3655,7 @@
         return;
       }
 
+      wtMergeFeatureBranch = preflight.featureBranch;
       summaryEl.innerHTML = `<strong>${preflight.featureBranch}</strong><span class="merge-arrow">\u2192</span><strong>${preflight.targetBranch}</strong><span class="merge-count">${preflight.commitCount} commit${preflight.commitCount !== 1 ? 's' : ''}</span>`;
 
       commitsEl.innerHTML = preflight.commits.map(c =>
@@ -3666,6 +3683,14 @@
 
     wtMergeModal.addEventListener('click', (e) => {
       if (e.target === wtMergeModal) wtMergeModal.classList.remove('active');
+    });
+
+    document.getElementById('wt-merge-open-merger').addEventListener('click', () => {
+      wtMergeModal.classList.remove('active');
+      const branch = wtMergeFeatureBranch;
+      const projectPath = wtMergeProjectPath;
+      const initialPrompt = `Resolve the merge conflicts for merging \`${branch}\` into the current branch.\n\nWorking directory (main repo): ${projectPath}\n\nRun: git -C '${projectPath}' merge '${branch}'\n\nThen resolve each conflicted file one by one. Use AskUserQuestion whenever you are unsure which side to keep.`;
+      startTask('merger', projectPath, { initialPrompt });
     });
 
     document.getElementById('wt-merge-confirm').addEventListener('click', async () => {
@@ -3705,6 +3730,7 @@
         warningEl.classList.add('visible');
         confirmBtn.textContent = 'Close';
         confirmBtn.disabled = false;
+        document.getElementById('wt-merge-open-merger').style.display = '';
       } else if (result.mergeSucceeded) {
         loadProjects();
         successEl.textContent = `Merge succeeded, but cleanup failed: ${result.cleanupError}`;
@@ -4561,7 +4587,7 @@
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'todoist' ? 'Todoist' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName;
+      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'todoist' ? 'Todoist' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName === 'merger' ? 'Merger' : specialistName;
       const label = options.todoNumber ? `#${options.todoNumber} - ${baseName}` : baseName;
 
       // Create pane
