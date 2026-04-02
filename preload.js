@@ -82,6 +82,9 @@ contextBridge.exposeInMainWorld('gitOps', {
   stashDrop: (workDir, index) => ipcRenderer.invoke('git:stash-drop', workDir, index),
   stageAll: (workDir) => ipcRenderer.invoke('git:stage-all', workDir),
   pullLatestMain: (workDir) => ipcRenderer.invoke('git:pull-latest-main', workDir),
+  discard: (workDir, filePaths) => ipcRenderer.invoke('git:discard', workDir, filePaths),
+  amend: (workDir, message) => ipcRenderer.invoke('git:amend', workDir, message),
+  revertCommit: (workDir, hash) => ipcRenderer.invoke('git:revert-commit', workDir, hash),
 });
 
 contextBridge.exposeInMainWorld('github', {

@@ -104,16 +104,12 @@
       cursor: pointer;
       padding: 2px 6px;
       border-radius: 4px;
-      opacity: 0;
+      opacity: 0.15;
       flex-shrink: 0;
+      transition: opacity 0.2s ease;
     }
-    .project-item:hover .remove-btn {
-      opacity: 1;
-    }
-    .remove-btn:hover {
-      color: #e55;
-      background: #2a1515;
-    }
+    .project-item:hover .remove-btn { opacity: 0.5; }
+    .remove-btn:hover { opacity: 1 !important; color: #e55; background: #2a1515; }
     #empty-sidebar {
       padding: 16px;
       color: #555;
@@ -155,7 +151,7 @@
       display: block;
     }
     .worktree-item {
-      padding: 3px 16px 3px 24px;
+      padding: 3px 16px 3px 44px;
       font-size: 0.8rem;
       color: #888;
       border-radius: 4px;
@@ -713,16 +709,12 @@
       cursor: pointer;
       padding: 2px 6px;
       border-radius: 4px;
-      opacity: 0;
+      opacity: 0.15;
       flex-shrink: 0;
+      transition: opacity 0.2s ease;
     }
-    .skill-item:hover .skill-remove-btn {
-      opacity: 1;
-    }
-    .skill-remove-btn:hover {
-      color: #e55;
-      background: #2a1515;
-    }
+    .skill-item:hover .skill-remove-btn { opacity: 0.5; }
+    .skill-remove-btn:hover { opacity: 1 !important; color: #e55; background: #2a1515; }
     .skill-form {
       display: flex;
       flex-direction: column;
@@ -804,11 +796,12 @@
       cursor: pointer;
       padding: 2px 6px;
       border-radius: 4px;
-      opacity: 0;
+      opacity: 0.15;
       flex-shrink: 0;
+      transition: opacity 0.2s ease;
     }
-    .specialist-item:hover .specialist-remove-btn { opacity: 1; }
-    .specialist-remove-btn:hover { color: #e55; background: #2a1515; }
+    .specialist-item:hover .specialist-remove-btn { opacity: 0.5; }
+    .specialist-remove-btn:hover { opacity: 1 !important; color: #e55; background: #2a1515; }
     .specialist-skills-section {
       display: flex;
       flex-direction: column;
@@ -1542,26 +1535,44 @@
 
     /* Stage/unstage action buttons on file entries */
     .changes-file-action {
-      display: none;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 18px;
       height: 18px;
       border: none;
       border-radius: 3px;
-      background: #333;
-      color: #ccc;
+      background: none;
       font-size: 0.82rem;
       font-weight: 700;
       cursor: pointer;
       padding: 0;
       flex-shrink: 0;
       line-height: 1;
+      opacity: 0.2;
+      transition: opacity 0.15s ease;
     }
-    .changes-file:hover .changes-file-action { display: inline-flex; }
-    .changes-file-action:hover { background: #444; }
+    .changes-file:hover .changes-file-action { opacity: 0.6; }
+    .changes-file-action:hover { opacity: 1 !important; background: #333; }
     .changes-file-action.changes-stage { color: #3fb950; }
     .changes-file-action.changes-unstage { color: #f85149; }
+    .changes-file-action.changes-discard { color: #888; font-size: 13px; margin-left: auto; }
+    .changes-file-action.changes-discard:hover { color: #f85149; }
+    .changes-commit-revert {
+      margin-left: auto;
+      padding: 1px 6px;
+      font-size: 10px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      color: #888;
+      cursor: pointer;
+      flex-shrink: 0;
+      opacity: 0.2;
+      transition: opacity 0.15s ease;
+    }
+    .changes-commit:hover .changes-commit-revert { opacity: 0.55; border-color: #444; }
+    .changes-commit-revert:hover { opacity: 1 !important; color: #f85149; border-color: #f85149; }
 
     /* Stash entries */
     .changes-stash-entry {
@@ -1587,18 +1598,20 @@
       flex-shrink: 0;
     }
     .changes-stash-btn {
-      display: none;
+      display: inline-block;
       border: none;
-      background: #333;
+      background: #2a2a2a;
       color: #ccc;
       font-size: 0.68rem;
       border-radius: 3px;
       padding: 2px 6px;
       cursor: pointer;
       flex-shrink: 0;
+      opacity: 0.2;
+      transition: opacity 0.15s ease;
     }
-    .changes-stash-entry:hover .changes-stash-btn { display: inline-block; }
-    .changes-stash-btn:hover { background: #444; }
+    .changes-stash-entry:hover .changes-stash-btn { opacity: 0.6; }
+    .changes-stash-btn:hover { opacity: 1 !important; background: #383838; }
     .changes-stash-btn.pop { color: #3fb950; }
     .changes-stash-btn.drop { color: #f85149; }
 
@@ -2836,7 +2849,7 @@
         <div id="filetree-header">
           <div class="filetree-tabs">
             <button class="filetree-tab active" data-panel="explorer">Explorer</button>
-            <button class="filetree-tab" data-panel="changes">Changes</button>
+            <button class="filetree-tab" data-panel="changes">Git</button>
             <button class="filetree-tab" data-panel="tickets">Tickets</button>
             <button class="filetree-tab" data-panel="github">GitHub</button>
           </div>
@@ -2876,6 +2889,7 @@
                 Generate
               </button>
               <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
+              <button class="changes-commit-btn" id="changes-amend-btn" style="background:#1e3a5f;border-color:#2563eb" title="Amend last commit (adds staged files and/or updates message)">Amend</button>
             </div>
           </div>
           <div id="changes-body"></div>
@@ -5902,11 +5916,11 @@
       if (tab) switchRightPanelTab(tab.dataset.panel);
     });
 
-    function changeEntry(file, badge, cls, attrs, stats, actionHtml) {
+    function changeEntry(file, badge, cls, attrs, stats, actionHtml, rightActionHtml) {
       const idx = file.lastIndexOf('/');
       const name = idx >= 0 ? file.slice(idx + 1) : file;
       const folder = idx >= 0 ? file.slice(0, idx) : '';
-      return `<div class="changes-file" title="${escHtml(file)}" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span></div>`;
+      return `<div class="changes-file" title="${escHtml(file)}" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span>${rightActionHtml || ''}</div>`;
     }
 
     function statSpan(added, deleted) {
@@ -5918,7 +5932,7 @@
       el.textContent = msg;
       el.className = 'changes-toolbar-status ' + type;
       clearTimeout(el._timer);
-      el._timer = setTimeout(() => { el.textContent = ''; el.className = 'changes-toolbar-status'; }, 4000);
+      el._timer = setTimeout(() => { el.textContent = ''; el.className = 'changes-toolbar-status'; }, type === 'error' ? 8000 : 4000);
     }
 
     let _stageAttentionTimeout = null;
@@ -5960,11 +5974,13 @@
       // Update commit button state
       changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
       changesGenerateBtn.disabled = status.staged.length === 0;
+      document.getElementById('changes-amend-btn').disabled = commits.length === 0;
 
       let html = '';
 
       const unstageBtn = '<button class="changes-file-action changes-unstage" title="Unstage">&minus;</button>';
       const stageBtn = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
+      const discardBtn = '<button class="changes-file-action changes-discard" title="Discard changes">↺</button>';
 
       if (status.staged.length > 0) {
         html += `<div class="changes-section-header">Staged`
@@ -5980,9 +5996,10 @@
         html += `<div class="changes-section-header">Changes`
           + `<span class="changes-section-count">${status.unstaged.length}</span>`
           + `<button class="changes-section-action stage-all-unstaged" title="Stage all changes">+ All</button>`
+          + `<button class="changes-section-action discard-all-unstaged" title="Discard all changes">↺ All</button>`
           + `</div>`;
         for (const f of status.unstaged)
-          html += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-staged="false"`, statSpan(f.added, f.deleted), stageBtn);
+          html += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-staged="false"`, statSpan(f.added, f.deleted), stageBtn, discardBtn);
       }
 
       if (status.untracked.length > 0) {
@@ -6016,6 +6033,7 @@
             <div class="changes-commit-header">
               <span class="changes-commit-hash">${c.hash.slice(0, 7)}</span>
               <span class="changes-commit-msg">${escHtml(c.message)}</span>
+              <button class="changes-commit-revert" data-revert-hash="${escHtml(c.hash)}" title="Revert this commit (creates a new undo commit)">Revert</button>
             </div>
             <div class="changes-commit-meta">${escHtml(c.author)} &middot; ${escHtml(c.date)}</div>
             <div class="changes-commit-files"></div>
@@ -6036,7 +6054,7 @@
         const file = fileEl.dataset.file;
         if (file && activeWorkDir) {
           const result = await window.gitOps.stage(activeWorkDir, [file]);
-          if (result.ok) refreshChanges(activeWorkDir);
+          if (result.ok) { showChangesStatus('Staged', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
           else showChangesStatus('Stage failed', 'error');
         }
         return;
@@ -6050,7 +6068,7 @@
         const file = fileEl.dataset.file;
         if (file && activeWorkDir) {
           const result = await window.gitOps.unstage(activeWorkDir, [file]);
-          if (result.ok) refreshChanges(activeWorkDir);
+          if (result.ok) { showChangesStatus('Unstaged', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
           else showChangesStatus('Unstage failed', 'error');
         }
         return;
@@ -6063,7 +6081,10 @@
         if (activeWorkDir) {
           const result = await window.gitOps.stashPop(activeWorkDir, idx);
           if (result.ok) { showChangesStatus('Stash popped', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          else showChangesStatus(result.hasConflicts ? 'Conflicts on stash pop' : result.error, 'error');
+          else {
+            if (result.hasConflicts) { refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
+            showChangesStatus(result.hasConflicts ? 'Conflicts on stash pop — resolve manually' : (result.error || '').split('\n')[0], 'error');
+          }
         }
         return;
       }
@@ -6074,8 +6095,8 @@
         const idx = parseInt(stashDropBtn.dataset.index);
         if (activeWorkDir) {
           const result = await window.gitOps.stashDrop(activeWorkDir, idx);
-          if (result.ok) { showChangesStatus('Stash dropped', 'success'); refreshChanges(activeWorkDir); }
-          else showChangesStatus(result.error, 'error');
+          if (result.ok) { showChangesStatus('Stash dropped', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
+          else showChangesStatus((result.error || '').split('\n')[0], 'error');
         }
         return;
       }
@@ -6098,8 +6119,66 @@
           const files = [...changesBody.querySelectorAll('[data-staged="true"]')].map(el => el.dataset.file);
           if (files.length) {
             const result = await window.gitOps.unstage(activeWorkDir, files);
-            if (result.ok) refreshChanges(activeWorkDir);
+            if (result.ok) { showChangesStatus('Unstaged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
             else showChangesStatus('Unstage failed', 'error');
+          }
+        }
+        return;
+      }
+
+      // Discard single file
+      const discardBtnEl = e.target.closest('.changes-discard');
+      if (discardBtnEl) {
+        e.stopPropagation();
+        const fileEl = discardBtnEl.closest('.changes-file');
+        const file = fileEl?.dataset.file;
+        if (file && activeWorkDir && confirm(`Discard changes to ${file}? This cannot be undone.`)) {
+          const result = await window.gitOps.discard(activeWorkDir, [file]);
+          if (result.ok) { showChangesStatus('Changes discarded', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
+          else showChangesStatus('Discard failed: ' + (result.error || '').split('\n')[0], 'error');
+        }
+        return;
+      }
+
+      // Discard all unstaged changes
+      if (e.target.closest('.discard-all-unstaged')) {
+        e.stopPropagation();
+        if (activeWorkDir) {
+          const files = [...changesBody.querySelectorAll('[data-staged="false"]')].map(el => el.dataset.file);
+          if (files.length && confirm(`Discard all ${files.length} changes? This cannot be undone.`)) {
+            const result = await window.gitOps.discard(activeWorkDir, files);
+            if (result.ok) { showChangesStatus('All changes discarded', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
+            else showChangesStatus('Discard failed: ' + (result.error || '').split('\n')[0], 'error');
+          }
+        }
+        return;
+      }
+
+      // Revert commit
+      const revertBtn = e.target.closest('.changes-commit-revert');
+      if (revertBtn) {
+        e.stopPropagation();
+        const hash = revertBtn.dataset.revertHash;
+        if (hash && activeWorkDir && confirm(`Revert commit ${hash.slice(0, 7)}? This will create a new commit that undoes those changes.`)) {
+          revertBtn.textContent = 'Reverting…';
+          revertBtn.disabled = true;
+          const result = await window.gitOps.revertCommit(activeWorkDir, hash);
+          if (result.ok) {
+            showChangesStatus('Commit reverted', 'success');
+            refreshChanges(activeWorkDir);
+            refreshWorktreeMetrics();
+          } else {
+            if (result.hasConflicts) {
+              revertBtn.textContent = 'Revert';
+              revertBtn.disabled = false;
+              refreshChanges(activeWorkDir);
+              refreshWorktreeMetrics();
+              showChangesStatus('Revert conflicts — resolve manually then commit', 'error');
+            } else {
+              revertBtn.textContent = 'Revert';
+              revertBtn.disabled = false;
+              showChangesStatus('Revert failed: ' + (result.error || '').split('\n')[0], 'error');
+            }
           }
         }
         return;
@@ -6111,7 +6190,7 @@
           const files = [...changesBody.querySelectorAll('[data-staged="false"]')].map(el => el.dataset.file);
           if (files.length) {
             const result = await window.gitOps.stage(activeWorkDir, files);
-            if (result.ok) refreshChanges(activeWorkDir);
+            if (result.ok) { showChangesStatus('Staged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
             else showChangesStatus('Stage failed', 'error');
           }
         }
@@ -6124,7 +6203,7 @@
           const files = [...changesBody.querySelectorAll('[data-untracked="true"]')].map(el => el.dataset.file);
           if (files.length) {
             const result = await window.gitOps.stage(activeWorkDir, files);
-            if (result.ok) refreshChanges(activeWorkDir);
+            if (result.ok) { showChangesStatus('Staged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
             else showChangesStatus('Stage failed', 'error');
           }
         }
@@ -6177,16 +6256,44 @@
       changesCommitBtn.disabled = true;
       changesCommitBtn.textContent = 'Committing...';
       const result = await window.gitOps.commit(activeWorkDir, msg);
-      changesCommitBtn.textContent = 'Commit';
       if (result.ok) {
+        changesCommitBtn.textContent = 'Commit';
         changesCommitInput.value = '';
         changesCommitBtn.disabled = true;
         showChangesStatus('Committed', 'success');
         refreshChanges(activeWorkDir);
         refreshWorktreeMetrics();
       } else {
-        showChangesStatus(result.error, 'error');
+        changesCommitBtn.textContent = 'Commit';
         changesCommitBtn.disabled = false;
+        showChangesStatus((result.error || 'Commit failed').split('\n')[0], 'error');
+      }
+    });
+
+    // Amend last commit button
+    const changesAmendBtn = document.getElementById('changes-amend-btn');
+    changesAmendBtn.addEventListener('click', async () => {
+      if (!activeWorkDir) return;
+      const msg = changesCommitInput.value.trim();
+      const hasStaged = !!changesBody.querySelector('[data-staged="true"]');
+      if (!msg && !hasStaged) {
+        showChangesStatus('Nothing to amend: stage files or enter a new message', 'error');
+        return;
+      }
+      changesAmendBtn.disabled = true;
+      changesAmendBtn.textContent = 'Amending…';
+      const result = await window.gitOps.amend(activeWorkDir, msg || null);
+      if (result.ok) {
+        changesAmendBtn.textContent = 'Amend';
+        changesAmendBtn.disabled = false;
+        if (msg) changesCommitInput.value = '';
+        showChangesStatus('Last commit amended', 'success');
+        refreshChanges(activeWorkDir);
+        refreshWorktreeMetrics();
+      } else {
+        changesAmendBtn.textContent = 'Amend';
+        changesAmendBtn.disabled = false;
+        showChangesStatus((result.error || 'Amend failed').split('\n')[0], 'error');
       }
     });
 
@@ -6208,7 +6315,7 @@
         changesCommitInput.dispatchEvent(new Event('input'));
         showChangesStatus('Message generated', 'success');
       } else {
-        showChangesStatus(result.error || 'Generation failed', 'error');
+        showChangesStatus((result.error || 'Generation failed').split('\n')[0], 'error');
       }
     });
 
@@ -6220,7 +6327,7 @@
       const result = await window.gitOps.fetch(activeWorkDir);
       btn.disabled = false;
       if (result.ok) { showChangesStatus('Fetched', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-      else showChangesStatus('Fetch failed', 'error');
+      else showChangesStatus('Fetch failed: ' + (result.error || '').split('\n')[0], 'error');
     });
 
     // Pull button
@@ -6231,7 +6338,8 @@
       const result = await window.gitOps.pull(activeWorkDir);
       btn.disabled = false;
       if (result.ok) { showChangesStatus('Pulled', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-      else showChangesStatus(result.hasConflicts ? 'Pull conflicts' : 'Pull failed', 'error');
+      else if (result.hasConflicts) { refreshChanges(activeWorkDir); refreshWorktreeMetrics(); showChangesStatus('Pull conflicts — resolve and commit', 'error'); }
+      else showChangesStatus('Pull failed: ' + (result.error || '').split('\n')[0], 'error');
     });
 
     // Push button
@@ -6243,6 +6351,7 @@
       if (result.ok) {
         btn.disabled = false;
         showChangesStatus('Pushed', 'success');
+        refreshChanges(activeWorkDir);
         refreshWorktreeMetrics();
         return;
       }
@@ -6251,13 +6360,16 @@
         if (branch && confirm(`No upstream branch. Push and set upstream to origin/${branch}?`)) {
           const upResult = await window.gitOps.pushSetUpstream(activeWorkDir, branch);
           btn.disabled = false;
-          if (upResult.ok) showChangesStatus('Pushed (upstream set)', 'success');
-          else showChangesStatus('Push failed', 'error');
-          return;
+          if (upResult.ok) { showChangesStatus('Pushed (upstream set)', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
+          else showChangesStatus('Push failed: ' + (upResult.error || '').split('\n')[0], 'error');
+        } else {
+          btn.disabled = false;
+          showChangesStatus('Push cancelled', 'info');
         }
+        return;
       }
       btn.disabled = false;
-      showChangesStatus('Push failed', 'error');
+      showChangesStatus('Push failed: ' + (result.error || '').split('\n')[0], 'error');
     });
 
     // Pull Latest Main button
@@ -6278,14 +6390,19 @@
       if (result.ok) {
         if (result.alreadyUpToDate) {
           showChangesStatus('Up to date with main', 'success');
+          refreshChanges(activeWorkDir);
+          refreshWorktreeMetrics();
         } else {
           showChangesStatus('Merged latest main', 'success');
           refreshChanges(activeWorkDir);
+          refreshWorktreeMetrics();
         }
       } else if (result.hasConflicts) {
+        refreshChanges(activeWorkDir);
+        refreshWorktreeMetrics();
         showChangesStatus('Conflicts with main (aborted)', 'error');
       } else {
-        showChangesStatus(result.error || 'Pull main failed', 'error');
+        showChangesStatus((result.error || 'Pull main failed').split('\n')[0], 'error');
       }
     });
 
@@ -6294,7 +6411,7 @@
       if (!activeWorkDir) return;
       const result = await window.gitOps.stashSave(activeWorkDir, '');
       if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-      else showChangesStatus(result.error, 'error');
+      else showChangesStatus((result.error || 'Stash failed').split('\n')[0], 'error');
     });
 
     // Branch modal
@@ -6364,8 +6481,11 @@
       if (result.ok) {
         branchCreateInput.value = '';
         await refreshBranchList();
+        refreshChanges(activeWorkDir);
+        refreshWorktreeMetrics();
+        showChangesStatus(`Created branch ${name}`, 'success');
       } else {
-        branchError.textContent = result.error;
+        branchError.textContent = (result.error || '').split('\n')[0];
         branchError.classList.add('visible');
       }
     });
@@ -6380,9 +6500,11 @@
         if (result.ok) {
           await refreshBranchList();
           refreshChanges(activeWorkDir);
+          refreshWorktreeMetrics();
           loadProjects();
+          showChangesStatus(`Switched to ${name}`, 'success');
         } else {
-          branchError.textContent = result.error;
+          branchError.textContent = (result.error || '').split('\n')[0];
           branchError.classList.add('visible');
         }
         return;
@@ -6395,18 +6517,22 @@
         const result = await window.gitOps.branchDelete(activeWorkDir, name, false);
         if (result.ok) {
           await refreshBranchList();
+          refreshWorktreeMetrics();
+          showChangesStatus(`Deleted branch ${name}`, 'success');
         } else if (result.notMerged) {
           if (confirm(`Branch '${name}' is not fully merged. Force delete?`)) {
             const forceResult = await window.gitOps.branchDelete(activeWorkDir, name, true);
             if (forceResult.ok) {
               await refreshBranchList();
+              refreshWorktreeMetrics();
+              showChangesStatus(`Deleted branch ${name}`, 'success');
             } else {
-              branchError.textContent = forceResult.error;
+              branchError.textContent = (forceResult.error || '').split('\n')[0];
               branchError.classList.add('visible');
             }
           }
         } else {
-          branchError.textContent = result.error;
+          branchError.textContent = (result.error || '').split('\n')[0];
           branchError.classList.add('visible');
         }
         return;

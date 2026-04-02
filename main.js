@@ -914,6 +914,7 @@ app.whenReady().then(async () => {
 
   // Git operations — staging, commit, network, branches, stash
   const safe = s => s.replace(/'/g, "'\"'\"'");
+  const errMsg = err => ((err.stderr || err.message || '').toString().split('\n')[0]) || 'Unknown error';
 
   ipcMain.handle('git:stage-all', (_event, workDir) => {
     try {
@@ -921,7 +922,7 @@ app.whenReady().then(async () => {
       execSync('git add -A', opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -932,7 +933,7 @@ app.whenReady().then(async () => {
       execSync(`git add -- ${escaped}`, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -943,7 +944,7 @@ app.whenReady().then(async () => {
       execSync(`git reset HEAD -- ${escaped}`, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -953,7 +954,7 @@ app.whenReady().then(async () => {
       const out = execSync(`git commit -m '${safe(message)}'`, opts);
       return { ok: true, summary: out.trim() };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -969,13 +970,13 @@ app.whenReady().then(async () => {
           `claude -p --model claude-haiku-4-5-20251001 --max-turns 1`,
           { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024, shell: process.env.SHELL || '/bin/zsh' },
           (error, stdout, stderr) => {
-            if (error) resolve({ ok: false, error: stderr || error.message });
+            if (error) resolve({ ok: false, error: ((stderr || error.message || '').toString().split('\n')[0]) || 'Generation failed' });
             else resolve({ ok: true, message: stdout.trim() });
           }
         ).stdin.end(prompt);
       });
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -985,7 +986,7 @@ app.whenReady().then(async () => {
       const out = execSync('git fetch --all 2>&1', opts);
       return { ok: true, output: out };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -997,7 +998,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       const hasConflicts = msg.includes('CONFLICT') || msg.includes('Automatic merge failed');
-      return { ok: false, error: msg, hasConflicts };
+      return { ok: false, error: msg.split('\n')[0], hasConflicts };
     }
   });
 
@@ -1009,7 +1010,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       const noUpstream = msg.includes('no upstream') || msg.includes('has no upstream branch');
-      return { ok: false, error: msg, noUpstream };
+      return { ok: false, error: msg.split('\n')[0], noUpstream };
     }
   });
 
@@ -1019,7 +1020,7 @@ app.whenReady().then(async () => {
       execSync(`git push --set-upstream origin '${safe(branch)}' 2>&1`, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1087,10 +1088,10 @@ app.whenReady().then(async () => {
           try { execSync('git merge --abort', opts); } catch { /* ignore */ }
           return { ok: false, hasConflicts: true, error: 'Merge conflicts with main. The merge has been aborted.' };
         }
-        return { ok: false, error: msg };
+        return { ok: false, error: msg.split('\n')[0] };
       }
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1143,7 +1144,7 @@ app.whenReady().then(async () => {
       execSync(cmd, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1159,7 +1160,7 @@ app.whenReady().then(async () => {
       execSync(`git switch '${safe(name)}'`, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1178,7 +1179,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       const notMerged = msg.includes('not fully merged');
-      return { ok: false, error: msg, notMerged };
+      return { ok: false, error: msg.split('\n')[0], notMerged };
     }
   });
 
@@ -1203,7 +1204,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       if (msg.includes('No local changes')) return { ok: false, error: 'No changes to stash' };
-      return { ok: false, error: msg };
+      return { ok: false, error: msg.split('\n')[0] };
     }
   });
 
@@ -1216,7 +1217,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       const hasConflicts = msg.includes('CONFLICT') || msg.includes('could not apply');
-      return { ok: false, error: msg, hasConflicts };
+      return { ok: false, error: msg.split('\n')[0], hasConflicts };
     }
   });
 
@@ -1227,7 +1228,50 @@ app.whenReady().then(async () => {
       execSync(`git stash drop stash@{${n}}`, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:discard', (_event, workDir, filePaths) => {
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
+      const escaped = filePaths.map(f => `'${safe(f)}'`).join(' ');
+      // git restore works for modified/deleted working tree changes;
+      // fall back to checkout HEAD for edge cases (e.g. files absent from index)
+      try {
+        execSync(`git restore -- ${escaped}`, opts);
+      } catch {
+        execSync(`git checkout HEAD -- ${escaped}`, opts);
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:amend', (_event, workDir, message) => {
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
+      const cmd = message
+        ? `git commit --amend -m '${safe(message)}'`
+        : 'git commit --amend --no-edit';
+      const out = execSync(cmd, opts);
+      return { ok: true, summary: out.trim() };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:revert-commit', (_event, workDir, hash) => {
+    if (!/^[0-9a-f]+$/i.test(hash)) return { ok: false, error: 'Invalid hash' };
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 15000 };
+      execSync(`git revert ${hash} --no-edit`, opts);
+      return { ok: true };
+    } catch (err) {
+      const msg = (err.stderr || err.message || '').toString();
+      const hasConflicts = msg.includes('CONFLICT') || msg.includes('could not revert');
+      return { ok: false, error: msg.split('\n')[0], hasConflicts };
     }
   });
 
@@ -1263,10 +1307,10 @@ app.whenReady().then(async () => {
           await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
           return { ok: true };
         } catch (retryErr) {
-          return { ok: false, error: retryErr.stderr || retryErr.message };
+          return { ok: false, error: errMsg(retryErr) };
         }
       }
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1301,7 +1345,7 @@ app.whenReady().then(async () => {
       const msg = (err.stderr || err.message || '').toString();
       const isDirty = msg.includes('modified') || msg.includes('untracked') || msg.includes('changes');
       const isLocked = msg.includes('locked');
-      return { ok: false, error: msg, isDirty, isLocked };
+      return { ok: false, error: msg.split('\n')[0], isDirty, isLocked };
     }
   });
 
@@ -1311,7 +1355,7 @@ app.whenReady().then(async () => {
       execSync('git worktree prune', opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
@@ -1325,7 +1369,7 @@ app.whenReady().then(async () => {
       execSync(cmd, opts);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err.stderr || err.message };
+      return { ok: false, error: errMsg(err) };
     }
   });
 
