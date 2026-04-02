@@ -1304,6 +1304,96 @@
       padding: 12px;
     }
 
+    /* Explorer: header action buttons */
+    #ft-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      padding-right: 5px;
+      flex-shrink: 0;
+    }
+    .ft-header-btn {
+      background: none;
+      border: none;
+      color: #444;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .ft-header-btn:hover { color: #aaa; background: rgba(255,255,255,0.06); }
+
+    /* Explorer: inline rename/create input */
+    .ft-rename-input {
+      background: #1a1a1a;
+      border: none;
+      border-bottom: 1px solid #4a9eff;
+      border-radius: 2px;
+      color: #ccc;
+      font: inherit;
+      font-size: 0.82rem;
+      padding: 0 2px;
+      outline: none;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Explorer: keyboard focus ring */
+    .ft-entry.ft-focused > .ft-item {
+      background: rgba(255,255,255,0.04);
+      outline: 1px solid rgba(74, 158, 255, 0.28);
+      outline-offset: -1px;
+    }
+
+    /* Explorer: drag-drop target */
+    .ft-entry.ft-drop-target > .ft-item {
+      background: rgba(74, 158, 255, 0.1);
+      outline: 1px solid rgba(74, 158, 255, 0.4);
+      outline-offset: -1px;
+    }
+    #filetree-body.ft-drop-root {
+      outline: 1px dashed rgba(74, 158, 255, 0.3);
+      outline-offset: -2px;
+    }
+
+    /* Explorer: context menu */
+    #ft-context-menu {
+      display: none;
+      position: fixed;
+      background: #252525;
+      border: 1px solid #383838;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 192px;
+      z-index: 200;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(74,158,255,0.06);
+    }
+    #ft-context-menu.active { display: block; }
+
+    /* Pyrefly particle animations */
+    @keyframes ft-pyrefly-out {
+      0%   { transform: translate(0,0) scale(1); opacity: 0.9; }
+      100% { transform: translate(var(--dx),var(--dy)) scale(0); opacity: 0; }
+    }
+    @keyframes ft-pyrefly-in {
+      0%   { transform: translate(var(--dx),var(--dy)) scale(0); opacity: 0; }
+      100% { transform: translate(0,0) scale(1); opacity: 0.9; }
+    }
+    .ft-pyrefly {
+      position: fixed;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 0 4px 1px currentColor;
+    }
+    .ft-pyrefly.out { animation: ft-pyrefly-out 0.5s ease-out forwards; }
+    .ft-pyrefly.in  { animation: ft-pyrefly-in  0.4s ease-out forwards; }
+
     /* Changes panel */
     #changes-body {
       flex: 1;
@@ -2853,8 +2943,16 @@
             <button class="filetree-tab" data-panel="todos">Todos</button>
             <button class="filetree-tab" data-panel="github">GitHub</button>
           </div>
+          <div id="ft-header-actions">
+            <button class="ft-header-btn" id="ft-new-file-btn" title="New File">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </button>
+            <button class="ft-header-btn" id="ft-new-folder-btn" title="New Folder">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            </button>
+          </div>
         </div>
-        <div id="filetree-body">
+        <div id="filetree-body" tabindex="0">
           <div class="ft-empty">No project selected</div>
         </div>
         <div id="changes-panel-wrapper" style="display:none">
@@ -2927,6 +3025,46 @@
       <h3>Choose a Specialist</h3>
       <div id="specialist-picker-list"></div>
       <button id="specialist-picker-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- File explorer context menu -->
+  <div id="ft-context-menu">
+    <div class="wt-ctx-item" data-action="new-file">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      New File
+    </div>
+    <div class="wt-ctx-item" data-action="new-folder">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      New Folder
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item" data-action="rename">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Rename
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item" data-action="copy-path">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy Path
+    </div>
+    <div class="wt-ctx-item" data-action="reveal">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Reveal in Finder
+    </div>
+    <div class="wt-ctx-item" data-action="open-terminal">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Open Terminal Here
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item" data-action="gitignore">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      Git: Add to .gitignore
+    </div>
+    <div class="wt-ctx-sep"></div>
+    <div class="wt-ctx-item danger" data-action="delete">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Delete
     </div>
   </div>
 
@@ -4449,7 +4587,7 @@
 
       // Spawn pty — returns tab id
       const dims = fitAddon.proposeDimensions();
-      const id = await window.pty.spawn(specialistName, workDir, dims, options.initialPrompt || null);
+      const id = await window.pty.spawn(specialistName, options.cwd || workDir, dims, options.initialPrompt || null);
 
       const resizeObs = new ResizeObserver(() => {
         if (activeTabId === id) fitAddon.fit();
@@ -4813,6 +4951,338 @@
       await renderFileTreeLevel(workDir, '', filetreeBody, 0);
     }
 
+    // --- Enhanced file explorer: state ---
+    let ftFocusedEl = null;
+    let ftCtxTarget = null;
+    let ftCtxIsDir = false;
+    const ftContextMenu = document.getElementById('ft-context-menu');
+
+    function ftFocusItem(entryEl) {
+      if (ftFocusedEl) ftFocusedEl.classList.remove('ft-focused');
+      ftFocusedEl = entryEl;
+      if (entryEl) {
+        entryEl.classList.add('ft-focused');
+        entryEl.querySelector('.ft-item')?.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    // --- Pyrefly particle animations ---
+    function spawnPyreflies(rect, color, direction) {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      for (let i = 0; i < 10; i++) {
+        const el = document.createElement('div');
+        el.className = `ft-pyrefly ${direction}`;
+        const angle = (i / 10) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+        const dist = 18 + Math.random() * 38;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist - (direction === 'out' ? 12 : 0);
+        el.style.cssText = `left:${cx}px;top:${cy}px;color:${color};--dx:${dx}px;--dy:${dy}px;`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 650);
+      }
+    }
+
+    // --- Inline rename ---
+    function startInlineRename(entryEl) {
+      const itemEl = entryEl.querySelector(':scope > .ft-item');
+      const nameEl = itemEl?.querySelector('.ft-name');
+      if (!nameEl || !entryEl.dataset.path) return;
+      const originalName = nameEl.textContent;
+      const relPath = entryEl.dataset.path;
+
+      const input = document.createElement('input');
+      input.className = 'ft-rename-input';
+      input.type = 'text';
+      input.value = originalName;
+      nameEl.replaceWith(input);
+
+      // Select name without extension for files
+      const isFile = !!itemEl.classList.contains('ft-file');
+      const dotIdx = originalName.lastIndexOf('.');
+      if (isFile && dotIdx > 0) input.setSelectionRange(0, dotIdx);
+      else input.select();
+      input.focus();
+
+      let committed = false;
+      const commit = async () => {
+        if (committed) return;
+        committed = true;
+        const newName = input.value.trim();
+        if (!newName || newName === originalName) { input.replaceWith(nameEl); return; }
+        const result = await window.fileOps.rename(activeWorkDir, relPath, newName);
+        if (!result?.ok) input.replaceWith(nameEl);
+        // On success the watcher rebuilds the tree
+      };
+      input.addEventListener('keydown', async (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); await commit(); }
+        else if (e.key === 'Escape') { committed = true; input.replaceWith(nameEl); }
+      });
+      input.addEventListener('blur', commit);
+    }
+
+    // --- Inline create (new file / new folder) ---
+    async function startInlineCreate(targetEntryEl, isDir) {
+      let dirRelPath = '';
+      let depth = 0;
+      let container;
+
+      if (targetEntryEl) {
+        // If given a file, use its parent directory entry
+        let dirEl = targetEntryEl;
+        if (!dirEl.querySelector(':scope > .ft-item.ft-dir')) {
+          dirEl = dirEl.parentElement?.closest('.ft-entry') || null;
+        }
+        if (dirEl) {
+          dirRelPath = dirEl.dataset.path || '';
+          depth = dirRelPath ? dirRelPath.split('/').length : 0;
+          container = dirEl.querySelector(':scope > .ft-children');
+          dirEl.classList.add('expanded');
+        }
+      }
+      if (!container) { container = filetreeBody; depth = 0; }
+
+      const tempEntry = document.createElement('div');
+      tempEntry.className = 'ft-entry';
+      const tempItem = document.createElement('div');
+      tempItem.className = `ft-item ${isDir ? 'ft-dir' : 'ft-file'}`;
+      tempItem.style.paddingLeft = (8 + depth * 16) + 'px';
+      tempItem.innerHTML = `<span class="ft-icon" style="color:${isDir ? '#e8c882' : '#888'}">${isDir ? SVG_FOLDER : SVG_FILE}</span>`;
+      const input = document.createElement('input');
+      input.className = 'ft-rename-input';
+      input.type = 'text';
+      input.placeholder = isDir ? 'folder-name' : 'file-name';
+      tempItem.appendChild(input);
+      tempEntry.appendChild(tempItem);
+      container.insertBefore(tempEntry, container.firstChild);
+      input.focus();
+
+      let committed = false;
+      const commit = async () => {
+        if (committed) return;
+        committed = true;
+        const name = input.value.trim();
+        tempEntry.remove();
+        if (!name || !activeWorkDir) return;
+        const result = isDir
+          ? await window.fileOps.createDir(activeWorkDir, dirRelPath, name)
+          : await window.fileOps.createFile(activeWorkDir, dirRelPath, name);
+        if (result?.ok) {
+          const newRelPath = (dirRelPath ? dirRelPath + '/' : '') + name;
+          setTimeout(() => {
+            const newEl = filetreeBody.querySelector(`.ft-entry[data-path="${CSS.escape(newRelPath)}"]`);
+            if (newEl) {
+              const color = isDir ? '#e8c882' : fileIcon(name).color;
+              spawnPyreflies(newEl.querySelector('.ft-item').getBoundingClientRect(), color, 'in');
+              ftFocusItem(newEl);
+            }
+          }, 400);
+        }
+      };
+      input.addEventListener('keydown', async (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); await commit(); }
+        else if (e.key === 'Escape') { committed = true; tempEntry.remove(); }
+      });
+      input.addEventListener('blur', commit);
+    }
+
+    // --- Context menu ---
+    function showFtContextMenu(x, y) {
+      ftContextMenu.style.left = x + 'px';
+      ftContextMenu.style.top = y + 'px';
+      ftContextMenu.classList.add('active');
+      requestAnimationFrame(() => {
+        const rect = ftContextMenu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) ftContextMenu.style.left = (x - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight) ftContextMenu.style.top = (y - rect.height) + 'px';
+      });
+    }
+
+    ftContextMenu.addEventListener('click', async (e) => {
+      const item = e.target.closest('.wt-ctx-item');
+      if (!item || item.classList.contains('disabled')) return;
+      ftContextMenu.classList.remove('active');
+      const action = item.dataset.action;
+      const relPath = ftCtxTarget?.dataset.path || '';
+
+      if (action === 'new-file') {
+        await startInlineCreate(ftCtxTarget, false);
+      } else if (action === 'new-folder') {
+        await startInlineCreate(ftCtxTarget, true);
+      } else if (action === 'rename') {
+        if (ftCtxTarget) startInlineRename(ftCtxTarget);
+      } else if (action === 'copy-path') {
+        if (activeWorkDir) navigator.clipboard.writeText(activeWorkDir + '/' + relPath);
+      } else if (action === 'reveal') {
+        if (relPath && activeWorkDir) window.fileOps.reveal(activeWorkDir, relPath);
+      } else if (action === 'open-terminal') {
+        if (!activeWorkDir) return;
+        let targetDir = activeWorkDir;
+        if (relPath) {
+          const abs = activeWorkDir + '/' + relPath;
+          targetDir = ftCtxIsDir ? abs : abs.substring(0, abs.lastIndexOf('/'));
+        }
+        startTask('__TERMINAL__', activeWorkDir, { cwd: targetDir });
+      } else if (action === 'gitignore') {
+        if (relPath && activeWorkDir) window.fileOps.gitignore(activeWorkDir, relPath);
+      } else if (action === 'delete') {
+        if (!relPath || !activeWorkDir) return;
+        const name = relPath.split('/').pop();
+        if (!confirm(`Delete "${name}"?`)) return;
+        const itemEl = ftCtxTarget?.querySelector('.ft-item');
+        const rect = itemEl?.getBoundingClientRect();
+        const color = ftCtxIsDir ? '#e8c882' : fileIcon(name).color;
+        if (rect) spawnPyreflies(rect, color, 'out');
+        await window.fileOps.delete(activeWorkDir, relPath);
+      }
+    });
+
+    // filetreeBody: right-click context menu (background = root-level)
+    filetreeBody.addEventListener('contextmenu', (e) => {
+      if (!activeWorkDir) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const entry = e.target.closest('.ft-entry');
+      ftCtxTarget = entry || null;
+      ftCtxIsDir = entry ? !!entry.querySelector(':scope > .ft-item.ft-dir') : true;
+      if (entry) ftFocusItem(entry);
+      showFtContextMenu(e.clientX, e.clientY);
+    });
+
+    // Close ft context menu on outside click/contextmenu
+    document.addEventListener('click', () => ftContextMenu.classList.remove('active'));
+    document.addEventListener('contextmenu', () => ftContextMenu.classList.remove('active'));
+
+    // filetreeBody: drag-drop at root level
+    filetreeBody.addEventListener('dragover', (e) => {
+      if (e.target.closest('.ft-entry')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      filetreeBody.classList.add('ft-drop-root');
+    });
+    filetreeBody.addEventListener('dragleave', (e) => {
+      if (!filetreeBody.contains(e.relatedTarget)) filetreeBody.classList.remove('ft-drop-root');
+    });
+    filetreeBody.addEventListener('drop', async (e) => {
+      if (e.target.closest('.ft-entry')) return;
+      e.preventDefault();
+      filetreeBody.classList.remove('ft-drop-root');
+      if (!activeWorkDir) return;
+      const paths = window.dragDrop.getLastDroppedPaths();
+      if (paths.length) await window.fileOps.copyIn(activeWorkDir, '', paths);
+    });
+
+    // Header new file/folder buttons
+    document.getElementById('ft-new-file-btn').addEventListener('click', () => {
+      if (!activeWorkDir) return;
+      startInlineCreate(ftFocusedEl, false);
+    });
+    document.getElementById('ft-new-folder-btn').addEventListener('click', () => {
+      if (!activeWorkDir) return;
+      startInlineCreate(ftFocusedEl, true);
+    });
+
+    // Keyboard navigation
+    function getVisibleFtEntries() {
+      return Array.from(filetreeBody.querySelectorAll('.ft-entry')).filter(el => {
+        let node = el.parentElement;
+        while (node && node !== filetreeBody) {
+          if (node.classList.contains('ft-children') && getComputedStyle(node).display === 'none') return false;
+          node = node.parentElement;
+        }
+        return true;
+      });
+    }
+
+    filetreeBody.addEventListener('keydown', async (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
+      if (activePanel !== 'explorer') return;
+
+      const visible = getVisibleFtEntries();
+      if (visible.length === 0) return;
+      const idx = ftFocusedEl ? visible.indexOf(ftFocusedEl) : -1;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        ftFocusItem(visible[idx < 0 ? 0 : Math.min(idx + 1, visible.length - 1)]);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        ftFocusItem(visible[idx <= 0 ? 0 : idx - 1]);
+      } else if (e.key === 'ArrowRight') {
+        if (!ftFocusedEl) return;
+        e.preventDefault();
+        if (ftFocusedEl.querySelector(':scope > .ft-item.ft-dir')) {
+          if (!ftFocusedEl.classList.contains('expanded')) {
+            ftFocusedEl.querySelector(':scope > .ft-item').click();
+          } else {
+            const first = ftFocusedEl.querySelector(':scope > .ft-children > .ft-entry');
+            if (first) ftFocusItem(first);
+          }
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (!ftFocusedEl) return;
+        e.preventDefault();
+        if (ftFocusedEl.classList.contains('expanded')) {
+          ftFocusedEl.querySelector(':scope > .ft-item').click();
+        } else {
+          const parent = ftFocusedEl.parentElement?.closest('.ft-entry');
+          if (parent) ftFocusItem(parent);
+        }
+      } else if (e.key === 'Enter') {
+        if (!ftFocusedEl) return;
+        e.preventDefault();
+        ftFocusedEl.querySelector(':scope > .ft-item')?.click();
+      } else if (e.key === 'F2') {
+        if (!ftFocusedEl) return;
+        e.preventDefault();
+        startInlineRename(ftFocusedEl);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!ftFocusedEl || !activeWorkDir) return;
+        const relPath = ftFocusedEl.dataset.path;
+        if (!relPath) return;
+        const name = relPath.split('/').pop();
+        if (!confirm(`Delete "${name}"?`)) return;
+        e.preventDefault();
+        const isDir = !!ftFocusedEl.querySelector(':scope > .ft-item.ft-dir');
+        const color = isDir ? '#e8c882' : fileIcon(name).color;
+        const rect = ftFocusedEl.querySelector('.ft-item')?.getBoundingClientRect();
+        if (rect) spawnPyreflies(rect, color, 'out');
+        ftFocusedEl = null;
+        await window.fileOps.delete(activeWorkDir, relPath);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        // Clipboard paste — only acts on file:// URIs (won't intercept text paste)
+        if (!activeWorkDir) return;
+        try {
+          const items = await navigator.clipboard.read();
+          const paths = [];
+          for (const item of items) {
+            if (item.types.includes('text/uri-list')) {
+              const blob = await item.getType('text/uri-list');
+              const text = await blob.text();
+              for (const line of text.split('\n')) {
+                const u = line.trim();
+                if (u.startsWith('file://')) {
+                  try { paths.push(decodeURIComponent(new URL(u).pathname)); } catch {}
+                }
+              }
+            }
+          }
+          if (paths.length > 0) {
+            e.preventDefault();
+            const dirEl = ftFocusedEl?.querySelector(':scope > .ft-item.ft-dir')
+              ? ftFocusedEl
+              : ftFocusedEl?.parentElement?.closest('.ft-entry') || null;
+            const targetRelDir = dirEl?.dataset.path || '';
+            await window.fileOps.copyIn(activeWorkDir, targetRelDir, paths);
+          }
+        } catch {}
+      }
+    });
+
     // --- SVG icon definitions ---
     const SVG_OCTOCAT = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
     const SVG_GIT_LOGO = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.546 10.93L13.067.452a1.55 1.55 0 0 0-2.188 0L8.708 2.627l2.76 2.76a1.838 1.838 0 0 1 2.327 2.341l2.66 2.66a1.838 1.838 0 1 1-1.103 1.03l-2.48-2.48v6.53a1.838 1.838 0 1 1-1.512-.065V8.78a1.838 1.838 0 0 1-.998-2.41L7.629 3.64.452 10.818a1.55 1.55 0 0 0 0 2.188l10.48 10.48a1.55 1.55 0 0 0 2.186 0l10.428-10.43a1.55 1.55 0 0 0 0-2.127z"/></svg>';
@@ -4887,11 +5357,28 @@
           childrenEl.className = 'ft-children';
           let loaded = false;
           itemEl.addEventListener('click', async () => {
+            ftFocusItem(entryEl);
             const expanding = entryEl.classList.toggle('expanded');
             if (expanding && !loaded) {
               loaded = true;
               await renderFileTreeLevel(workDir, entry.path, childrenEl, depth + 1);
             }
+          });
+          // Drag-drop: accept files dropped onto directories
+          entryEl.addEventListener('dragover', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            entryEl.classList.add('ft-drop-target');
+          });
+          entryEl.addEventListener('dragleave', (e) => {
+            if (!entryEl.contains(e.relatedTarget)) entryEl.classList.remove('ft-drop-target');
+          });
+          entryEl.addEventListener('drop', async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            entryEl.classList.remove('ft-drop-target');
+            if (!activeWorkDir) return;
+            const paths = window.dragDrop.getLastDroppedPaths();
+            if (paths.length) await window.fileOps.copyIn(activeWorkDir, entry.path, paths);
           });
           entryEl.appendChild(itemEl);
           entryEl.appendChild(childrenEl);
@@ -4900,9 +5387,17 @@
           entryEl.dataset.path = entry.path;
           const fi = fileIcon(entry.name);
           itemEl.innerHTML = `<span class="ft-icon" style="color:${fi.color}">${fi.svg}</span><span class="ft-name">${safeName}</span>`;
-          itemEl.addEventListener('click', () => openFileEditor(entry.path, entry.name));
+          itemEl.addEventListener('click', () => { ftFocusItem(entryEl); openFileEditor(entry.path, entry.name); });
           entryEl.appendChild(itemEl);
         }
+        // Right-click context menu for all entries
+        entryEl.addEventListener('contextmenu', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          ftFocusItem(entryEl);
+          ftCtxTarget = entryEl;
+          ftCtxIsDir = entry.isDirectory;
+          showFtContextMenu(e.clientX, e.clientY);
+        });
         container.appendChild(entryEl);
       }
       updateFileTreeHighlights();

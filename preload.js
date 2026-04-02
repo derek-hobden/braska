@@ -31,6 +31,16 @@ contextBridge.exposeInMainWorld('filetree', {
   onChange: (cb) => ipcRenderer.on('filetree:changed', (_ev, filename) => cb(filename)),
 });
 
+contextBridge.exposeInMainWorld('fileOps', {
+  createFile: (workDir, relDir, name)            => ipcRenderer.invoke('filetree:create-file', workDir, relDir, name),
+  createDir:  (workDir, relDir, name)            => ipcRenderer.invoke('filetree:create-dir', workDir, relDir, name),
+  rename:     (workDir, relPath, newName)        => ipcRenderer.invoke('filetree:rename', workDir, relPath, newName),
+  delete:     (workDir, relPath)                 => ipcRenderer.invoke('filetree:delete', workDir, relPath),
+  reveal:     (workDir, relPath)                 => ipcRenderer.invoke('filetree:reveal', workDir, relPath),
+  gitignore:  (workDir, relPath)                 => ipcRenderer.invoke('filetree:gitignore', workDir, relPath),
+  copyIn:     (workDir, targetRelDir, srcPaths)  => ipcRenderer.invoke('filetree:copy-in', workDir, targetRelDir, srcPaths),
+});
+
 contextBridge.exposeInMainWorld('fileEditor', {
   read: (workDir, relPath) => ipcRenderer.invoke('file:read', workDir, relPath),
   save: (workDir, relPath, content) => ipcRenderer.invoke('file:save', workDir, relPath, content),
@@ -147,12 +157,25 @@ contextBridge.exposeInMainWorld('windowActions', {
 let lastDroppedPaths = [];
 document.addEventListener('drop', (e) => {
   const files = e.dataTransfer?.files;
+  let paths = [];
   if (files && files.length > 0) {
-    lastDroppedPaths = Array.from(files).map(f => {
+    paths = Array.from(files).map(f => {
       try { return webUtils.getPathForFile(f); }
       catch { return ''; }
     }).filter(Boolean);
   }
+  // Fallback for Screen Share drags: File objects transferred via the screen-sharing
+  // protocol have no resolvable native path via webUtils. Try text/uri-list instead,
+  // which Screen Share may populate with file:// URIs even when File.path is absent.
+  if (paths.length === 0) {
+    const uriList = e.dataTransfer?.getData('text/uri-list') || '';
+    paths = uriList.split('\n')
+      .map(u => u.trim())
+      .filter(u => u.startsWith('file://'))
+      .map(u => { try { return decodeURIComponent(new URL(u).pathname); } catch { return ''; } })
+      .filter(Boolean);
+  }
+  if (paths.length > 0) lastDroppedPaths = paths;
 }, true); // capture phase — runs before renderer bubble-phase handlers
 
 contextBridge.exposeInMainWorld('dragDrop', {
