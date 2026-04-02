@@ -102,7 +102,7 @@ async function getSpecialistsDir() {
   return dir;
 }
 
-const BUILTIN_SPECIALISTS = ['todoist', 'debugger', 'code-reviewer', 'issue-creator', 'github-specialist', 'merger'];
+const BUILTIN_SPECIALISTS = ['todoist', 'debugger', 'code-reviewer', 'github-specialist', 'merger'];
 
 async function listSpecialists() {
   const dir = await getSpecialistsDir();
@@ -127,29 +127,41 @@ async function listSpecialists() {
 async function ensureSystemSpecialists() {
   const specialistsDir = await getSpecialistsDir();
 
-  // Migrate ticketmaster → todoist directory if needed
-  const oldTicketmasterDir = path.join(specialistsDir, 'ticketmaster');
-  const todistDir = path.join(specialistsDir, 'todoist');
-  if (await pathExists(oldTicketmasterDir) && !await pathExists(todistDir)) {
-    try { await fsp.rename(oldTicketmasterDir, todistDir); } catch {}
-  }
-
   const todoist = path.join(specialistsDir, 'todoist');
   const claudeFile = path.join(todoist, 'claude.md');
   await fsp.mkdir(todoist, { recursive: true });
-  await fsp.writeFile(claudeFile, `You are Todoist for Braska. Your job is to help the user create well-formatted todo files.
+  await fsp.writeFile(claudeFile, `You are Todoist for Braska — a note-taker, not a doer.
 
-IMPORTANT RESTRICTIONS:
-- You may ONLY create, read, edit, move, and delete files inside the todos directory.
-- You must NEVER create, edit, delete, or modify any files outside the todos directory. This includes source code, configuration, documentation, scripts, and any other project files.
-- If the user asks you to make code changes, fix bugs, or edit non-todo files, refuse and explain that you are Todoist and can only manage todos. Suggest they use an appropriate specialist instead.
+Your ONLY job: listen to the user, optionally ask clarifying questions, then create a todo file. That's it. Full stop.
 
-Todos are stored in ~/.braska/projects/<project_name>/todos/ where <project_name> is the basename of the current git repository root.
+You do NOT:
+- Plan how to implement anything
+- Investigate bugs, read code, or explore the codebase
+- Suggest solutions or implementation approaches
+- Do any work beyond writing the todo file
+- Read any files other than existing todos (to get the next number)
+- Think about architecture, design, or technical approach
 
-To find the correct todos directory:
+You are a stenographer. The user tells you what needs doing. You write it down in a todo file. You do not do the thing.
+
+YOUR WORKFLOW:
+1. The user tells you about a problem, bug, idea, or task.
+2. If you need more detail to write a clear todo, use AskUserQuestion. Ask about:
+   - What exactly is the problem or desired behavior?
+   - Where in the app does this happen? (if not obvious)
+   - How important/urgent is it? (to determine priority)
+   - Any specific acceptance criteria or steps to reproduce?
+   Keep it to 1-3 questions max. If the user gave you enough info, skip straight to writing the todo.
+3. Write the todo file and confirm it was created. Then STOP.
+
+Do NOT ask questions about implementation details, technical approach, or how to solve the problem. Those are not your concern. You only need enough info to describe WHAT needs to happen, not HOW.
+
+FINDING THE TODOS DIRECTORY:
 1. Run: git rev-parse --show-toplevel
 2. Take the basename of the result (e.g., "braska")
 3. The todos directory is: ~/.braska/projects/<basename>/todos/
+4. Ensure it exists: mkdir -p ~/.braska/projects/<project_name>/todos/open
+5. Check existing todo files in open/, done/, and cancelled/ subdirs to determine the next number
 
 TODO FILE FORMAT:
 \`\`\`markdown
@@ -167,14 +179,6 @@ Detailed description of the problem or feature request...
 
 FILE NAMING: NN-kebab-case-title.md (e.g. 03-fix-auth-crash.md) where NN is the next available number.
 SAVE LOCATION: ~/.braska/projects/<project_name>/todos/open/
-
-When you start:
-1. Run git rev-parse --show-toplevel and take the basename to find the project name
-2. Ensure the todos directory exists: mkdir -p ~/.braska/projects/<project_name>/todos/open
-3. Check existing todo files in open/, done/, and cancelled/ subdirs to determine the next number
-4. Ask the user what todo they would like to create
-5. When you have enough information, write the file
-6. After writing, confirm the todo was created with its number and title
 `, 'utf-8');
 
   // Todoist file-edit hook enforcement (hard restriction)
@@ -182,6 +186,7 @@ When you start:
   await fsp.mkdir(todistHooksDir, { recursive: true });
 
   const todistSettingsFile = path.join(todoist, '.claude', 'settings.json');
+  const restrictBashScript = path.join(todistHooksDir, 'restrict-bash.sh');
   await fsp.writeFile(todistSettingsFile, JSON.stringify({
     hooks: {
       PreToolUse: [
@@ -191,6 +196,24 @@ When you start:
             {
               type: "command",
               command: `bash '${path.join(todistHooksDir, 'protect-files.sh')}'`
+            }
+          ]
+        },
+        {
+          matcher: "Bash",
+          hooks: [
+            {
+              type: "command",
+              command: `bash '${restrictBashScript}'`
+            }
+          ]
+        },
+        {
+          matcher: "Agent",
+          hooks: [
+            {
+              type: "command",
+              command: "echo 'BLOCKED: Todoist cannot spawn agents. Your only job is to ask questions and create todos.' >&2 && exit 2"
             }
           ]
         }
@@ -210,6 +233,29 @@ echo "BLOCKED: Todoist can only edit files inside ~/.braska/projects/*/todos/" >
 exit 2  # reject
 `, 'utf-8');
   await fsp.chmod(protectFilesScript, 0o755);
+
+  await fsp.writeFile(restrictBashScript, `#!/bin/bash
+COMMAND=$(cat | jq -r '.tool_input.command // empty')
+
+# Allow git rev-parse (finding project name)
+if [[ "$COMMAND" == *"git rev-parse"* ]]; then
+  exit 0
+fi
+
+# Allow mkdir on todos directories
+if [[ "$COMMAND" == *"mkdir"*".braska/projects/"*"/todos"* ]]; then
+  exit 0
+fi
+
+# Allow ls on todos directories
+if [[ "$COMMAND" == *"ls"*".braska/projects/"*"/todos"* ]]; then
+  exit 0
+fi
+
+echo "BLOCKED: Todoist can only run git rev-parse, mkdir, and ls commands for the todos directory. You are not allowed to run arbitrary commands. Use AskUserQuestion to gather info, then write a todo." >&2
+exit 2
+`, 'utf-8');
+  await fsp.chmod(restrictBashScript, 0o755);
 
   const debuggerDir = path.join(await getSpecialistsDir(), 'debugger');
   const debuggerClaudeFile = path.join(debuggerDir, 'claude.md');
@@ -343,8 +389,38 @@ WORKING PRINCIPLES:
 - Consider the broader context: does this change interact safely with the rest of the codebase?
 `, 'utf-8');
 
+  // Code Reviewer hook enforcement (fully read-only)
+  const crHooksDir = path.join(codeReviewerDir, '.claude', 'hooks');
+  await fsp.mkdir(crHooksDir, { recursive: true });
+
+  const crSettingsFile = path.join(codeReviewerDir, '.claude', 'settings.json');
+  await fsp.writeFile(crSettingsFile, JSON.stringify({
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: "Edit|Write",
+          hooks: [
+            {
+              type: "command",
+              command: "echo 'BLOCKED: Code Reviewer is read-only — it cannot edit or write files.' >&2 && exit 2"
+            }
+          ]
+        },
+        {
+          matcher: "Agent",
+          hooks: [
+            {
+              type: "command",
+              command: "echo 'BLOCKED: Code Reviewer cannot spawn agents. Its only job is to review code.' >&2 && exit 2"
+            }
+          ]
+        }
+      ]
+    }
+  }, null, 2), 'utf-8');
+
   const ghSpecDir = path.join(await getSpecialistsDir(), 'github-specialist');
-  const ghSpecClaudeFile = path.join(ghSpecDir, 'CLAUDE.md');
+  const ghSpecClaudeFile = path.join(ghSpecDir, 'claude.md');
   await fsp.mkdir(ghSpecDir, { recursive: true });
   await fsp.writeFile(ghSpecClaudeFile, `You are the GitHub Specialist for Braska. You help the user manage their GitHub workflow: pull requests, issues, CI status, and repository management.
 

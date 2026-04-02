@@ -3635,6 +3635,7 @@
         const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(wtCreateProjectPath)}"]`);
         if (entry) entry.classList.add('expanded');
         await loadProjects();
+        openWorkDir(wtPath);
       } else {
         createError.textContent = result.error || 'Failed to create worktree.';
         createError.classList.add('visible');
@@ -3980,13 +3981,13 @@
     }
 
     function renderSpecialistsList(specialists) {
-      specialists = specialists.filter(ex => ex.name !== 'issue-creator' && !ex.builtin);
+      specialists = specialists.filter(ex => !ex.builtin);
       const listHtml = specialists.length === 0
         ? '<div class="settings-empty">No specialists configured</div>'
         : specialists.map(ex => {
             const esc = ex.name.replace(/"/g, '&quot;');
             return `<div class="specialist-item" data-name="${esc}">
-              <span class="specialist-name">${ex.name}</span>
+              <span class="specialist-name">${specialistDisplayName(ex.name)}</span>
               <button class="specialist-remove-btn" data-remove="${esc}" title="Remove specialist">&times;</button>
             </div>`;
           }).join('');
@@ -4102,14 +4103,14 @@
     function renderSpecialistPickerItems(specialists) {
       const builtinSpecialists = specialists.filter(ex => ex.builtin);
       const customSpecialists = specialists.filter(ex => !ex.builtin);
-      const claudeItem = '<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">CLAUDE</div>';
+      const claudeItem = `<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${specialistDisplayName('__CLAUDE__')}</div>`;
       const builtinItems = builtinSpecialists.map(ex => {
         const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="specialist-picker-item builtin" data-name="${esc}">${ex.name}</div>`;
+        return `<div class="specialist-picker-item builtin" data-name="${esc}">${specialistDisplayName(ex.name)}</div>`;
       }).join('');
       const customItems = customSpecialists.map(ex => {
         const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="specialist-picker-item" data-name="${esc}">${ex.name}</div>`;
+        return `<div class="specialist-picker-item" data-name="${esc}">${specialistDisplayName(ex.name)}</div>`;
       }).join('');
       let html = '<div class="specialist-picker-label">System</div>' + claudeItem + builtinItems;
       if (customItems) {
@@ -4120,7 +4121,7 @@
 
     async function showSpecialistPicker(workDir) {
       pendingWorkDir = workDir;
-      const specialists = (await window.specialists.list()).filter(ex => ex.name !== 'issue-creator');
+      const specialists = await window.specialists.list();
       specialistPickerList.innerHTML = renderSpecialistPickerItems(specialists);
       specialistPicker.classList.add('active');
     }
@@ -4129,7 +4130,7 @@
       pendingTodoPath = todoPath;
       pendingTodoAbsPath = todoAbsPath;
       pendingWorkDir = workDir;
-      const specialists = (await window.specialists.list()).filter(ex => ex.name !== 'issue-creator');
+      const specialists = await window.specialists.list();
       specialistPickerList.innerHTML = renderSpecialistPickerItems(specialists);
       specialistPicker.classList.add('active');
     }
@@ -4688,7 +4689,7 @@
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'todoist' ? 'Todoist' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName === 'merger' ? 'Merger' : specialistName;
+      const baseName = specialistDisplayName(specialistName);
       const label = options.todoNumber ? `#${options.todoNumber} - ${baseName}` : baseName;
 
       // Create pane
@@ -5577,6 +5578,12 @@
 
     function escHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function specialistDisplayName(name) {
+      if (name === '__CLAUDE__') return 'Claude';
+      if (name === '__TERMINAL__') return 'Terminal';
+      return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
 
     function refreshRightPanel(workDir) {
