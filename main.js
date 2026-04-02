@@ -15,6 +15,7 @@ if (process.platform === 'darwin') {
 const ptyProcesses = new Map();
 let nextPtyId = 1;
 let activeWatcher = null;
+let activeTodosWatcher = null;
 
 async function pathExists(p) {
   try { await fsp.access(p); return true; } catch { return false; }
@@ -101,7 +102,7 @@ async function getSpecialistsDir() {
   return dir;
 }
 
-const BUILTIN_SPECIALISTS = ['ticketmaster', 'debugger', 'code-reviewer', 'issue-creator', 'github-specialist'];
+const BUILTIN_SPECIALISTS = ['todoist', 'debugger', 'code-reviewer', 'issue-creator', 'github-specialist'];
 
 async function listSpecialists() {
   const dir = await getSpecialistsDir();
@@ -124,21 +125,35 @@ async function listSpecialists() {
 
 // System specialists — auto-created on startup
 async function ensureSystemSpecialists() {
-  const ticketmasterDir = path.join(await getSpecialistsDir(), 'ticketmaster');
-  const claudeFile = path.join(ticketmasterDir, 'claude.md');
-  await fsp.mkdir(ticketmasterDir, { recursive: true });
-  await fsp.writeFile(claudeFile, `You are the Ticketmaster for Braska. Your job is to help the user create well-formatted ticket files.
+  const specialistsDir = await getSpecialistsDir();
+
+  // Migrate ticketmaster → todoist directory if needed
+  const oldTicketmasterDir = path.join(specialistsDir, 'ticketmaster');
+  const todistDir = path.join(specialistsDir, 'todoist');
+  if (await pathExists(oldTicketmasterDir) && !await pathExists(todistDir)) {
+    try { await fsp.rename(oldTicketmasterDir, todistDir); } catch {}
+  }
+
+  const todoist = path.join(specialistsDir, 'todoist');
+  const claudeFile = path.join(todoist, 'claude.md');
+  await fsp.mkdir(todoist, { recursive: true });
+  await fsp.writeFile(claudeFile, `You are Todoist for Braska. Your job is to help the user create well-formatted todo files.
 
 IMPORTANT RESTRICTIONS:
-- You may ONLY create, read, edit, move, and delete files inside \`.braska/tickets/\`.
-- You must NEVER create, edit, delete, or modify any files outside \`.braska/tickets/\`. This includes source code, configuration, documentation, scripts, and any other project files.
-- If the user asks you to make code changes, fix bugs, or edit non-ticket files, refuse and explain that you are the Ticketmaster and can only manage tickets. Suggest they use an appropriate specialist instead.
+- You may ONLY create, read, edit, move, and delete files inside the todos directory.
+- You must NEVER create, edit, delete, or modify any files outside the todos directory. This includes source code, configuration, documentation, scripts, and any other project files.
+- If the user asks you to make code changes, fix bugs, or edit non-todo files, refuse and explain that you are Todoist and can only manage todos. Suggest they use an appropriate specialist instead.
 
-Tickets are stored in .braska/tickets/ relative to the current working directory.
+Todos are stored in ~/.braska/projects/<project_name>/todos/ where <project_name> is the basename of the current git repository root.
 
-TICKET FILE FORMAT:
+To find the correct todos directory:
+1. Run: git rev-parse --show-toplevel
+2. Take the basename of the result (e.g., "braska")
+3. The todos directory is: ~/.braska/projects/<basename>/todos/
+
+TODO FILE FORMAT:
 \`\`\`markdown
-# Ticket Title
+# Todo Title
 
 ## Priority: High|Medium|Low
 
@@ -151,22 +166,23 @@ Detailed description of the problem or feature request...
 \`\`\`
 
 FILE NAMING: NN-kebab-case-title.md (e.g. 03-fix-auth-crash.md) where NN is the next available number.
-SAVE LOCATION: .braska/tickets/open/
+SAVE LOCATION: ~/.braska/projects/<project_name>/todos/open/
 
 When you start:
-1. First ensure the tickets directory exists: mkdir -p .braska/tickets/open
-2. Check existing ticket files in .braska/tickets/open/, .braska/tickets/done/, and .braska/tickets/cancelled/ to determine the next number
-3. Ask the user what ticket they would like to create
-4. When you have enough information, write the file
-5. After writing, confirm the ticket was created with its number and title
+1. Run git rev-parse --show-toplevel and take the basename to find the project name
+2. Ensure the todos directory exists: mkdir -p ~/.braska/projects/<project_name>/todos/open
+3. Check existing todo files in open/, done/, and cancelled/ subdirs to determine the next number
+4. Ask the user what todo they would like to create
+5. When you have enough information, write the file
+6. After writing, confirm the todo was created with its number and title
 `, 'utf-8');
 
-  // Ticketmaster file-edit hook enforcement (hard restriction)
-  const ticketmasterHooksDir = path.join(ticketmasterDir, '.claude', 'hooks');
-  await fsp.mkdir(ticketmasterHooksDir, { recursive: true });
+  // Todoist file-edit hook enforcement (hard restriction)
+  const todistHooksDir = path.join(todoist, '.claude', 'hooks');
+  await fsp.mkdir(todistHooksDir, { recursive: true });
 
-  const ticketmasterSettingsFile = path.join(ticketmasterDir, '.claude', 'settings.json');
-  await fsp.writeFile(ticketmasterSettingsFile, JSON.stringify({
+  const todistSettingsFile = path.join(todoist, '.claude', 'settings.json');
+  await fsp.writeFile(todistSettingsFile, JSON.stringify({
     hooks: {
       PreToolUse: [
         {
@@ -174,7 +190,7 @@ When you start:
           hooks: [
             {
               type: "command",
-              command: `bash '${path.join(ticketmasterHooksDir, 'protect-files.sh')}'`
+              command: `bash '${path.join(todistHooksDir, 'protect-files.sh')}'`
             }
           ]
         }
@@ -182,15 +198,15 @@ When you start:
     }
   }, null, 2), 'utf-8');
 
-  const protectFilesScript = path.join(ticketmasterHooksDir, 'protect-files.sh');
+  const protectFilesScript = path.join(todistHooksDir, 'protect-files.sh');
   await fsp.writeFile(protectFilesScript, `#!/bin/bash
 FILE_PATH=$(cat | jq -r '.tool_input.file_path // empty')
 
-if [[ "$FILE_PATH" == */.braska/tickets/* ]]; then
+if [[ "$FILE_PATH" == "$HOME/.braska/projects/"*"/todos/"* ]]; then
   exit 0  # allowed
 fi
 
-echo "BLOCKED: Ticketmaster can only edit files inside .braska/tickets/" >&2
+echo "BLOCKED: Todoist can only edit files inside ~/.braska/projects/*/todos/" >&2
 exit 2  # reject
 `, 'utf-8');
   await fsp.chmod(protectFilesScript, 0o755);
@@ -372,51 +388,53 @@ WORKING PRINCIPLES:
 `, 'utf-8');
 }
 
-// Per-project ticket tracking
-const migratedProjects = new Set();
-async function getTicketsDir(workDir) {
-  // Migrate legacy .the-agency / .yuna directories (once per project per session)
-  if (!migratedProjects.has(workDir)) {
-    migratedProjects.add(workDir);
-    const newDir = path.join(workDir, '.braska');
-    try {
-      const agencyDir = path.join(workDir, '.the-agency');
-      if (await pathExists(agencyDir) && !await pathExists(newDir)) {
-        await fsp.rename(agencyDir, newDir);
+// Per-project todo tracking — stored in ~/.braska/projects/<project_name>/todos/
+async function getTodosDir(workDir) {
+  try {
+    // Use git-common-dir so all worktrees of the same repo share one todos directory
+    const { stdout } = await execFileAsync('git', ['rev-parse', '--git-common-dir'], { cwd: workDir, encoding: 'utf-8', timeout: 5000 });
+    const commonDir = stdout.trim();
+    // commonDir may be relative (e.g. '.git') in the main worktree, or absolute in a linked worktree
+    const absCommonDir = path.resolve(workDir, commonDir);
+    const repoRoot = path.dirname(absCommonDir);
+    const projectName = path.basename(repoRoot);
+    return path.join(os.homedir(), '.braska', 'projects', projectName, 'todos');
+  } catch {
+    // Not a git repo: fall back to workDir basename
+    return path.join(os.homedir(), '.braska', 'projects', path.basename(workDir), 'todos');
+  }
+}
+
+async function migrateTodosIfNeeded(workDir, todosDir) {
+  const oldTicketsDir = path.join(workDir, '.braska', 'tickets');
+  if (!await pathExists(oldTicketsDir)) return;
+  for (const status of ['open', 'done', 'cancelled']) {
+    const oldSubdir = path.join(oldTicketsDir, status);
+    if (!await pathExists(oldSubdir)) continue;
+    const newSubdir = path.join(todosDir, status);
+    let files;
+    try { files = await fsp.readdir(oldSubdir); } catch { continue; }
+    for (const f of files) {
+      if (!f.endsWith('.md')) continue;
+      const dest = path.join(newSubdir, f);
+      if (!await pathExists(dest)) {
+        try { await fsp.rename(path.join(oldSubdir, f), dest); } catch {}
       }
-      const yunaDir = path.join(workDir, '.yuna');
-      if (await pathExists(yunaDir) && !await pathExists(newDir)) {
-        await fsp.rename(yunaDir, newDir);
-      }
-    } catch (err) {
-      console.error(`Failed to migrate to ${newDir}:`, err.message);
     }
   }
-  return path.join(workDir, '.braska', 'tickets');
 }
 
-async function ensureTicketsDirs(workDir) {
-  const dir = await getTicketsDir(workDir);
-  const openDir = path.join(dir, 'open');
-  const doneDir = path.join(dir, 'done');
-  const cancelledDir = path.join(dir, 'cancelled');
-  await fsp.mkdir(openDir, { recursive: true });
-  await fsp.mkdir(doneDir, { recursive: true });
-  await fsp.mkdir(cancelledDir, { recursive: true });
-  // Migrate legacy closed/ tickets to done/
-  const legacyClosedDir = path.join(dir, 'closed');
-  if (await pathExists(legacyClosedDir)) {
-    try {
-      for (const f of await fsp.readdir(legacyClosedDir)) {
-        await fsp.rename(path.join(legacyClosedDir, f), path.join(doneDir, f));
-      }
-      await fsp.rmdir(legacyClosedDir);
-    } catch {}
-  }
+async function ensureTodosDirs(workDir) {
+  const dir = await getTodosDir(workDir);
+  await fsp.mkdir(path.join(dir, 'open'), { recursive: true });
+  await fsp.mkdir(path.join(dir, 'done'), { recursive: true });
+  await fsp.mkdir(path.join(dir, 'cancelled'), { recursive: true });
+  await migrateTodosIfNeeded(workDir, dir);
+  return dir;
 }
 
-async function listTickets(workDir) {
-  const dir = await getTicketsDir(workDir);
+async function listTodos(workDir) {
+  const dir = await getTodosDir(workDir);
   const results = [];
   for (const status of ['open', 'done', 'cancelled']) {
     const subdir = path.join(dir, status);
@@ -434,7 +452,8 @@ async function listTickets(workDir) {
           priority: prioMatch ? prioMatch[1].trim() : null,
           githubIssue: ghIssueMatch ? parseInt(ghIssueMatch[1]) : null,
           status,
-          path: path.relative(workDir, filePath),
+          path: path.join(status, f),         // relative to todos root: "open/01-foo.md"
+          absolutePath: filePath,              // absolute path for initial prompts
         });
       }
     } catch {}
@@ -656,18 +675,19 @@ app.whenReady().then(async () => {
     return listSpecialists();
   });
 
-  // Ticket tracking
-  ipcMain.handle('tickets:init', (_event, workDir) => ensureTicketsDirs(workDir));
-  ipcMain.handle('tickets:list', (_event, workDir) => listTickets(workDir));
-  ipcMain.handle('tickets:read', async (_event, workDir, relPath) => {
-    try { return await fsp.readFile(resolveInDir(workDir, relPath), 'utf-8'); }
+  // Todo tracking
+  ipcMain.handle('todos:init', (_event, workDir) => ensureTodosDirs(workDir));
+  ipcMain.handle('todos:list', (_event, workDir) => listTodos(workDir));
+  ipcMain.handle('todos:read', async (_event, workDir, relPath) => {
+    const todosDir = await getTodosDir(workDir);
+    try { return await fsp.readFile(resolveInDir(todosDir, relPath), 'utf-8'); }
     catch { return ''; }
   });
-  ipcMain.handle('tickets:close', async (_event, workDir, relPath, status) => {
+  ipcMain.handle('todos:close', async (_event, workDir, relPath, status) => {
     if (!['done', 'cancelled'].includes(status)) throw new Error('Invalid status');
-    const filePath = resolveInDir(workDir, relPath);
-    const ticketsDir = await getTicketsDir(workDir);
-    const targetDir = path.join(ticketsDir, status);
+    const todosDir = await getTodosDir(workDir);
+    const filePath = resolveInDir(todosDir, relPath);
+    const targetDir = path.join(todosDir, status);
     await fsp.mkdir(targetDir, { recursive: true });
     const dest = path.join(targetDir, path.basename(filePath));
     await fsp.rename(filePath, dest);
@@ -684,6 +704,17 @@ app.whenReady().then(async () => {
     // so we cannot rely on cwd alone to guarantee the correct working directory.
     const safeWorkDir = workDir.replace(/'/g, "'\"'\"'");
 
+    // Compute todos dir for all Claude-based sessions so agents can @ reference todo files
+    let todosDirFlag = '';
+    if (specialistName !== '__TERMINAL__') {
+      try {
+        const todosDir = await getTodosDir(workDir);
+        await fsp.mkdir(todosDir, { recursive: true });
+        const safeTodosDir = todosDir.replace(/'/g, "'\"'\"'");
+        todosDirFlag = ` --add-dir '${safeTodosDir}'`;
+      } catch {}
+    }
+
     if (specialistName === '__TERMINAL__') {
       cwd = workDir;
       args = ['-l'];
@@ -691,9 +722,9 @@ app.whenReady().then(async () => {
       cwd = workDir;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions -- '${safePrompt}'`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todosDirFlag} -- '${safePrompt}'`];
       } else {
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todosDirFlag}`];
       }
     } else {
       // CWD is project dir so @ file autocompletion works.
@@ -701,7 +732,7 @@ app.whenReady().then(async () => {
       cwd = workDir;
       const specialistDir = path.join(await getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
-      const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'`;
+      const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'${todosDirFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
@@ -782,6 +813,24 @@ app.whenReady().then(async () => {
 
   ipcMain.on('filetree:unwatch', () => {
     if (activeWatcher) { activeWatcher.close(); activeWatcher = null; }
+  });
+
+  ipcMain.on('todos:watch', async (event, workDir) => {
+    if (activeTodosWatcher) { activeTodosWatcher.close(); activeTodosWatcher = null; }
+    if (!workDir) return;
+    try {
+      const todosDir = await getTodosDir(workDir);
+      await fsp.mkdir(todosDir, { recursive: true });
+      const win = BrowserWindow.fromWebContents(event.sender);
+      activeTodosWatcher = fs.watch(todosDir, { recursive: true }, () => {
+        if (!win?.isDestroyed()) win.webContents.send('todos:changed');
+      });
+      activeTodosWatcher.on('error', () => {});
+    } catch {}
+  });
+
+  ipcMain.on('todos:unwatch', () => {
+    if (activeTodosWatcher) { activeTodosWatcher.close(); activeTodosWatcher = null; }
   });
 
   // Git diff/changes handlers
@@ -1641,10 +1690,11 @@ app.whenReady().then(async () => {
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
-  ipcMain.handle('gh:link-ticket', async (_event, workDir, ticketRelPath, issueNumber) => {
+  ipcMain.handle('gh:link-ticket', async (_event, workDir, todoRelPath, issueNumber) => {
     try {
-      const ticketPath = resolveInDir(workDir, ticketRelPath);
-      let content = await fsp.readFile(ticketPath, 'utf-8');
+      const todosDir = await getTodosDir(workDir);
+      const todoPath = resolveInDir(todosDir, todoRelPath);
+      let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');
       const insertPoint = content.indexOf('\n## Tasks');
       if (insertPoint >= 0) {
@@ -1652,21 +1702,22 @@ app.whenReady().then(async () => {
       } else {
         content = content.trimEnd() + `\n\n## GitHub Issue: #${issueNumber}\n`;
       }
-      await fsp.writeFile(ticketPath, content, 'utf-8');
+      await fsp.writeFile(todoPath, content, 'utf-8');
       try {
-        const ticketName = path.basename(ticketRelPath, '.md');
-        await execFileAsync('gh', ['issue', 'comment', String(issueNumber), '--body', `Linked to Braska ticket: ${ticketName}`], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+        const todoName = path.basename(todoRelPath, '.md');
+        await execFileAsync('gh', ['issue', 'comment', String(issueNumber), '--body', `Linked to Braska todo: ${todoName}`], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
       } catch {}
       return { ok: true };
     } catch (err) { return { ok: false, error: err.message }; }
   });
 
-  ipcMain.handle('gh:unlink-ticket', async (_event, workDir, ticketRelPath) => {
+  ipcMain.handle('gh:unlink-ticket', async (_event, workDir, todoRelPath) => {
     try {
-      const ticketPath = resolveInDir(workDir, ticketRelPath);
-      let content = await fsp.readFile(ticketPath, 'utf-8');
+      const todosDir = await getTodosDir(workDir);
+      const todoPath = resolveInDir(todosDir, todoRelPath);
+      let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');
-      await fsp.writeFile(ticketPath, content, 'utf-8');
+      await fsp.writeFile(todoPath, content, 'utf-8');
       return { ok: true };
     } catch (err) { return { ok: false, error: err.message }; }
   });

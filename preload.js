@@ -36,11 +36,14 @@ contextBridge.exposeInMainWorld('fileEditor', {
   save: (workDir, relPath, content) => ipcRenderer.invoke('file:save', workDir, relPath, content),
 });
 
-contextBridge.exposeInMainWorld('tickets', {
-  init: (workDir) => ipcRenderer.invoke('tickets:init', workDir),
-  list: (workDir) => ipcRenderer.invoke('tickets:list', workDir),
-  read: (workDir, relPath) => ipcRenderer.invoke('tickets:read', workDir, relPath),
-  close: (workDir, relPath, status) => ipcRenderer.invoke('tickets:close', workDir, relPath, status),
+contextBridge.exposeInMainWorld('todos', {
+  init: (workDir) => ipcRenderer.invoke('todos:init', workDir),
+  list: (workDir) => ipcRenderer.invoke('todos:list', workDir),
+  read: (workDir, relPath) => ipcRenderer.invoke('todos:read', workDir, relPath),
+  close: (workDir, relPath, status) => ipcRenderer.invoke('todos:close', workDir, relPath, status),
+  watch: (workDir) => ipcRenderer.send('todos:watch', workDir),
+  unwatch: () => ipcRenderer.send('todos:unwatch'),
+  onChange: (cb) => ipcRenderer.on('todos:changed', () => cb()),
 });
 
 contextBridge.exposeInMainWorld('worktree', {
@@ -104,8 +107,8 @@ contextBridge.exposeInMainWorld('github', {
   runList: (workDir, branch) => ipcRenderer.invoke('gh:run-list', workDir, branch),
   runView: (workDir, runId) => ipcRenderer.invoke('gh:run-view', workDir, runId),
   notifications: (workDir) => ipcRenderer.invoke('gh:notifications', workDir),
-  linkTicket: (workDir, ticketPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, ticketPath, issueNumber),
-  unlinkTicket: (workDir, ticketPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, ticketPath),
+  linkTicket: (workDir, todoPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, todoPath, issueNumber),
+  unlinkTicket: (workDir, todoPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, todoPath),
 });
 
 // PTY bridge — thin IPC layer, multi-tab support

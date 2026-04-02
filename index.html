@@ -1755,16 +1755,16 @@
     }
     .branch-modal-footer button:hover { background: #444; }
 
-    /* Tickets panel */
-    #tickets-body {
+    /* Todos panel */
+    #todos-body {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 2px 0;
     }
-    #tickets-body::-webkit-scrollbar { width: 6px; }
-    #tickets-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-    .tickets-section-header {
+    #todos-body::-webkit-scrollbar { width: 6px; }
+    #todos-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .todos-section-header {
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -1772,7 +1772,7 @@
       padding: 10px 12px 4px;
       user-select: none;
     }
-    .ticket-item {
+    .todo-item {
       display: flex;
       align-items: center;
       padding: 4px 12px;
@@ -1781,8 +1781,8 @@
       gap: 6px;
       min-height: 26px;
     }
-    .ticket-item:hover { background: #252525; }
-    .ticket-title {
+    .todo-item:hover { background: #252525; }
+    .todo-title {
       flex: 1;
       min-width: 0;
       overflow: hidden;
@@ -1790,7 +1790,7 @@
       white-space: nowrap;
       color: #ccc;
     }
-    .ticket-priority {
+    .todo-priority {
       flex-shrink: 0;
       font-size: 0.68rem;
       text-transform: uppercase;
@@ -1798,24 +1798,24 @@
       padding: 1px 6px;
       border-radius: 8px;
     }
-    .ticket-priority-high { color: #f85149; background: rgba(248,81,73,0.12); }
-    .ticket-priority-medium { color: #d29922; background: rgba(210,153,34,0.12); }
-    .ticket-priority-low { color: #3fb950; background: rgba(63,185,80,0.12); }
-    .ticket-number {
+    .todo-priority-high { color: #f85149; background: rgba(248,81,73,0.12); }
+    .todo-priority-medium { color: #d29922; background: rgba(210,153,34,0.12); }
+    .todo-priority-low { color: #3fb950; background: rgba(63,185,80,0.12); }
+    .todo-number {
       color: #555;
       font-size: 0.75rem;
       font-family: Menlo, Monaco, "Courier New", monospace;
       flex-shrink: 0;
       width: 24px;
     }
-    .ticket-detail { padding: 16px; }
-    .ticket-detail-header {
+    .todo-detail { padding: 16px; }
+    .todo-detail-header {
       display: flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 12px;
     }
-    .ticket-detail-back {
+    .todo-detail-back {
       background: none;
       border: none;
       color: #888;
@@ -1824,18 +1824,18 @@
       border-radius: 4px;
       font-size: 0.85rem;
     }
-    .ticket-detail-back:hover { color: #fff; background: #252525; }
-    .ticket-detail-content {
+    .todo-detail-back:hover { color: #fff; background: #252525; }
+    .todo-detail-content {
       font-size: 0.85rem;
       color: #ccc;
       line-height: 1.6;
       white-space: pre-wrap;
       font-family: inherit;
     }
-    .ticket-detail-content h1 { font-size: 1.1rem; margin: 0 0 8px; color: #fff; white-space: normal; }
-    .ticket-detail-content h2 { font-size: 0.9rem; margin: 12px 0 4px; color: #aaa; white-space: normal; }
-    .ticket-detail-content li { margin-left: 16px; list-style: disc; white-space: normal; }
-    .ticket-work-btn {
+    .todo-detail-content h1 { font-size: 1.1rem; margin: 0 0 8px; color: #fff; white-space: normal; }
+    .todo-detail-content h2 { font-size: 0.9rem; margin: 12px 0 4px; color: #aaa; white-space: normal; }
+    .todo-detail-content li { margin-left: 16px; list-style: disc; white-space: normal; }
+    .todo-work-btn {
       background: none;
       border: 1px solid #4a9eff;
       color: #4a9eff;
@@ -1847,8 +1847,8 @@
       margin-top: 16px;
       display: inline-block;
     }
-    .ticket-work-btn:hover { background: #1a3a5c; }
-    .ticket-worktree-btn {
+    .todo-work-btn:hover { background: #1a3a5c; }
+    .todo-worktree-btn {
       background: none;
       border: 1px solid #3fb950;
       color: #3fb950;
@@ -1861,10 +1861,10 @@
       margin-left: 8px;
       display: inline-block;
     }
-    .ticket-worktree-btn:hover { background: #1a3d1a; }
-    .ticket-worktree-btn:disabled { opacity: 0.6; cursor: wait; }
-    .ticket-worktree-error { color: #e5534b; font-size: 0.78rem; margin-top: 6px; padding: 4px 0; }
-    .ticket-done-btn {
+    .todo-worktree-btn:hover { background: #1a3d1a; }
+    .todo-worktree-btn:disabled { opacity: 0.6; cursor: wait; }
+    .todo-worktree-error { color: #e5534b; font-size: 0.78rem; margin-top: 6px; padding: 4px 0; }
+    .todo-done-btn {
       background: none;
       border: 1px solid #3fb950;
       color: #3fb950;
@@ -1877,8 +1877,8 @@
       margin-left: 8px;
       display: inline-block;
     }
-    .ticket-done-btn:hover { background: #1a3d1a; }
-    .ticket-cancel-btn {
+    .todo-done-btn:hover { background: #1a3d1a; }
+    .todo-cancel-btn {
       background: none;
       border: 1px solid #e5534b;
       color: #e5534b;
@@ -1891,12 +1891,12 @@
       margin-left: 8px;
       display: inline-block;
     }
-    .ticket-cancel-btn:hover { background: #3d1a1a; }
-    .tickets-filter {
+    .todo-cancel-btn:hover { background: #3d1a1a; }
+    .todos-filter {
       display: flex;
       padding: 6px 8px;
     }
-    .tickets-filter input {
+    .todos-filter input {
       flex: 1;
       background: #1e1e1e;
       border: 1px solid #333;
@@ -1907,8 +1907,8 @@
       font-family: inherit;
       outline: none;
     }
-    .tickets-filter input:focus { border-color: #555; }
-    .tickets-new-btn {
+    .todos-filter input:focus { border-color: #555; }
+    .todos-new-btn {
       flex-shrink: 0;
       margin-left: 6px;
       background: none;
@@ -1921,8 +1921,8 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .tickets-new-btn:hover { background: #1a3a5c; }
-    .tickets-empty {
+    .todos-new-btn:hover { background: #1a3a5c; }
+    .todos-empty {
       color: #444;
       font-size: 0.8rem;
       font-style: italic;
@@ -2850,7 +2850,7 @@
           <div class="filetree-tabs">
             <button class="filetree-tab active" data-panel="explorer">Explorer</button>
             <button class="filetree-tab" data-panel="changes">Git</button>
-            <button class="filetree-tab" data-panel="tickets">Tickets</button>
+            <button class="filetree-tab" data-panel="todos">Todos</button>
             <button class="filetree-tab" data-panel="github">GitHub</button>
           </div>
         </div>
@@ -2894,7 +2894,7 @@
           </div>
           <div id="changes-body"></div>
         </div>
-        <div id="tickets-body" style="display:none"></div>
+        <div id="todos-body" style="display:none"></div>
         <div id="github-body" style="display:none"></div>
       </div>
     </div>
@@ -3831,7 +3831,8 @@
       }
     });
 
-    let pendingTicketPath = null;
+    let pendingTodoPath = null;
+    let pendingTodoAbsPath = null;
 
     function renderSpecialistPickerItems(specialists) {
       const builtinSpecialists = specialists.filter(ex => ex.builtin);
@@ -3859,8 +3860,9 @@
       specialistPicker.classList.add('active');
     }
 
-    async function showSpecialistPickerForTicket(workDir, ticketPath) {
-      pendingTicketPath = ticketPath;
+    async function showSpecialistPickerForTodo(workDir, todoPath, todoAbsPath) {
+      pendingTodoPath = todoPath;
+      pendingTodoAbsPath = todoAbsPath;
       pendingWorkDir = workDir;
       const specialists = (await window.specialists.list()).filter(ex => ex.name !== 'issue-creator');
       specialistPickerList.innerHTML = renderSpecialistPickerItems(specialists);
@@ -3870,7 +3872,8 @@
     document.getElementById('specialist-picker-cancel').addEventListener('click', () => {
       specialistPicker.classList.remove('active');
       pendingWorkDir = null;
-      pendingTicketPath = null;
+      pendingTodoPath = null;
+      pendingTodoAbsPath = null;
     });
 
     specialistPickerList.addEventListener('click', (e) => {
@@ -3879,13 +3882,15 @@
       const specialistName = item.dataset.name;
       specialistPicker.classList.remove('active');
 
-      if (pendingTicketPath) {
-        const ticketPath = pendingTicketPath;
-        pendingTicketPath = null;
-        const ticketNum = ticketPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
+      if (pendingTodoPath) {
+        const todoPath = pendingTodoPath;
+        const todoAbsPath = pendingTodoAbsPath;
+        pendingTodoPath = null;
+        pendingTodoAbsPath = null;
+        const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
         startTask(specialistName, pendingWorkDir, {
-          initialPrompt: `Read the ticket file at ${ticketPath} and let me know once done`,
-          ticketNumber: ticketNum
+          initialPrompt: `Read the todo file at ${todoAbsPath} and let me know once done`,
+          todoNumber: todoNum
         });
       } else {
         startTask(specialistName, pendingWorkDir);
@@ -3908,12 +3913,19 @@
       fsWatchDebounce = setTimeout(() => {
         if (!activeWorkDir) return;
         const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-        if (activePanel === 'tickets') {
-          if (filename && !filename.includes('.braska/tickets/') &&
-              !filename.includes('.braska\\tickets\\')) return;
-        }
+        if (activePanel === 'todos') return; // handled by todos:changed watcher
         if (activePanel === 'github') return;
         refreshRightPanel(activeWorkDir);
+      }, 300);
+    });
+
+    let todosWatchDebounce = null;
+    window.todos.onChange(() => {
+      clearTimeout(todosWatchDebounce);
+      todosWatchDebounce = setTimeout(() => {
+        if (!activeWorkDir) return;
+        const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
+        if (activePanel === 'todos') refreshTodos(activeWorkDir);
       }, 300);
     });
 
@@ -4159,6 +4171,7 @@
       setBreadcrumb(workDir);
       restoreExplorerState(workDir);
       window.filetree.watch(workDir);
+      window.todos.watch(workDir);
       const existing = tabsForWorkDir(workDir);
       if (existing.length > 0) {
         // Has tabs — switch to this worktree's view
@@ -4410,8 +4423,8 @@
       launchpad.classList.remove('active');
       terminalView.classList.add('active');
 
-      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'ticketmaster' ? 'Ticketmaster' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName;
-      const label = options.ticketNumber ? `#${options.ticketNumber} - ${baseName}` : baseName;
+      const baseName = specialistName === '__CLAUDE__' ? 'Claude' : specialistName === '__TERMINAL__' ? 'Terminal' : specialistName === 'todoist' ? 'Todoist' : specialistName === 'debugger' ? 'Debugger' : specialistName === 'code-reviewer' ? 'Code Reviewer' : specialistName;
+      const label = options.todoNumber ? `#${options.todoNumber} - ${baseName}` : baseName;
 
       // Create pane
       const pane = document.createElement('div');
@@ -4678,11 +4691,11 @@
         e.preventDefault();
         if (!filetreeVisible) {
           toggleFiletree();
-          switchRightPanelTab('tickets');
-        } else if (document.querySelector('.filetree-tab[data-panel="tickets"]')?.classList.contains('active')) {
+          switchRightPanelTab('todos');
+        } else if (document.querySelector('.filetree-tab[data-panel="todos"]')?.classList.contains('active')) {
           toggleFiletree();
         } else {
-          switchRightPanelTab('tickets');
+          switchRightPanelTab('todos');
         }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
@@ -4948,12 +4961,12 @@
       if (!filetreeVisible || !workDir) return;
       const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
       if (activePanel === 'changes') refreshChanges(workDir);
-      else if (activePanel === 'tickets') refreshTickets(workDir);
+      else if (activePanel === 'todos') refreshTodos(workDir);
       else if (activePanel === 'github') refreshGitHub(workDir);
       else refreshFileTree(workDir);
     }
 
-    const ticketsBody = document.getElementById('tickets-body');
+    const todosBody = document.getElementById('todos-body');
 
     const githubBody = document.getElementById('github-body');
 
@@ -4963,82 +4976,82 @@
       );
       filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
       changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
-      ticketsBody.style.display = panel === 'tickets' ? '' : 'none';
+      todosBody.style.display = panel === 'todos' ? '' : 'none';
       githubBody.style.display = panel === 'github' ? '' : 'none';
       if (panel === 'changes' && activeWorkDir) refreshChanges(activeWorkDir);
       if (panel === 'explorer' && activeWorkDir) refreshFileTree(activeWorkDir);
-      if (panel === 'tickets' && activeWorkDir) {
-        window.tickets.init(activeWorkDir).then(() => refreshTickets(activeWorkDir));
+      if (panel === 'todos' && activeWorkDir) {
+        window.todos.init(activeWorkDir).then(() => refreshTodos(activeWorkDir));
       }
       if (panel === 'github' && activeWorkDir) refreshGitHub(activeWorkDir);
     }
 
-    async function refreshTickets(workDir) {
-      const prevScroll = ticketsBody.scrollTop;
-      const tickets = await window.tickets.list(workDir);
+    async function refreshTodos(workDir) {
+      const prevScroll = todosBody.scrollTop;
+      const todos = await window.todos.list(workDir);
 
-      const openTickets = tickets.filter(i => i.status === 'open');
-      const doneTickets = tickets.filter(i => i.status === 'done');
-      const cancelledTickets = tickets.filter(i => i.status === 'cancelled');
+      const openTodos = todos.filter(i => i.status === 'open');
+      const doneTodos = todos.filter(i => i.status === 'done');
+      const cancelledTodos = todos.filter(i => i.status === 'cancelled');
 
-      let html = '<div class="tickets-filter"><input type="text" id="tickets-search" placeholder="Filter tickets..." /><button class="tickets-new-btn" id="tickets-new-btn" title="Create a new ticket">+ New</button></div>';
+      let html = '<div class="todos-filter"><input type="text" id="todos-search" placeholder="Filter todos..." /><button class="todos-new-btn" id="todos-new-btn" title="Create a new todo">+ New</button></div>';
 
-      if (openTickets.length > 0) {
-        html += `<div class="tickets-section-header">Open<span class="changes-section-count">${openTickets.length}</span></div>`;
-        for (const ticket of openTickets) {
-          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
-          const prioClass = ticket.priority ? `ticket-priority-${ticket.priority.toLowerCase()}` : '';
-          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}">
-            <span class="ticket-number">#${num}</span>
-            <span class="ticket-title">${escHtml(ticket.title)}</span>
-            ${ticket.priority ? `<span class="ticket-priority ${prioClass}">${escHtml(ticket.priority)}</span>` : ''}
+      if (openTodos.length > 0) {
+        html += `<div class="todos-section-header">Open<span class="changes-section-count">${openTodos.length}</span></div>`;
+        for (const todo of openTodos) {
+          const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+          const prioClass = todo.priority ? `todo-priority-${todo.priority.toLowerCase()}` : '';
+          html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}">
+            <span class="todo-number">#${num}</span>
+            <span class="todo-title">${escHtml(todo.title)}</span>
+            ${todo.priority ? `<span class="todo-priority ${prioClass}">${escHtml(todo.priority)}</span>` : ''}
           </div>`;
         }
       }
 
-      if (doneTickets.length > 0) {
-        html += `<div class="tickets-section-header">Done<span class="changes-section-count">${doneTickets.length}</span></div>`;
-        for (const ticket of doneTickets) {
-          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
-          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}" style="opacity:0.6">
-            <span class="ticket-number">#${num}</span>
-            <span class="ticket-title">${escHtml(ticket.title)}</span>
+      if (doneTodos.length > 0) {
+        html += `<div class="todos-section-header">Done<span class="changes-section-count">${doneTodos.length}</span></div>`;
+        for (const todo of doneTodos) {
+          const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+          html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
+            <span class="todo-number">#${num}</span>
+            <span class="todo-title">${escHtml(todo.title)}</span>
           </div>`;
         }
       }
 
-      if (cancelledTickets.length > 0) {
-        html += `<div class="tickets-section-header">Cancelled<span class="changes-section-count">${cancelledTickets.length}</span></div>`;
-        for (const ticket of cancelledTickets) {
-          const num = ticket.filename.match(/^(\d+)/)?.[1] || '';
-          html += `<div class="ticket-item" data-path="${escHtml(ticket.path)}" data-title="${escHtml(ticket.title)}" style="opacity:0.6">
-            <span class="ticket-number">#${num}</span>
-            <span class="ticket-title" style="text-decoration:line-through">${escHtml(ticket.title)}</span>
+      if (cancelledTodos.length > 0) {
+        html += `<div class="todos-section-header">Cancelled<span class="changes-section-count">${cancelledTodos.length}</span></div>`;
+        for (const todo of cancelledTodos) {
+          const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+          html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
+            <span class="todo-number">#${num}</span>
+            <span class="todo-title" style="text-decoration:line-through">${escHtml(todo.title)}</span>
           </div>`;
         }
       }
 
-      if (openTickets.length === 0 && doneTickets.length === 0 && cancelledTickets.length === 0) {
-        html += '<div class="tickets-empty">No tickets found</div>';
+      if (openTodos.length === 0 && doneTodos.length === 0 && cancelledTodos.length === 0) {
+        html += '<div class="todos-empty">No todos found</div>';
       }
 
-      ticketsBody.innerHTML = html;
-      ticketsBody.scrollTop = prevScroll;
+      todosBody.innerHTML = html;
+      todosBody.scrollTop = prevScroll;
 
-      const searchInput = document.getElementById('tickets-search');
+      const searchInput = document.getElementById('todos-search');
       if (searchInput) {
         searchInput.addEventListener('input', () => {
           const query = searchInput.value.toLowerCase();
-          ticketsBody.querySelectorAll('.ticket-item').forEach(el => {
+          todosBody.querySelectorAll('.todo-item').forEach(el => {
             const title = (el.dataset.title || '').toLowerCase();
             el.style.display = title.includes(query) ? '' : 'none';
           });
         });
       }
 
-      const newTicketBtn = document.getElementById('tickets-new-btn');
-      if (newTicketBtn) {
-        newTicketBtn.addEventListener('click', () => startTask('ticketmaster', workDir));
+      const newTodoBtn = document.getElementById('todos-new-btn');
+      if (newTodoBtn) {
+        newTodoBtn.addEventListener('click', () => startTask('todoist', workDir));
       }
     }
 
@@ -5053,41 +5066,41 @@
       return null;
     }
 
-    function generateTicketBranchName(ticketFilename, ticketTitle) {
-      const num = ticketFilename.match(/^(\d+)/)?.[1] || '';
-      const slug = ticketTitle
+    function generateTodoBranchName(todoFilename, todoTitle) {
+      const num = todoFilename.match(/^(\d+)/)?.[1] || '';
+      const slug = todoTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
         .slice(0, 40);
-      return num ? `ticket-${num}-${slug}` : `ticket-${slug}`;
+      return num ? `todo-${num}-${slug}` : `todo-${slug}`;
     }
 
-    async function workOnTicketInNewWorktree(ticketPath) {
+    async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {
       const projectRoot = getProjectRootForWorkDir(activeWorkDir);
       if (!projectRoot) return;
 
-      const content = await window.tickets.read(activeWorkDir, ticketPath);
+      const content = await window.todos.read(activeWorkDir, todoPath);
       const titleMatch = content.match(/^# (.+)$/m);
-      const ticketFilename = ticketPath.split('/').pop();
-      const ticketTitle = titleMatch ? titleMatch[1].trim() : ticketFilename.replace(/\.md$/, '');
+      const todoFilename = todoPath.split('/').pop();
+      const todoTitle = titleMatch ? titleMatch[1].trim() : todoFilename.replace(/\.md$/, '');
 
-      const branchName = generateTicketBranchName(ticketFilename, ticketTitle);
+      const branchName = generateTodoBranchName(todoFilename, todoTitle);
       const parentDir = projectRoot.replace(/\/[^/]+$/, '');
       const projectName = projectRoot.split('/').pop();
       const wtPath = `${parentDir}/${projectName}.worktrees/${branchName}`;
 
       // Show loading state
-      const btn = document.querySelector(`.ticket-worktree-btn[data-ticket-path="${CSS.escape(ticketPath)}"]`);
+      const btn = document.querySelector(`.todo-worktree-btn[data-todo-path="${CSS.escape(todoPath)}"]`);
       if (btn) { btn.disabled = true; btn.textContent = 'Creating worktree...'; }
 
       const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
       if (!result.ok) {
         if (btn) { btn.disabled = false; btn.textContent = 'Work on this in a new worktree'; }
-        let errEl = btn?.parentElement?.querySelector('.ticket-worktree-error');
+        let errEl = btn?.parentElement?.querySelector('.todo-worktree-error');
         if (!errEl && btn) {
           errEl = document.createElement('div');
-          errEl.className = 'ticket-worktree-error';
+          errEl.className = 'todo-worktree-error';
           btn.insertAdjacentElement('afterend', errEl);
         }
         if (errEl) errEl.textContent = result.error || 'Failed to create worktree.';
@@ -5098,51 +5111,54 @@
       if (entry) entry.classList.add('expanded');
       await loadProjects();
       openWorkDir(wtPath);
-      showSpecialistPickerForTicket(wtPath, ticketPath);
+      showSpecialistPickerForTodo(wtPath, todoPath, todoAbsPath);
     }
 
-    ticketsBody.addEventListener('click', async (e) => {
-      const backBtn = e.target.closest('.ticket-detail-back');
+    todosBody.addEventListener('click', async (e) => {
+      const backBtn = e.target.closest('.todo-detail-back');
       if (backBtn) {
-        refreshTickets(activeWorkDir);
+        refreshTodos(activeWorkDir);
         return;
       }
 
-      const workBtn = e.target.closest('.ticket-work-btn');
+      const workBtn = e.target.closest('.todo-work-btn');
       if (workBtn) {
-        const ticketPath = workBtn.dataset.ticketPath;
-        showSpecialistPickerForTicket(activeWorkDir, ticketPath);
+        const todoPath = workBtn.dataset.todoPath;
+        const todoAbsPath = workBtn.dataset.absPath;
+        showSpecialistPickerForTodo(activeWorkDir, todoPath, todoAbsPath);
         return;
       }
 
-      const worktreeBtn = e.target.closest('.ticket-worktree-btn');
+      const worktreeBtn = e.target.closest('.todo-worktree-btn');
       if (worktreeBtn) {
-        const ticketPath = worktreeBtn.dataset.ticketPath;
-        workOnTicketInNewWorktree(ticketPath);
+        const todoPath = worktreeBtn.dataset.todoPath;
+        const todoAbsPath = worktreeBtn.dataset.absPath;
+        workOnTodoInNewWorktree(todoPath, todoAbsPath);
         return;
       }
 
-      const doneBtn = e.target.closest('.ticket-done-btn');
+      const doneBtn = e.target.closest('.todo-done-btn');
       if (doneBtn) {
-        const ticketPath = doneBtn.dataset.ticketPath;
-        await window.tickets.close(activeWorkDir, ticketPath, 'done');
-        refreshTickets(activeWorkDir);
+        const todoPath = doneBtn.dataset.todoPath;
+        await window.todos.close(activeWorkDir, todoPath, 'done');
+        refreshTodos(activeWorkDir);
         return;
       }
 
-      const cancelBtn = e.target.closest('.ticket-cancel-btn');
+      const cancelBtn = e.target.closest('.todo-cancel-btn');
       if (cancelBtn) {
-        const ticketPath = cancelBtn.dataset.ticketPath;
-        await window.tickets.close(activeWorkDir, ticketPath, 'cancelled');
-        refreshTickets(activeWorkDir);
+        const todoPath = cancelBtn.dataset.todoPath;
+        await window.todos.close(activeWorkDir, todoPath, 'cancelled');
+        refreshTodos(activeWorkDir);
         return;
       }
 
-      const item = e.target.closest('.ticket-item');
+      const item = e.target.closest('.todo-item');
       if (!item) return;
 
-      const ticketPath = item.dataset.path;
-      const content = await window.tickets.read(activeWorkDir, ticketPath);
+      const todoPath = item.dataset.path;
+      const todoAbsPath = item.dataset.absPath;
+      const content = await window.todos.read(activeWorkDir, todoPath);
 
       const rendered = escHtml(content)
         .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -5150,27 +5166,27 @@
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/\n\n/g, '<br><br>');
 
-      const isOpen = ticketPath.includes('/tickets/open/');
+      const isOpen = todoPath.startsWith('open/');
       const ghIssueMatch = content.match(/^## GitHub Issue:\s*#?(\d+)/m);
       const ghIssueLink = ghIssueMatch
-        ? `<div class="gh-link-section"><div class="gh-link-row">Linked GitHub Issue: <a data-ticket-goto-gh-issue="${ghIssueMatch[1]}">#${ghIssueMatch[1]}</a></div></div>`
+        ? `<div class="gh-link-section"><div class="gh-link-row">Linked GitHub Issue: <a data-todo-goto-gh-issue="${ghIssueMatch[1]}">#${ghIssueMatch[1]}</a></div></div>`
         : '';
-      ticketsBody.innerHTML = `
-        <div class="ticket-detail">
-          <div class="ticket-detail-header">
-            <button class="ticket-detail-back" title="Back to tickets list">&larr; Tickets</button>
+      todosBody.innerHTML = `
+        <div class="todo-detail">
+          <div class="todo-detail-header">
+            <button class="todo-detail-back" title="Back to todos list">&larr; Todos</button>
           </div>
-          <div class="ticket-detail-content">${rendered}</div>
+          <div class="todo-detail-content">${rendered}</div>
           ${ghIssueLink}
-          <button class="ticket-work-btn" data-ticket-path="${escHtml(ticketPath)}">Work on this ticket...</button>
-          ${isOpen && getProjectRootForWorkDir(activeWorkDir) ? `<button class="ticket-worktree-btn" data-ticket-path="${escHtml(ticketPath)}">Work on this in a new worktree</button>` : ''}
-          ${isOpen ? `<button class="ticket-done-btn" data-ticket-path="${escHtml(ticketPath)}">Done</button><button class="ticket-cancel-btn" data-ticket-path="${escHtml(ticketPath)}">Cancelled</button>` : ''}
+          <button class="todo-work-btn" data-todo-path="${escHtml(todoPath)}" data-abs-path="${escHtml(todoAbsPath)}">Work on this todo...</button>
+          ${isOpen && getProjectRootForWorkDir(activeWorkDir) ? `<button class="todo-worktree-btn" data-todo-path="${escHtml(todoPath)}" data-abs-path="${escHtml(todoAbsPath)}">Work on this in a new worktree</button>` : ''}
+          ${isOpen ? `<button class="todo-done-btn" data-todo-path="${escHtml(todoPath)}">Done</button><button class="todo-cancel-btn" data-todo-path="${escHtml(todoPath)}">Cancelled</button>` : ''}
         </div>`;
-      const ghLink = ticketsBody.querySelector('[data-ticket-goto-gh-issue]');
+      const ghLink = todosBody.querySelector('[data-todo-goto-gh-issue]');
       if (ghLink) {
         ghLink.addEventListener('click', (e) => {
           e.preventDefault();
-          const issueNum = parseInt(ghLink.dataset.ticketGotoGhIssue);
+          const issueNum = parseInt(ghLink.dataset.todoGotoGhIssue);
           ghSection = 'issues';
           switchRightPanelTab('github');
           setTimeout(() => showGitHubIssueDetail(activeWorkDir, issueNum), 100);
@@ -5591,9 +5607,9 @@
       const content = document.getElementById('gh-content');
       content.innerHTML = '<div class="gh-empty">Loading issue...</div>';
 
-      const [result, ticketsResult] = await Promise.all([
+      const [result, todosResult] = await Promise.all([
         window.github.issueView(workDir, number),
-        window.tickets.list(workDir),
+        window.todos.list(workDir),
       ]);
       if (!result.ok) {
         content.innerHTML = `<div class="gh-detail"><button class="gh-detail-back">&larr; Back</button><div class="gh-status-msg error">${escHtml(result.error)}</div></div>`;
@@ -5625,22 +5641,22 @@
         html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
       }
 
-      // Linked Braska ticket
-      const linkedTicket = (ticketsResult || []).find(t => t.githubIssue === number);
+      // Linked Braska todo
+      const linkedTodo = (todosResult || []).find(t => t.githubIssue === number);
       html += '<div class="gh-link-section">';
-      if (linkedTicket) {
-        html += `<div class="gh-link-row">Linked to Braska ticket: <a data-gh-goto-ticket="${escHtml(linkedTicket.path)}">#${escHtml(linkedTicket.filename.match(/^(\d+)/)?.[1] || '')} ${escHtml(linkedTicket.title)}</a> <button class="gh-btn-cancel" data-gh-unlink="${escHtml(linkedTicket.path)}" style="padding:1px 6px;font-size:0.68rem">Unlink</button></div>`;
+      if (linkedTodo) {
+        html += `<div class="gh-link-row">Linked to Braska todo: <a data-gh-goto-todo="${escHtml(linkedTodo.path)}">#${escHtml(linkedTodo.filename.match(/^(\d+)/)?.[1] || '')} ${escHtml(linkedTodo.title)}</a> <button class="gh-btn-cancel" data-gh-unlink="${escHtml(linkedTodo.path)}" style="padding:1px 6px;font-size:0.68rem">Unlink</button></div>`;
       } else {
-        const openTickets = (ticketsResult || []).filter(t => t.status === 'open' && !t.githubIssue);
-        if (openTickets.length) {
-          html += `<div class="gh-link-row">Link to ticket: <select id="gh-link-ticket-select"><option value="">Select...</option>`;
-          for (const t of openTickets) {
+        const openTodos = (todosResult || []).filter(t => t.status === 'open' && !t.githubIssue);
+        if (openTodos.length) {
+          html += `<div class="gh-link-row">Link to todo: <select id="gh-link-todo-select"><option value="">Select...</option>`;
+          for (const t of openTodos) {
             const num = t.filename.match(/^(\d+)/)?.[1] || '';
             html += `<option value="${escHtml(t.path)}">#${num} ${escHtml(t.title)}</option>`;
           }
-          html += `</select> <button class="gh-btn-primary" id="gh-link-ticket-btn" style="padding:1px 8px;font-size:0.68rem">Link</button></div>`;
+          html += `</select> <button class="gh-btn-primary" id="gh-link-todo-btn" style="padding:1px 8px;font-size:0.68rem">Link</button></div>`;
         } else {
-          html += '<div class="gh-link-row" style="color:#555">No unlinked open tickets to link</div>';
+          html += '<div class="gh-link-row" style="color:#555">No unlinked open todos to link</div>';
         }
       }
       html += '</div>';
@@ -5665,10 +5681,10 @@
       content.querySelector('.gh-detail-back').addEventListener('click', () => refreshGitHubIssues(workDir));
 
       // Link/unlink handlers
-      const linkBtn = document.getElementById('gh-link-ticket-btn');
+      const linkBtn = document.getElementById('gh-link-todo-btn');
       if (linkBtn) {
         linkBtn.addEventListener('click', async () => {
-          const sel = document.getElementById('gh-link-ticket-select');
+          const sel = document.getElementById('gh-link-todo-select');
           if (!sel.value) return;
           linkBtn.disabled = true;
           await window.github.linkTicket(workDir, sel.value, number);
@@ -5683,11 +5699,11 @@
           showGitHubIssueDetail(workDir, number);
         });
       }
-      const gotoTicket = content.querySelector('[data-gh-goto-ticket]');
-      if (gotoTicket) {
-        gotoTicket.addEventListener('click', (e) => {
+      const gotoTodo = content.querySelector('[data-gh-goto-todo]');
+      if (gotoTodo) {
+        gotoTodo.addEventListener('click', (e) => {
           e.preventDefault();
-          switchRightPanelTab('tickets');
+          switchRightPanelTab('todos');
         });
       }
 
