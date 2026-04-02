@@ -11,6 +11,24 @@
         ]
       },
       {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.braska/specialists/todoist/.claude/hooks/restrict-read.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'BLOCKED: Todoist cannot search the codebase. Your only job is to ask questions and create todos.' >&2 && exit 2"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

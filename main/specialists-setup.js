@@ -1,5 +1,5 @@
 const path = require('path');
-const { fsp } = require('./utils');
+const { fsp, execFileAsync } = require('./utils');
 const { getSpecialistsDir } = require('./specialists');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'specialists');
@@ -31,10 +31,17 @@ async function ensureBuiltinSpecialists() {
   const names = await fsp.readdir(TEMPLATES_DIR, { withFileTypes: true });
   for (const entry of names) {
     if (!entry.isDirectory()) continue;
+    const destDir = path.join(specialistsDir, entry.name);
     await copyDirRecursive(
       path.join(TEMPLATES_DIR, entry.name),
-      path.join(specialistsDir, entry.name)
+      destDir
     );
+    // Claude Code only loads .claude/settings.json from git repos,
+    // so init one if needed so specialist hooks actually fire.
+    const gitDir = path.join(destDir, '.git');
+    if (!await fsp.stat(gitDir).catch(() => null)) {
+      await execFileAsync('git', ['init'], { cwd: destDir });
+    }
   }
 }
 

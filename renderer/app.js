@@ -153,6 +153,11 @@ window.filetree.onChange((filename) => {
   clearTimeout(watchState.fsWatchDebounce);
   watchState.fsWatchDebounce = setTimeout(() => {
     if (!tabState.activeWorkDir) return;
+    // Refresh sidebar when .git appears in a non-git project (e.g. after git init)
+    if (filename && (filename === '.git' || filename.startsWith('.git/'))) {
+      const entry = document.querySelector(`.project-entry[data-path="${CSS.escape(tabState.activeWorkDir)}"]`);
+      if (entry && !entry.classList.contains('is-git')) loadProjects();
+    }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
     if (activePanel === 'todos') return;
     if (activePanel === 'github') return;
@@ -164,8 +169,7 @@ window.todos.onChange(() => {
   clearTimeout(watchState.todosWatchDebounce);
   watchState.todosWatchDebounce = setTimeout(() => {
     if (!tabState.activeWorkDir) return;
-    const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-    if (activePanel === 'todos') refreshTodos(tabState.activeWorkDir);
+    refreshTodos(tabState.activeWorkDir);
   }, 300);
 });
 
@@ -179,7 +183,7 @@ initSettings();
 initTabs({ showTabTypePicker, updateFileTreeHighlights });
 initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
-initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask });
+initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initTodosPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });

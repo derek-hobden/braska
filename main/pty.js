@@ -39,12 +39,12 @@ function register({ ipcMain, BrowserWindow }) {
         args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todosDirFlag}`];
       }
     } else {
-      // CWD is project dir so @ file autocompletion works.
-      // Specialist's claude.md loaded via --add-dir + env var. Skills auto-load from --add-dir.
-      cwd = workDir;
+      // CWD is specialist dir so .claude/settings.json and hooks load from there.
+      // Project dir loaded via --add-dir so CLAUDE.md and project files are accessible.
       const specialistDir = path.join(await getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
-      const baseCmd = `cd '${safeWorkDir}' && claude --dangerously-skip-permissions --add-dir '${safeSpecialistDir}'${todosDirFlag}`;
+      cwd = specialistDir;
+      const baseCmd = `cd '${safeSpecialistDir}' && claude --dangerously-skip-permissions --add-dir '${safeWorkDir}'${todosDirFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];

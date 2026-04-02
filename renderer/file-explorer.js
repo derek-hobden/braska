@@ -18,6 +18,8 @@ let _openFileEditor;
 let _openDiffTab;
 let _refreshChanges;
 let _startTask;
+let _refreshTodos;
+let _refreshGitHub;
 
 // ── Helper: access active work dir from tabState ──
 function activeWorkDir() { return tabState.activeWorkDir; }
@@ -87,13 +89,11 @@ function refreshRightPanel(workDir) {
 // from switchRightPanelTab / refreshRightPanel. They are resolved lazily
 // so that this module has no hard import-time dependency on todos or github.
 function refreshTodos(workDir) {
-  // Will be available on window or via a late-bound import; for now use
-  // the global that the main orchestrator wires up.
-  if (typeof window._refreshTodos === 'function') window._refreshTodos(workDir);
+  _refreshTodos?.(workDir);
 }
 
 function refreshGitHub(workDir) {
-  if (typeof window._refreshGitHub === 'function') window._refreshGitHub(workDir);
+  _refreshGitHub?.(workDir);
 }
 
 // ── File tree rendering ─────────────────────────────────────────
@@ -431,11 +431,13 @@ function initResizablePanels() {
 
 // ── Init: wire up all event listeners ───────────────────────────
 
-export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask }) {
+export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos: injectedRefreshTodos, refreshGitHub: injectedRefreshGitHub }) {
   _openFileEditor = openFileEditor;
   _openDiffTab = openDiffTab;
   _refreshChanges = refreshChanges;
   _startTask = startTask;
+  _refreshTodos = injectedRefreshTodos;
+  _refreshGitHub = injectedRefreshGitHub;
 
   // Sidebar / filetree toggle buttons
   toggleSidebarBtn.addEventListener('click', toggleSidebar);
