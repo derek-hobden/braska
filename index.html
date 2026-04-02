@@ -1680,6 +1680,9 @@
       border-bottom: 1px solid #2a2a2a;
       flex-shrink: 0;
     }
+    .changes-commit-input-wrapper {
+      position: relative;
+    }
     .changes-commit-input {
       background: #1a1a1a;
       border: 1px solid #333;
@@ -1687,11 +1690,13 @@
       color: #ccc;
       font-size: 0.8rem;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 6px 8px;
+      padding: 6px 28px 6px 8px;
       resize: vertical;
       min-height: 28px;
       max-height: 120px;
       outline: none;
+      width: 100%;
+      box-sizing: border-box;
     }
     .changes-commit-input:focus { border-color: #4a9eff; }
     .changes-commit-input::placeholder { color: #555; }
@@ -1711,16 +1716,24 @@
     .changes-commit-actions { display: flex; gap: 6px; }
     .changes-commit-actions .changes-commit-btn { flex: 1; }
     .changes-generate-btn {
-      background: none; border: 1px solid #333; border-radius: 4px; color: #888;
-      font-size: 0.75rem; padding: 5px 8px; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+      position: absolute; top: 4px; right: 4px;
+      background: none; border: none; color: #555;
+      padding: 2px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 3px;
     }
-    .changes-generate-btn:hover { background: #2a2a2a; color: #ccc; border-color: #444; }
-    .changes-generate-btn:disabled { opacity: 0.35; cursor: default; }
-    .changes-generate-btn:disabled:hover { background: none; color: #888; border-color: #333; }
-    .changes-generate-btn.generating { color: #4a9eff; border-color: #4a9eff; }
-    @keyframes spin-generate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .changes-generate-btn.generating svg { animation: spin-generate 1s linear infinite; }
+    .changes-generate-btn:hover { color: #ccc; background: #2a2a2a; }
+    .changes-generate-btn:disabled { opacity: 0.25; cursor: default; }
+    .changes-generate-btn:disabled:hover { background: none; color: #555; }
+    @keyframes pyrefly-pulse {
+      0%, 70%, 100% { opacity: 1; }
+      85% { opacity: 0.3; }
+    }
+    .changes-generate-btn.generating {
+      color: #6fadcf;
+      filter: drop-shadow(0 0 3px rgba(111, 173, 207, 0.4));
+    }
+    .changes-generate-btn.generating svg { animation: pyrefly-pulse 1.5s ease-in-out infinite; }
 
     /* Stage/unstage action buttons on file entries */
     .changes-file-action {
@@ -3079,12 +3092,13 @@
             <span class="changes-toolbar-status" id="changes-toolbar-status"></span>
           </div>
           <div class="changes-commit-area" id="changes-commit-area">
-            <textarea class="changes-commit-input" id="changes-commit-input" placeholder="Commit message..." rows="1" spellcheck="false"></textarea>
-            <div class="changes-commit-actions">
+            <div class="changes-commit-input-wrapper">
+              <textarea class="changes-commit-input" id="changes-commit-input" placeholder="Commit message..." rows="1" spellcheck="false"></textarea>
               <button class="changes-generate-btn" id="changes-generate-btn" disabled title="Auto-generate commit message with Claude">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m5.636 5.636 12.728 12.728"/><path d="m18.364 5.636-12.728 12.728"/></svg>
-                Generate
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z"/><path d="M20 4l.8 2.4L23 7.2l-2.2.8L20 10.4l-.8-2.4L17 7.2l2.2-.8L20 4z"/><path d="M4.5 16l.6 1.8 1.9.6-1.9.6-.6 1.8-.6-1.8-1.9-.6 1.9-.6.6-1.8z"/></svg>
               </button>
+            </div>
+            <div class="changes-commit-actions">
               <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
               <button class="changes-commit-btn" id="changes-amend-btn" style="background:#1e3a5f;border-color:#2563eb" title="Amend last commit (adds staged files and/or updates message)">Amend</button>
             </div>
@@ -6947,11 +6961,8 @@
       if (!activeWorkDir) return;
       changesGenerateBtn.disabled = true;
       changesGenerateBtn.classList.add('generating');
-      const svgHtml = changesGenerateBtn.querySelector('svg').outerHTML;
-      changesGenerateBtn.innerHTML = svgHtml + ' Generating\u2026';
       const result = await window.gitOps.generateCommitMsg(activeWorkDir);
       changesGenerateBtn.classList.remove('generating');
-      changesGenerateBtn.innerHTML = svgHtml + ' Generate';
       changesGenerateBtn.disabled = false;
       if (result.ok) {
         changesCommitInput.value = result.message;
