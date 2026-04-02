@@ -6,6 +6,7 @@ import { SVG_FOLDER, SVG_FILE, fileIcon } from './utils.js';
 // ── DOM refs (queried once at module level) ──
 const filetreePanel = document.getElementById('filetree-panel');
 const filetreeBody = document.getElementById('filetree-body');
+const ftHeaderActions = document.getElementById('ft-header-actions');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
 const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 const ftContextMenu = document.getElementById('ft-context-menu');
@@ -98,12 +99,22 @@ function refreshGitHub(workDir) {
 
 // ── File tree rendering ─────────────────────────────────────────
 
+function clearFileTreeKeepActions() {
+  while (filetreeBody.lastChild && filetreeBody.lastChild !== ftHeaderActions) {
+    filetreeBody.removeChild(filetreeBody.lastChild);
+  }
+}
+
 export async function refreshFileTree(workDir) {
   if (!workDir) {
-    filetreeBody.innerHTML = '<div class="ft-empty">No project selected</div>';
+    clearFileTreeKeepActions();
+    const empty = document.createElement('div');
+    empty.className = 'ft-empty';
+    empty.textContent = 'No project selected';
+    filetreeBody.appendChild(empty);
     return;
   }
-  filetreeBody.innerHTML = '';
+  clearFileTreeKeepActions();
   await renderFileTreeLevel(workDir, '', filetreeBody, 0);
 }
 

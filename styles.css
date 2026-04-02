@@ -1395,13 +1395,17 @@
       padding: 12px;
     }
 
-    /* Explorer: header action buttons */
+    /* Explorer: action buttons inside explorer tab */
     #ft-header-actions {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 1px;
-      padding-right: 5px;
-      flex-shrink: 0;
+      padding: 4px 5px 2px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #161616;
     }
     .ft-header-btn {
       background: none;
