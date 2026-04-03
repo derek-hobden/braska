@@ -2,10 +2,18 @@
 
 import { tabState } from './state.js';
 import { clearNotifForTab, clearTabBusy, busyTabs, notifLog } from './notifications.js';
+import { escHtml } from './utils.js';
 
 // ── Cross-module deps (set via initTabs) ───────────────────────
 let showTabTypePicker = null;
 let updateFileTreeHighlights = null;
+
+// ── Display label helper ──────────────────────────────────────
+export function getDisplayLabel(id) {
+  const tab = tabState.tabs.get(id);
+  if (!tab) return '';
+  return tab.customLabel || tab.label;
+}
 
 // ── Tab ordering helpers ───────────────────────────────────────
 
@@ -44,9 +52,19 @@ export function renderTabBar() {
     el.className = 'term-tab' + (id === tabState.activeTabId ? ' active' : '') + (isBusy ? ' is-busy' : '') + (hasNotif ? ' has-notification' : '');
     el.dataset.id = id;
     el.draggable = true;
-    el.innerHTML = `<span class="term-tab-label">${tab.label}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
+    const baseLabel = tab.customLabel || tab.label;
+    const displayLabel = escHtml((tab.dirty ? '\u25CF ' : '') + baseLabel);
+    el.innerHTML = `<span class="term-tab-label">${displayLabel}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
     el.addEventListener('click', (e) => {
       if (!e.target.closest('.term-tab-close')) switchTab(id);
+    });
+    el.addEventListener('dblclick', (e) => {
+      if (!e.target.closest('.term-tab-close')) startTabRename(id);
+    });
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showTabContextMenu(id, e.clientX, e.clientY);
     });
     el.querySelector('.term-tab-close').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -104,6 +122,76 @@ export function renderTabBar() {
   addEl.title = 'Add tab';
   addEl.addEventListener('click', () => showTabTypePicker(tabState.activeWorkDir));
   terminalHeader.appendChild(addEl);
+}
+
+// ── Tab renaming ──────────────────────────────────────────────
+
+export function startTabRename(id) {
+  const tab = tabState.tabs.get(id);
+  if (!tab || !tab.tabEl) return;
+  const labelSpan = tab.tabEl.querySelector('.term-tab-label');
+  if (!labelSpan) return;
+
+  const input = document.createElement('input');
+  input.className = 'term-tab-rename-input';
+  input.value = tab.customLabel || tab.label;
+
+  // Prevent tab drag while renaming
+  tab.tabEl.draggable = false;
+
+  let cancelled = false;
+  const commit = () => {
+    if (cancelled) return;
+    const val = input.value.trim();
+    if (val && val !== tab.label) {
+      tab.customLabel = val;
+    } else if (!val || val === tab.label) {
+      delete tab.customLabel;
+    }
+    tab.tabEl.draggable = true;
+    renderTabBar();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelled = true;
+      tab.tabEl.draggable = true;
+      renderTabBar();
+    }
+    e.stopPropagation();
+  });
+  input.addEventListener('blur', commit);
+  // Prevent click from switching tabs while editing
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+
+  labelSpan.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+// ── Tab context menu ──────────────────────────────────────────
+
+let tabCtxTargetId = null;
+
+function showTabContextMenu(id, x, y) {
+  tabCtxTargetId = id;
+  const menu = document.getElementById('tab-context-menu');
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.classList.add('active');
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+  });
+}
+
+function hideTabContextMenu() {
+  document.getElementById('tab-context-menu').classList.remove('active');
+  tabCtxTargetId = null;
 }
 
 // ── Tab switching ──────────────────────────────────────────────
@@ -183,4 +271,29 @@ export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTree
   window.windowActions.onOpenTabPicker(() => {
     if (tabState.activeWorkDir) showTabTypePicker(tabState.activeWorkDir);
   });
+
+  // Tab context menu actions
+  const tabCtxMenu = document.getElementById('tab-context-menu');
+  tabCtxMenu.addEventListener('click', (e) => {
+    const item = e.target.closest('.wt-ctx-item');
+    if (!item || !tabCtxTargetId) return;
+    const action = item.dataset.action;
+    const id = tabCtxTargetId;
+    hideTabContextMenu();
+    if (action === 'rename') startTabRename(id);
+    else if (action === 'close') closeTab(id);
+  });
+  document.addEventListener('click', hideTabContextMenu);
+  document.addEventListener('contextmenu', hideTabContextMenu);
+
+  // F2 hotkey to rename active tab (capture phase so it fires before xterm)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F2' && tabState.activeTabId != null) {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      e.stopPropagation();
+      startTabRename(tabState.activeTabId);
+    }
+  }, true);
 }

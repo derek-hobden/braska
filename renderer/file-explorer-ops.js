@@ -75,6 +75,11 @@ export function startInlineRename(entryEl) {
     const result = await window.fileOps.rename(_activeWorkDir(), relPath, newName);
     if (!result?.ok) input.replaceWith(nameEl);
   };
+  input.addEventListener('input', () => {
+    const { selectionStart } = input;
+    input.value = input.value.replace(/ /g, '-');
+    input.setSelectionRange(selectionStart, selectionStart);
+  });
   input.addEventListener('keydown', async (e) => {
     e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); await commit(); }
@@ -141,6 +146,11 @@ export async function startInlineCreate(targetEntryEl, isDir) {
       }, 400);
     }
   };
+  input.addEventListener('input', () => {
+    const { selectionStart } = input;
+    input.value = input.value.replace(/ /g, '-');
+    input.setSelectionRange(selectionStart, selectionStart);
+  });
   input.addEventListener('keydown', async (e) => {
     e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); await commit(); }
@@ -374,11 +384,11 @@ function _initGlobalShortcuts() {
       import('./file-explorer.js').then(mod => {
         if (!explorerState.filetreeVisible) {
           mod.toggleFiletree();
-          mod.switchRightPanelTab('todos');
-        } else if (document.querySelector('.filetree-tab[data-panel="todos"]')?.classList.contains('active')) {
+          mod.switchRightPanelTab('todo');
+        } else if (document.querySelector('.filetree-tab[data-panel="todo"]')?.classList.contains('active')) {
           mod.toggleFiletree();
         } else {
-          mod.switchRightPanelTab('todos');
+          mod.switchRightPanelTab('todo');
         }
       });
     }

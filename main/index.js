@@ -123,7 +123,7 @@ app.whenReady().then(async () => {
   require('./projects').register(deps);
   require('./skills').register(deps);
   require('./specialists').register(deps);
-  require('./todos').register(deps);
+  require('./todo').register(deps);
   require('./pty').register(deps);
   require('./files').register(deps);
   require('./git-read').register(deps);

@@ -226,6 +226,12 @@ function _initBranchModalListeners() {
     if (e.target === branchModal) branchModal.classList.remove('active');
   });
 
+  branchCreateInput.addEventListener('input', () => {
+    const { selectionStart } = branchCreateInput;
+    branchCreateInput.value = branchCreateInput.value.replace(/ /g, '-');
+    branchCreateInput.setSelectionRange(selectionStart, selectionStart);
+  });
+
   // Branch create
   document.getElementById('branch-create-btn').addEventListener('click', async () => {
     const activeWorkDir = tabState.activeWorkDir;

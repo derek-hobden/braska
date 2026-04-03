@@ -268,7 +268,12 @@ export function initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsFo
   });
 
   document.getElementById('wt-branch-select').addEventListener('change', updateWorktreePath);
-  document.getElementById('wt-branch-name').addEventListener('input', updateWorktreePath);
+  document.getElementById('wt-branch-name').addEventListener('input', (e) => {
+    const { selectionStart } = e.target;
+    e.target.value = e.target.value.replace(/ /g, '-');
+    e.target.setSelectionRange(selectionStart, selectionStart);
+    updateWorktreePath();
+  });
 
   document.getElementById('wt-create-cancel').addEventListener('click', () => {
     wtCreateModal.classList.remove('active');

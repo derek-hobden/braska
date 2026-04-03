@@ -1,7 +1,7 @@
 // Terminal, browser, and editor tab creation
 
 import { tabState } from './state.js';
-import { addTabToOrder, renderTabBar, switchTab } from './tabs.js';
+import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.js';
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
 import { specialistDisplayName, stripAnsi } from './utils.js';
 
@@ -79,7 +79,7 @@ export async function startTask(specialistName, workDir, options = {}) {
           busyDebounceTimers.delete(id);
           const wasBusy = busyTabs.has(id);
           clearTabBusy(id);
-          if (wasBusy && tabState.activeTabId !== id) markTabActivity(workDir, id, label, data);
+          if (wasBusy && tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), data);
         }, 1000));
       }
     } else if (!isClaudeTab && tabState.activeTabId !== id) {
@@ -87,14 +87,14 @@ export async function startTask(specialistName, workDir, options = {}) {
       if (notifDebounceTimers.has(id)) clearTimeout(notifDebounceTimers.get(id));
       notifDebounceTimers.set(id, setTimeout(() => {
         notifDebounceTimers.delete(id);
-        if (tabState.activeTabId !== id) markTabActivity(workDir, id, label, data);
+        if (tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), data);
       }, 1000));
     }
   });
   window.pty.onExit(id, code => {
     term.write(`\r\n\x1b[90m[Process exited with code ${code}]\x1b[0m\r\n`);
     if (busyTabs.has(id)) clearTabBusy(id);
-    if (tabState.activeTabId !== id) markTabActivity(workDir, id, label, `Process exited with code ${code}`);
+    if (tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), `Process exited with code ${code}`);
   });
   term.onData(data => window.pty.write(id, data));
   term.onResize(({ cols, rows }) => window.pty.resize(id, cols, rows));
@@ -217,7 +217,8 @@ export function startBrowser(workDir) {
     const tab = tabState.tabs.get(id);
     if (tab) {
       tab.label = e.title || 'Browser';
-      renderTabBar();
+      // Only re-render if no custom label (custom label takes precedence)
+      if (!tab.customLabel) renderTabBar();
     }
   });
 
@@ -280,7 +281,6 @@ export async function openFileEditor(relPath, fileName) {
     const dirty = textarea.value !== savedContent;
     const tab = tabState.tabs.get(id);
     if (tab) {
-      tab.label = (dirty ? '\u25CF ' : '') + fileName;
       tab.dirty = dirty;
       renderTabBar();
     }

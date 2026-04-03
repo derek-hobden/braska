@@ -11,7 +11,7 @@ import { updateNotifUI, initNotifications } from './notifications.js';
 import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
 import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, initGitChanges } from './git-changes.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
-import { refreshTodos, initTodosPanel } from './todos-panel.js';
+import { refreshTodos, initTodoPanel } from './todo-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -66,7 +66,7 @@ export function refreshRightPanel(workDir) {
   if (filetreePanel.classList.contains('hidden') || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
   if (activePanel === 'changes') refreshChanges(workDir);
-  else if (activePanel === 'todos') refreshTodos(workDir);
+  else if (activePanel === 'todo') refreshTodos(workDir);
   else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }
@@ -80,7 +80,7 @@ export function openWorkDir(workDir) {
   setBreadcrumb(workDir);
   restoreExplorerState(workDir);
   window.filetree.watch(workDir);
-  window.todos.watch(workDir);
+  window.todo.watch(workDir);
   const existing = tabsForWorkDir(workDir);
   if (existing.length > 0) {
     tabState.activeWorkDir = workDir;
@@ -161,15 +161,15 @@ window.filetree.onChange((filename) => {
       if (entry && !entry.classList.contains('is-git')) loadProjects();
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-    if (activePanel === 'todos') return;
+    if (activePanel === 'todo') return;
     if (activePanel === 'github') return;
     refreshRightPanel(tabState.activeWorkDir);
   }, 300);
 });
 
-window.todos.onChange(() => {
-  clearTimeout(watchState.todosWatchDebounce);
-  watchState.todosWatchDebounce = setTimeout(() => {
+window.todo.onChange(() => {
+  clearTimeout(watchState.todoWatchDebounce);
+  watchState.todoWatchDebounce = setTimeout(() => {
     if (!tabState.activeWorkDir) return;
     refreshTodos(tabState.activeWorkDir);
   }, 300);
@@ -188,7 +188,7 @@ initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
-initTodosPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
+initTodoPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
 
 // ── Tab type picker & specialist picker modal handlers ──
 

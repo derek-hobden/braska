@@ -2,7 +2,7 @@ const path = require('path');
 const pty = require('node-pty');
 const { fsp } = require('./utils');
 const { ptyProcesses, getNextPtyId } = require('./state');
-const { getTodosDir } = require('./todos');
+const { getTodoDir } = require('./todo');
 const { getSpecialistsDir } = require('./specialists');
 
 function register({ ipcMain, BrowserWindow }) {
@@ -16,14 +16,14 @@ function register({ ipcMain, BrowserWindow }) {
     // so we cannot rely on cwd alone to guarantee the correct working directory.
     const safeWorkDir = workDir.replace(/'/g, "'\"'\"'");
 
-    // Compute todos dir for all Claude-based sessions so agents can @ reference todo files
-    let todosDirFlag = '';
+    // Compute todo dir for all Claude-based sessions so agents can @ reference todo files
+    let todoDirFlag = '';
     if (specialistName !== '__TERMINAL__') {
       try {
-        const todosDir = await getTodosDir(workDir);
-        await fsp.mkdir(todosDir, { recursive: true });
-        const safeTodosDir = todosDir.replace(/'/g, "'\"'\"'");
-        todosDirFlag = ` --add-dir '${safeTodosDir}'`;
+        const todoDir = await getTodoDir(workDir);
+        await fsp.mkdir(todoDir, { recursive: true });
+        const safeTodoDir = todoDir.replace(/'/g, "'\"'\"'");
+        todoDirFlag = ` --add-dir '${safeTodoDir}'`;
       } catch {}
     }
 
@@ -34,9 +34,9 @@ function register({ ipcMain, BrowserWindow }) {
       cwd = workDir;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todosDirFlag} -- '${safePrompt}'`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag} -- '${safePrompt}'`];
       } else {
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todosDirFlag}`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag}`];
       }
     } else {
       // CWD is specialist dir so .claude/settings.json and hooks load from there.
@@ -44,7 +44,7 @@ function register({ ipcMain, BrowserWindow }) {
       const specialistDir = path.join(await getSpecialistsDir(), specialistName);
       const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
       cwd = specialistDir;
-      const baseCmd = `cd '${safeSpecialistDir}' && claude --dangerously-skip-permissions --add-dir '${safeWorkDir}'${todosDirFlag}`;
+      const baseCmd = `cd '${safeSpecialistDir}' && claude --dangerously-skip-permissions --add-dir '${safeWorkDir}'${todoDirFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];

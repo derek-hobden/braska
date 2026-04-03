@@ -12,7 +12,7 @@ const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
 const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 const ftContextMenu = document.getElementById('ft-context-menu');
 const changesPanelWrapper = document.getElementById('changes-panel-wrapper');
-const todosBody = document.getElementById('todos-body');
+const todoBody = document.getElementById('todo-body');
 const githubBody = document.getElementById('github-body');
 
 // ── Cross-module deps (injected via initFileExplorer to avoid circular imports) ──
@@ -77,12 +77,12 @@ export function switchRightPanelTab(panel) {
   );
   filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
   changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
-  todosBody.style.display = panel === 'todos' ? '' : 'none';
+  todoBody.style.display = panel === 'todo' ? '' : 'none';
   githubBody.style.display = panel === 'github' ? '' : 'none';
   if (panel === 'changes' && activeWorkDir()) _refreshChanges?.(activeWorkDir());
   if (panel === 'explorer' && activeWorkDir()) refreshFileTree(activeWorkDir());
-  if (panel === 'todos' && activeWorkDir()) {
-    window.todos.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir())).catch(err => console.error('[Braska]', err));
+  if (panel === 'todo' && activeWorkDir()) {
+    window.todo.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir())).catch(err => console.error('[Braska]', err));
   }
   if (panel === 'github' && activeWorkDir()) refreshGitHub(activeWorkDir());
 }
@@ -92,7 +92,7 @@ function refreshRightPanel(workDir) {
   if (!explorerState.filetreeVisible || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
   if (activePanel === 'changes') _refreshChanges?.(workDir);
-  else if (activePanel === 'todos') refreshTodos(workDir);
+  else if (activePanel === 'todo') refreshTodos(workDir);
   else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }

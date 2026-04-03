@@ -46,14 +46,14 @@ contextBridge.exposeInMainWorld('fileEditor', {
   save: (workDir, relPath, content) => ipcRenderer.invoke('file:save', workDir, relPath, content),
 });
 
-contextBridge.exposeInMainWorld('todos', {
-  init: (workDir) => ipcRenderer.invoke('todos:init', workDir),
-  list: (workDir) => ipcRenderer.invoke('todos:list', workDir),
-  read: (workDir, relPath) => ipcRenderer.invoke('todos:read', workDir, relPath),
-  close: (workDir, relPath, status) => ipcRenderer.invoke('todos:close', workDir, relPath, status),
-  watch: (workDir) => ipcRenderer.send('todos:watch', workDir),
-  unwatch: () => ipcRenderer.send('todos:unwatch'),
-  onChange: (cb) => ipcRenderer.on('todos:changed', () => cb()),
+contextBridge.exposeInMainWorld('todo', {
+  init: (workDir) => ipcRenderer.invoke('todo:init', workDir),
+  list: (workDir) => ipcRenderer.invoke('todo:list', workDir),
+  read: (workDir, relPath) => ipcRenderer.invoke('todo:read', workDir, relPath),
+  close: (workDir, relPath, status) => ipcRenderer.invoke('todo:close', workDir, relPath, status),
+  watch: (workDir) => ipcRenderer.send('todo:watch', workDir),
+  unwatch: () => ipcRenderer.send('todo:unwatch'),
+  onChange: (cb) => ipcRenderer.on('todo:changed', () => cb()),
 });
 
 contextBridge.exposeInMainWorld('worktree', {

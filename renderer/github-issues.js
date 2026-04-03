@@ -73,7 +73,7 @@ export async function showGitHubIssueDetail(workDir, number) {
 
   const [result, todosResult] = await Promise.all([
     window.github.issueView(workDir, number),
-    window.todos.list(workDir),
+    window.todo.list(workDir),
   ]);
   if (!result.ok) {
     content.innerHTML = `<div class="gh-detail"><button class="gh-detail-back">&larr; Back</button><div class="gh-status-msg error">${escHtml(result.error)}</div></div>`;
@@ -167,7 +167,7 @@ export async function showGitHubIssueDetail(workDir, number) {
   if (gotoTodo) {
     gotoTodo.addEventListener('click', (e) => {
       e.preventDefault();
-      _switchRightPanelTab('todos');
+      _switchRightPanelTab('todo');
     });
   }
 

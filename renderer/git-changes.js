@@ -4,6 +4,7 @@ import { escHtml, statSpan, createChangeEntryEl } from './utils.js';
 import { reconcileChildren, patchText, patchHtml } from './dom-patch.js';
 import { initChangesModals, doPullLatestMain, openBranchModal, openDiffTab } from './git-changes-modals.js';
 import { initChangesActions } from './git-changes-actions.js';
+import { initTreeToggle, renderTreeEntries } from './git-changes-tree.js';
 
 // ── Cross-module deps (injected via initGitChanges) ────────────
 let _refreshFileTree = null;
@@ -30,12 +31,16 @@ export function initGitChanges({ refreshFileTree, startTask, loadProjects, switc
     refreshChanges, showChangesStatus, refreshWorktreeMetrics,
     openDiffTab, startTask, changesBody,
   });
+  initTreeToggle(gitState, () => tabState.activeWorkDir, refreshChanges);
 }
 
 // Re-export for app.js
 export { doPullLatestMain, openBranchModal, openDiffTab };
 
 // ── DOM refs (queried once per session) ─────────────────────────
+// Initialize tree view preference from localStorage
+gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 'true';
+
 const changesBody = document.getElementById('changes-body');
 const changesCommitInput = document.getElementById('changes-commit-input');
 const changesCommitBtn = document.getElementById('changes-commit-btn');
@@ -95,16 +100,19 @@ const SECTION_DEFS = {
     label: 'Staged',
     actions: '<button class="changes-section-action review-staged" title="Review staged changes">Review</button><span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'true' }, statSpan(f.added, f.deleted), UNSTAGE_BTN, ACTION_PLACEHOLDER),
+    getPath: (f) => f.file,
   },
   unstaged: {
     label: 'Changes',
     actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'false' }, statSpan(f.added, f.deleted), STAGE_BTN, DISCARD_BTN),
+    getPath: (f) => f.file,
   },
   untracked: {
     label: 'Untracked',
     actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-untracked" title="Stage all untracked">+</button><span class="changes-action-placeholder"></span></span>',
     entryFn: (f) => createChangeEntryEl(f, '?', 'changes-badge-q', { file: f, untracked: 'true' }, '<span class="changes-added">new</span>', STAGE_BTN, ACTION_PLACEHOLDER),
+    getPath: (f) => f,
   },
 };
 
@@ -116,7 +124,11 @@ function createSectionEl(sec) {
     el.innerHTML = `<div class="changes-section-header">${def.label}<span class="changes-section-count">${sec.items.length}</span>${def.actions}</div>`;
     const entries = document.createElement('div');
     entries.className = 'changes-section-entries';
-    for (const item of sec.items) entries.appendChild(def.entryFn(item));
+    if (gitState.changesTreeView) {
+      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath);
+    } else {
+      for (const item of sec.items) entries.appendChild(def.entryFn(item));
+    }
     el.appendChild(entries);
   } else if (sec.key === 'stashes') {
     el.innerHTML = `<div class="changes-section-header">Stashes<span class="changes-section-count">${sec.items.length}</span></div>`;
@@ -141,14 +153,19 @@ function updateSectionEl(el, sec) {
   if (def) {
     patchText(el, '.changes-section-count', String(sec.items.length));
     const entries = el.querySelector('.changes-section-entries');
-    reconcileChildren(entries, sec.items, 'file',
-      item => typeof item === 'string' ? item : item.file,
-      item => def.entryFn(item),
-      (existing, item) => {
-        const f = typeof item === 'string' ? item : item;
-        if (f.added !== undefined) patchHtml(existing, '.changes-file-stats', statSpan(f.added, f.deleted));
-      },
-    );
+    if (gitState.changesTreeView) {
+      entries.innerHTML = '';
+      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath);
+    } else {
+      reconcileChildren(entries, sec.items, 'file',
+        item => typeof item === 'string' ? item : item.file,
+        item => def.entryFn(item),
+        (existing, item) => {
+          const f = typeof item === 'string' ? item : item;
+          if (f.added !== undefined) patchHtml(existing, '.changes-file-stats', statSpan(f.added, f.deleted));
+        },
+      );
+    }
   } else if (sec.key === 'stashes') {
     patchText(el, '.changes-section-count', String(sec.items.length));
     const entries = el.querySelector('.changes-section-entries');

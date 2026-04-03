@@ -1,6 +1,6 @@
 const path = require('path');
 const { resolveInDir, execFileAsync, fsp } = require('./utils');
-const { getTodosDir } = require('./todos');
+const { getTodoDir } = require('./todo');
 
 function register({ ipcMain }) {
   ipcMain.handle('gh:auth-status', async (_event, workDir) => {
@@ -156,8 +156,8 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:link-ticket', async (_event, workDir, todoRelPath, issueNumber) => {
     try {
-      const todosDir = await getTodosDir(workDir);
-      const todoPath = resolveInDir(todosDir, todoRelPath);
+      const todoDir = await getTodosDir(workDir);
+      const todoPath = resolveInDir(todoDir, todoRelPath);
       let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');
       const insertPoint = content.indexOf('\n## Tasks');
@@ -177,8 +177,8 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:unlink-ticket', async (_event, workDir, todoRelPath) => {
     try {
-      const todosDir = await getTodosDir(workDir);
-      const todoPath = resolveInDir(todosDir, todoRelPath);
+      const todoDir = await getTodosDir(workDir);
+      const todoPath = resolveInDir(todoDir, todoRelPath);
       let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');
       await fsp.writeFile(todoPath, content, 'utf-8');

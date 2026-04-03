@@ -51,7 +51,7 @@ export const explorerState = {
 // ── File-system watcher debounce ────────────────────────────────
 export const watchState = {
   fsWatchDebounce: null,
-  todosWatchDebounce: null,
+  todoWatchDebounce: null,
 };
 
 // ── GitHub panel state ──────────────────────────────────────────
@@ -70,4 +70,5 @@ export const gitState = {
   _pullMainIsStashConflict: false,
   _pullMainDirtyResolve: null,
   _stageAttentionTimeout: null,
+  changesTreeView: false,
 };

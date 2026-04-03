@@ -1165,6 +1165,17 @@
       color: #e55 !important;
       background: #2a1515;
     }
+    .term-tab-rename-input {
+      background: #2a2a2a;
+      border: 1px solid #4a9eff;
+      color: #ddd;
+      font-size: 0.8rem;
+      font-family: inherit;
+      padding: 1px 4px;
+      border-radius: 3px;
+      outline: none;
+      width: 120px;
+    }
     .term-tab.dragging {
       opacity: 0.4;
     }
@@ -1174,6 +1185,18 @@
     .term-tab.drag-over-right {
       box-shadow: inset -3px 0 0 #4a9eff;
     }
+    #tab-context-menu {
+      display: none;
+      position: fixed;
+      background: #252525;
+      border: 1px solid #383838;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 160px;
+      z-index: 200;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(74,158,255,0.06);
+    }
+    #tab-context-menu.active { display: block; }
 
     #terminal-containers {
       flex: 1;
@@ -1625,6 +1648,39 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    /* Tree view mode */
+    .changes-tree-folder {
+      display: flex;
+      align-items: center;
+      padding: 2px 12px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      gap: 4px;
+      height: 24px;
+      user-select: none;
+    }
+    .changes-tree-folder:hover { background: #252525; }
+    .changes-tree-arrow {
+      width: 10px;
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      color: #666;
+    }
+    .changes-tree-folder-name {
+      color: #8b949e;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .changes-tree-folder-count {
+      font-size: 0.62rem;
+      color: #555;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+    .changes-toolbar-btn.active { color: #4a9eff; }
+    .changes-toolbar-btn.active:hover { color: #6bb5ff; }
+
     .changes-commit {
       padding: 6px 12px;
       cursor: pointer;
@@ -2009,16 +2065,16 @@
     }
     .branch-modal-footer button:hover { background: #444; }
 
-    /* Todos panel */
-    #todos-body {
+    /* Todo panel */
+    #todo-body {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 2px 0;
     }
-    #todos-body::-webkit-scrollbar { width: 6px; }
-    #todos-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-    .todos-section-header {
+    #todo-body::-webkit-scrollbar { width: 6px; }
+    #todo-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .todo-section-header {
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -2146,11 +2202,11 @@
       display: inline-block;
     }
     .todo-cancel-btn:hover { background: #3d1a1a; }
-    .todos-filter {
+    .todo-filter {
       display: flex;
       padding: 6px 8px;
     }
-    .todos-filter input {
+    .todo-filter input {
       flex: 1;
       background: #1e1e1e;
       border: 1px solid #333;
@@ -2161,8 +2217,8 @@
       font-family: inherit;
       outline: none;
     }
-    .todos-filter input:focus { border-color: #555; }
-    .todos-new-btn {
+    .todo-filter input:focus { border-color: #555; }
+    .todo-new-btn {
       flex-shrink: 0;
       margin-left: 6px;
       background: none;
@@ -2175,8 +2231,8 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .todos-new-btn:hover { background: #1a3a5c; }
-    .todos-empty {
+    .todo-new-btn:hover { background: #1a3a5c; }
+    .todo-empty {
       color: #444;
       font-size: 0.8rem;
       font-style: italic;

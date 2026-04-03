@@ -1,4 +1,4 @@
-// ── Todos panel module ──────────────────────────────────────────
+// ── Todo panel module ───────────────────────────────────────────
 // Extracted from the monolithic renderer. Handles todo listing,
 // detail view, worktree creation for todos, and specialist launching.
 
@@ -6,7 +6,7 @@ import { tabState, ghState } from './state.js';
 import { escHtml, generateTodoBranchName } from './utils.js';
 
 // ── DOM refs (queried once at module level) ────────────────────
-const todosBody = document.getElementById('todos-body');
+const todoBody = document.getElementById('todo-body');
 
 // ── Cross-module deps injected via init ────────────────────────
 let _loadProjects = null;
@@ -16,7 +16,7 @@ let _showSpecialistPickerForTodo = null;
 let _showGitHubIssueDetail = null;
 let _switchRightPanelTab = null;
 
-export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab }) {
+export function initTodoPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _startTask = startTask;
@@ -24,8 +24,8 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
   _showGitHubIssueDetail = showGitHubIssueDetail;
   _switchRightPanelTab = switchRightPanelTab;
 
-  // ── Event delegation on todosBody ────────────────────────────
-  todosBody.addEventListener('click', async (e) => {
+  // ── Event delegation on todoBody ─────────────────────────────
+  todoBody.addEventListener('click', async (e) => {
     const backBtn = e.target.closest('.todo-detail-back');
     if (backBtn) {
       refreshTodos(tabState.activeWorkDir);
@@ -51,7 +51,7 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
     const doneBtn = e.target.closest('.todo-done-btn');
     if (doneBtn) {
       const todoPath = doneBtn.dataset.todoPath;
-      const doneResult = await window.todos.close(tabState.activeWorkDir, todoPath, 'done');
+      const doneResult = await window.todo.close(tabState.activeWorkDir, todoPath, 'done');
       if (!doneResult?.ok) console.error('[Braska] Failed to close todo:', doneResult?.error);
       refreshTodos(tabState.activeWorkDir);
       return;
@@ -60,7 +60,7 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
     const cancelBtn = e.target.closest('.todo-cancel-btn');
     if (cancelBtn) {
       const todoPath = cancelBtn.dataset.todoPath;
-      const cancelResult = await window.todos.close(tabState.activeWorkDir, todoPath, 'cancelled');
+      const cancelResult = await window.todo.close(tabState.activeWorkDir, todoPath, 'cancelled');
       if (!cancelResult?.ok) console.error('[Braska] Failed to cancel todo:', cancelResult?.error);
       refreshTodos(tabState.activeWorkDir);
       return;
@@ -71,7 +71,7 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
 
     const todoPath = item.dataset.path;
     const todoAbsPath = item.dataset.absPath;
-    const content = await window.todos.read(tabState.activeWorkDir, todoPath);
+    const content = await window.todo.read(tabState.activeWorkDir, todoPath);
 
     const rendered = escHtml(content)
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -84,7 +84,7 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
     const ghIssueLink = ghIssueMatch
       ? `<div class="gh-link-section"><div class="gh-link-row">Linked GitHub Issue: <a data-todo-goto-gh-issue="${ghIssueMatch[1]}">#${ghIssueMatch[1]}</a></div></div>`
       : '';
-    todosBody.innerHTML = `
+    todoBody.innerHTML = `
       <div class="todo-detail">
         <div class="todo-detail-header">
           <button class="todo-detail-back" title="Back to todos list">&larr; Todos</button>
@@ -95,7 +95,7 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
         ${isOpen && getProjectRootForWorkDir(tabState.activeWorkDir) ? `<button class="todo-worktree-btn" data-todo-path="${escHtml(todoPath)}" data-abs-path="${escHtml(todoAbsPath)}">Work on this in a new worktree</button>` : ''}
         ${isOpen ? `<button class="todo-done-btn" data-todo-path="${escHtml(todoPath)}">Done</button><button class="todo-cancel-btn" data-todo-path="${escHtml(todoPath)}">Cancelled</button>` : ''}
       </div>`;
-    const ghLink = todosBody.querySelector('[data-todo-goto-gh-issue]');
+    const ghLink = todoBody.querySelector('[data-todo-goto-gh-issue]');
     if (ghLink) {
       ghLink.addEventListener('click', (ev) => {
         ev.preventDefault();
@@ -111,17 +111,17 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
 // ── Public functions ───────────────────────────────────────────
 
 export async function refreshTodos(workDir) {
-  const prevScroll = todosBody.scrollTop;
-  const todos = await window.todos.list(workDir);
+  const prevScroll = todoBody.scrollTop;
+  const todos = await window.todo.list(workDir);
 
   const openTodos = todos.filter(i => i.status === 'open');
   const doneTodos = todos.filter(i => i.status === 'done');
   const cancelledTodos = todos.filter(i => i.status === 'cancelled');
 
-  let html = '<div class="todos-filter"><input type="text" id="todos-search" placeholder="Filter todos..." /><button class="todos-new-btn" id="todos-new-btn" title="Create a new todo">+ New</button></div>';
+  let html = '<div class="todo-filter"><input type="text" id="todo-search" placeholder="Filter todos..." /><button class="todo-new-btn" id="todo-new-btn" title="Create a new todo">+ New</button></div>';
 
   if (openTodos.length > 0) {
-    html += `<div class="todos-section-header">Open<span class="changes-section-count">${openTodos.length}</span></div>`;
+    html += `<div class="todo-section-header">Open<span class="changes-section-count">${openTodos.length}</span></div>`;
     for (const todo of openTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       const prioClass = todo.priority ? `todo-priority-${todo.priority.toLowerCase()}` : '';
@@ -134,7 +134,7 @@ export async function refreshTodos(workDir) {
   }
 
   if (doneTodos.length > 0) {
-    html += `<div class="todos-section-header">Done<span class="changes-section-count">${doneTodos.length}</span></div>`;
+    html += `<div class="todo-section-header">Done<span class="changes-section-count">${doneTodos.length}</span></div>`;
     for (const todo of doneTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
@@ -145,7 +145,7 @@ export async function refreshTodos(workDir) {
   }
 
   if (cancelledTodos.length > 0) {
-    html += `<div class="todos-section-header">Cancelled<span class="changes-section-count">${cancelledTodos.length}</span></div>`;
+    html += `<div class="todo-section-header">Cancelled<span class="changes-section-count">${cancelledTodos.length}</span></div>`;
     for (const todo of cancelledTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
@@ -156,24 +156,24 @@ export async function refreshTodos(workDir) {
   }
 
   if (openTodos.length === 0 && doneTodos.length === 0 && cancelledTodos.length === 0) {
-    html += '<div class="todos-empty">No todos found</div>';
+    html += '<div class="todo-empty">No todos found</div>';
   }
 
-  todosBody.innerHTML = html;
-  todosBody.scrollTop = prevScroll;
+  todoBody.innerHTML = html;
+  todoBody.scrollTop = prevScroll;
 
-  const searchInput = document.getElementById('todos-search');
+  const searchInput = document.getElementById('todo-search');
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.toLowerCase();
-      todosBody.querySelectorAll('.todo-item').forEach(el => {
+      todoBody.querySelectorAll('.todo-item').forEach(el => {
         const title = (el.dataset.title || '').toLowerCase();
         el.style.display = title.includes(query) ? '' : 'none';
       });
     });
   }
 
-  const newTodoBtn = document.getElementById('todos-new-btn');
+  const newTodoBtn = document.getElementById('todo-new-btn');
   if (newTodoBtn) {
     newTodoBtn.addEventListener('click', () => _startTask('todoist', workDir));
   }
@@ -194,7 +194,7 @@ export async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {
   const projectRoot = getProjectRootForWorkDir(tabState.activeWorkDir);
   if (!projectRoot) return;
 
-  const content = await window.todos.read(tabState.activeWorkDir, todoPath);
+  const content = await window.todo.read(tabState.activeWorkDir, todoPath);
   const titleMatch = content.match(/^# (.+)$/m);
   const todoFilename = todoPath.split('/').pop();
   const todoTitle = titleMatch ? titleMatch[1].trim() : todoFilename.replace(/\.md$/, '');

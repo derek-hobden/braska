@@ -8,7 +8,7 @@ Two-process Electron app: **main** (CommonJS) ↔ **preload** (contextBridge) �
 
 - **Main (`main/`):** Each module exports `register({ ipcMain, BrowserWindow, dialog, shell, app })`. `main/index.js` calls all registers after `app.whenReady()`. 86 IPC handlers across 10 modules. Modules `require()` their own Node built-ins; only Electron objects are injected.
 - **Renderer (`renderer/`):** `app.js` imports all modules, calls `init*()` functions to inject cross-module deps (avoids circular imports). Modules store injected deps in private `let` vars, used by event listeners.
-- **Preload (`preload.js`, 189 lines):** Bridges main↔renderer via `contextBridge.exposeInMainWorld`. 15 namespaces: `versions`, `projects`, `skills`, `specialists`, `filetree`, `fileOps`, `fileEditor`, `todos`, `worktree`, `gitDiff`, `gitOps`, `github`, `pty`, `windowActions`, `dragDrop`.
+- **Preload (`preload.js`, 189 lines):** Bridges main↔renderer via `contextBridge.exposeInMainWorld`. 15 namespaces: `versions`, `projects`, `skills`, `specialists`, `filetree`, `fileOps`, `fileEditor`, `todo`, `worktree`, `gitDiff`, `gitOps`, `github`, `pty`, `windowActions`, `dragDrop`.
 - **State:** `main/state.js` uses getter/setter functions (CommonJS). `renderer/state.js` exports flat objects (`tabState`, `appState`, `modalState`, `explorerState`, `watchState`, `ghState`, `gitState`) — mutate via direct property assignment.
 - **Shell commands:** Always `execFileAsync('cmd', ['arg1', 'arg2'], { cwd, encoding: 'utf-8', timeout })` from `main/utils.js`. Never `execSync`, never shell string interpolation.
 - **IPC return shape:** `{ ok: true, ...data }` or `{ ok: false, error: errMsg(err) }`.
@@ -31,7 +31,7 @@ main/
   skills.js              37 — Skill CRUD (3 handlers)
   specialists.js         67 — Specialist CRUD, BUILTIN_SPECIALISTS array (3 handlers)
   specialists-setup.js   48 — Copy builtin specialists to ~/.braska on startup
-  todos.js              124 — Todo CRUD + fs.watch (6 handlers)
+  todo.js               127 — Todo CRUD + fs.watch (6 handlers)
   pty.js                 96 — PTY spawn/write/resize/kill (4 handlers)
   files.js              129 — File read/save, filetree CRUD/watch (12 handlers)
   git-read.js           142 — Status, diff, log, worktree-metrics (6 handlers)
@@ -50,11 +50,12 @@ renderer/
   terminals.js          325 — xterm setup, PTY bridge, browser/editor tabs
   notifications.js      198 — Notification log, busy/done indicators
   settings.js           288 — Settings view (specialists, skills)
-  todos-panel.js        230 — Todo list, status changes
+  todo-panel.js         230 — Todo list, status changes
   file-explorer.js      342 — File tree rendering, panel switching, resize
   file-explorer-ops.js  399 — Rename, create, context menu, keyboard nav
   worktree-modals.js    434 — Worktree create/delete/merge modals
   git-changes.js        399 — Status panel, staging, commit toolbar (incremental DOM)
+  git-changes-tree.js    90 — Tree view rendering for git changes panel
   git-changes-actions.js 222 — Changes body click delegation
   git-changes-modals.js 357 — Pull-main flow, branch modal, diff viewer
   github-panel.js       262 — GitHub auth, section routing, CI, notifications
@@ -100,5 +101,5 @@ specialists/                — Builtin templates (copied to ~/.braska/specialis
 
 - `~/.braska/specialists/` — specialist configs (builtin + custom)
 - `~/.braska/skills/` — skill markdown files
-- `~/.braska/projects/<project-name>/todos/` — todo files (open/, done/, cancelled/)
+- `~/.braska/projects/<project-name>/todo/` — todo files (open/, done/, cancelled/)
 - Electron userData (`~/Library/Application Support/Braska/`) — `projects.json`
