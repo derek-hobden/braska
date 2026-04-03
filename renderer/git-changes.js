@@ -47,6 +47,19 @@ const changesCommitBtn = document.getElementById('changes-commit-btn');
 const changesGenerateBtn = document.getElementById('changes-generate-btn');
 const changesReviewBtn = document.getElementById('changes-review-btn');
 const changesReviewLoopBtn = document.getElementById('changes-review-loop-btn');
+const mainDivergenceEl = document.getElementById('changes-main-divergence');
+
+// ── Helper: main divergence badge next to pull-main button ─────
+function updateMainDivergence(div) {
+  if (!div) { mainDivergenceEl.innerHTML = ''; return; }
+  const parts = [];
+  if (div.behind > 0) parts.push(`<span class="behind">${div.behind}&#8595;</span>`);
+  if (div.ahead > 0) parts.push(`<span class="ahead">${div.ahead}&#8593;</span>`);
+  mainDivergenceEl.innerHTML = parts.length ? parts.join('') : '';
+  mainDivergenceEl.title = parts.length
+    ? `${div.behind > 0 ? div.behind + ' behind' : ''}${div.behind > 0 && div.ahead > 0 ? ', ' : ''}${div.ahead > 0 ? div.ahead + ' ahead of' : ''} ${div.branch}`
+    : '';
+}
 
 // ── Helper: refreshWorktreeMetrics (imported from sidebar) ──────
 async function refreshWorktreeMetrics() {
@@ -233,8 +246,12 @@ export async function refreshChanges(workDir) {
     changesGenerateBtn.disabled = true;
     changesReviewBtn.disabled = true;
     changesReviewLoopBtn.disabled = true;
+    mainDivergenceEl.innerHTML = '';
     return;
   }
+
+  // Update main divergence indicator
+  updateMainDivergence(status.mainDivergence);
 
   // Update toolbar state
   changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();

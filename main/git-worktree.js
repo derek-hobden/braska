@@ -53,7 +53,21 @@ function register({ ipcMain }) {
 
       let mergeTarget;
       if (hasRemote) {
-        await execFileAsync('git', ['fetch', 'origin'], opts);
+        try {
+          await execFileAsync('git', ['fetch', 'origin', mainBranch], opts);
+        } catch (fetchErr) {
+          if (didStash) {
+            try { await execFileAsync('git', ['stash', 'pop'], opts); } catch { /* ignore */ }
+          }
+          const msg = (fetchErr.stderr || fetchErr.message || '').toString();
+          if (fetchErr.killed || (fetchErr.signal && fetchErr.signal === 'SIGTERM')) {
+            return { ok: false, error: 'Fetch timed out — check your network connection' };
+          }
+          if (msg.includes('Authentication') || msg.includes('could not read Username')) {
+            return { ok: false, error: 'Authentication failed — check your git credentials' };
+          }
+          return { ok: false, error: `Fetch failed: ${msg.split('\n')[0]}` };
+        }
         mergeTarget = `origin/${mainBranch}`;
       } else {
         mergeTarget = mainBranch;

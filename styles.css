@@ -1754,6 +1754,17 @@
       margin: 0 2px;
       flex-shrink: 0;
     }
+    .changes-main-divergence {
+      font-size: 0.65rem;
+      color: #888;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .changes-main-divergence .behind { color: #f85149; }
+    .changes-main-divergence .ahead { color: #3fb950; }
+    .changes-main-divergence:empty { display: none; }
     .changes-toolbar-spacer { flex: 1; }
     .changes-toolbar-status {
       font-size: 0.7rem;

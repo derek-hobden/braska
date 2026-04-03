@@ -69,6 +69,7 @@ function closePullMainConflictsModal() {
 }
 
 export async function doPullLatestMain(workDir) {
+  _showChangesStatus('Pulling latest main...', 'info');
   let result = await window.gitOps.pullLatestMain(workDir, { autoStash: false });
 
   if (result.isDirty) {
