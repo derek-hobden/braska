@@ -232,7 +232,7 @@ document.getElementById('specialist-picker-list').addEventListener('click', (e) 
     appState.pendingTodoAbsPath = null;
     const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
     startTask(name, appState.pendingWorkDir, {
-      initialPrompt: `Read the todo file at ${todoAbsPath} and let me know once done`,
+      initialPrompt: `Read the todo file at ${todoAbsPath} and complete the task. When finished, ask me if I'd like to close the todo as done.`,
       todoNumber: todoNum
     });
   } else {

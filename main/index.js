@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const { ptyProcesses } = require('./state');
 const { migrateData } = require('./migration');
@@ -107,6 +107,9 @@ function createWindow() {
       } else if (input.key.toLowerCase() === 't') {
         event.preventDefault();
         win.webContents.send('open-tab-picker');
+      } else if (input.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        win.webContents.send('rename-active-tab');
       }
     }
   });
@@ -117,6 +120,38 @@ function createWindow() {
 app.whenReady().then(async () => {
   await migrateData(app);
   await ensureBuiltinSpecialists();
+
+  // Custom menu removes Reload / Force Reload to prevent accidental Cmd+R
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { role: 'fileMenu' },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    { role: 'windowMenu' },
+  ]));
+
   createWindow();
 
   const deps = { ipcMain, BrowserWindow, dialog, shell, app };

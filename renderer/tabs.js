@@ -140,6 +140,11 @@ export function startTabRename(id) {
   tab.tabEl.draggable = false;
 
   let cancelled = false;
+  const focusTabContent = () => {
+    if (tab.type === 'browser') tab.webview.focus();
+    else if (tab.type === 'editor') tab.textarea.focus();
+    else if (tab.type === 'terminal') tab.term.focus();
+  };
   const commit = () => {
     if (cancelled) return;
     const val = input.value.trim();
@@ -150,6 +155,7 @@ export function startTabRename(id) {
     }
     tab.tabEl.draggable = true;
     renderTabBar();
+    focusTabContent();
   };
 
   input.addEventListener('keydown', (e) => {
@@ -159,6 +165,7 @@ export function startTabRename(id) {
       cancelled = true;
       tab.tabEl.draggable = true;
       renderTabBar();
+      focusTabContent();
     }
     e.stopPropagation();
   });
@@ -270,6 +277,9 @@ export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTree
   });
   window.windowActions.onOpenTabPicker(() => {
     if (tabState.activeWorkDir) showTabTypePicker(tabState.activeWorkDir);
+  });
+  window.windowActions.onRenameActiveTab(() => {
+    if (tabState.activeTabId != null) startTabRename(tabState.activeTabId);
   });
 
   // Tab context menu actions

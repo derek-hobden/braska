@@ -1,5 +1,5 @@
 // ── Git changes tree view — folder hierarchy rendering ──
-import { escHtml } from './utils.js';
+import { escHtml, SVG_FOLDER } from './utils.js';
 
 /** Initialize the tree/list toggle button. */
 export function initTreeToggle(gitState, getActiveWorkDir, refreshChanges) {
@@ -58,21 +58,19 @@ function renderNode(container, node, entryFn, getPath, depth) {
     }
 
     const groupEl = document.createElement('div');
-    groupEl.className = 'changes-tree-group';
+    groupEl.className = 'changes-tree-group expanded';
 
     const headerEl = document.createElement('div');
     headerEl.className = 'changes-tree-folder';
     headerEl.style.paddingLeft = (12 + depth * 16) + 'px';
-    headerEl.innerHTML = `<span class="changes-tree-arrow">▾</span><span class="changes-tree-folder-name">${escHtml(label)}</span><span class="changes-tree-folder-count">${countFiles(current)}</span>`;
+    headerEl.innerHTML = `<span class="ft-icon" style="color:#e8c882">${SVG_FOLDER}</span><span class="changes-tree-folder-name">${escHtml(label)}</span><span class="changes-tree-folder-count">${countFiles(current)}</span>`;
 
     const childrenEl = document.createElement('div');
     childrenEl.className = 'changes-tree-children';
 
     headerEl.addEventListener('click', (e) => {
       e.stopPropagation();
-      const collapsed = headerEl.classList.toggle('collapsed');
-      headerEl.querySelector('.changes-tree-arrow').textContent = collapsed ? '▸' : '▾';
-      childrenEl.style.display = collapsed ? 'none' : '';
+      groupEl.classList.toggle('expanded');
     });
 
     groupEl.appendChild(headerEl);

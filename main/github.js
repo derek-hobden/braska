@@ -156,7 +156,7 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:link-ticket', async (_event, workDir, todoRelPath, issueNumber) => {
     try {
-      const todoDir = await getTodosDir(workDir);
+      const todoDir = await getTodoDir(workDir);
       const todoPath = resolveInDir(todoDir, todoRelPath);
       let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');
@@ -177,7 +177,7 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:unlink-ticket', async (_event, workDir, todoRelPath) => {
     try {
-      const todoDir = await getTodosDir(workDir);
+      const todoDir = await getTodoDir(workDir);
       const todoPath = resolveInDir(todoDir, todoRelPath);
       let content = await fsp.readFile(todoPath, 'utf-8');
       content = content.replace(/\n## GitHub Issue:.*\n?/g, '');

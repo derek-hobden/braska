@@ -41,14 +41,26 @@ async function migrateTicketsIfNeeded(workDir, todoDir) {
 
 async function ensureTodoDirs(workDir) {
   const dir = await getTodoDir(workDir);
-  // Migrate old "todos/" directory to "todo/"
-  const oldDir = dir.replace(/\/todo$/, '/todos');
-  if (oldDir !== dir && await pathExists(oldDir) && !await pathExists(dir)) {
-    try { await fsp.rename(oldDir, dir); } catch {}
-  }
   await fsp.mkdir(path.join(dir, 'open'), { recursive: true });
   await fsp.mkdir(path.join(dir, 'done'), { recursive: true });
   await fsp.mkdir(path.join(dir, 'cancelled'), { recursive: true });
+  // Migrate old "todos/" directory to "todo/" (file-by-file, skip duplicates)
+  const oldDir = dir.replace(/\/todo$/, '/todos');
+  if (oldDir !== dir && await pathExists(oldDir)) {
+    for (const status of ['open', 'done', 'cancelled']) {
+      const oldSubdir = path.join(oldDir, status);
+      let files;
+      try { files = await fsp.readdir(oldSubdir); } catch { continue; }
+      for (const f of files) {
+        if (!f.endsWith('.md')) continue;
+        const dest = path.join(dir, status, f);
+        if (!await pathExists(dest)) {
+          try { await fsp.rename(path.join(oldSubdir, f), dest); } catch {}
+        }
+      }
+    }
+    try { await fsp.rm(oldDir, { recursive: true, force: true }); } catch {}
+  }
   await migrateTicketsIfNeeded(workDir, dir);
   return dir;
 }

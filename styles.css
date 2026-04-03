@@ -1660,12 +1660,13 @@
       user-select: none;
     }
     .changes-tree-folder:hover { background: #252525; }
-    .changes-tree-arrow {
-      width: 10px;
-      flex-shrink: 0;
-      font-size: 0.7rem;
-      color: #666;
+    .changes-tree-folder .ft-icon { opacity: 0.7; }
+    .changes-tree-group.expanded > .changes-tree-folder .ft-icon {
+      opacity: 1;
+      filter: drop-shadow(0 0 3px currentColor);
     }
+    .changes-tree-children { display: none; }
+    .changes-tree-group.expanded > .changes-tree-children { display: block; }
     .changes-tree-folder-name {
       color: #8b949e;
       overflow: hidden;

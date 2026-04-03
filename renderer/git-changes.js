@@ -157,6 +157,7 @@ function updateSectionEl(el, sec) {
       entries.innerHTML = '';
       renderTreeEntries(entries, sec.items, def.entryFn, def.getPath);
     } else {
+      if (entries.querySelector('.changes-tree-group')) entries.innerHTML = '';
       reconcileChildren(entries, sec.items, 'file',
         item => typeof item === 'string' ? item : item.file,
         item => def.entryFn(item),
