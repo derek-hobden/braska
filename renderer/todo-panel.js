@@ -125,6 +125,12 @@ function getActiveTodoNumbers() {
     const match = el.textContent.trim().match(/^todo-(\d+)/);
     if (match) active.add(match[1]);
   }
+  // Include todos that have an open tab (even without a worktree branch match)
+  for (const tab of tabState.tabs.values()) {
+    if (tab.todoNumber && getProjectRootForWorkDir(tab.workDir) === projectRoot) {
+      active.add(tab.todoNumber);
+    }
+  }
   return active;
 }
 
@@ -144,6 +150,15 @@ function closeTodoCloseModal(result) {
 }
 
 // ── Public functions ───────────────────────────────────────────
+
+export function updateTodoFocus() {
+  const activeTab = tabState.tabs.get(tabState.activeTabId);
+  const sameProject = activeTab && getProjectRootForWorkDir(activeTab.workDir) === getProjectRootForWorkDir(tabState.activeWorkDir);
+  const focusedNum = sameProject ? (activeTab.todoNumber || null) : null;
+  for (const el of todoBody.querySelectorAll('.todo-number')) {
+    el.classList.toggle('todo-focused', focusedNum != null && el.textContent === `#${focusedNum}`);
+  }
+}
 
 export async function refreshTodos(workDir) {
   const prevScroll = todoBody.scrollTop;
@@ -199,6 +214,7 @@ export async function refreshTodos(workDir) {
   }
 
   todoBody.innerHTML = html;
+  updateTodoFocus();
   todoBody.scrollTop = prevScroll;
 
   const searchInput = document.getElementById('todo-search');

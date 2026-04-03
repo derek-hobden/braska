@@ -9,6 +9,7 @@ let showTabTypePicker = null;
 let updateFileTreeHighlights = null;
 let showTodoClosePrompt = null;
 let refreshTodos = null;
+let updateTodoFocus = null;
 
 // ── Display label helper ──────────────────────────────────────
 export function getDisplayLabel(id) {
@@ -226,6 +227,7 @@ export function switchTab(id) {
     tab.term.focus();
   }
   updateFileTreeHighlights();
+  if (updateTodoFocus) updateTodoFocus();
 }
 
 // ── Tab closing ────────────────────────────────────────────────
@@ -285,11 +287,12 @@ export async function closeTab(id) {
 
 // ── Initialization ─────────────────────────────────────────────
 
-export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights, showTodoClosePrompt: _showTodoClosePrompt, refreshTodos: _refreshTodos }) {
+export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights, showTodoClosePrompt: _showTodoClosePrompt, refreshTodos: _refreshTodos, updateTodoFocus: _updateTodoFocus }) {
   showTabTypePicker = _showTabTypePicker;
   updateFileTreeHighlights = _updateFileTreeHighlights;
   showTodoClosePrompt = _showTodoClosePrompt;
   refreshTodos = _refreshTodos;
+  updateTodoFocus = _updateTodoFocus;
 
   window.windowActions.onCloseActiveTab(() => {
     if (tabState.activeTabId != null) closeTab(tabState.activeTabId);
