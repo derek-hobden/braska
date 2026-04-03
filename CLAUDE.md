@@ -24,13 +24,13 @@ styles.css             2952 — All UI styles
 splash.html                 — Startup splash screen
 
 main/
-  index.js              137 — App lifecycle, createWindow, register calls
+  index.js              147 — App lifecycle, createWindow, register calls
   state.js               13 — Shared state (ptyProcesses Map, watcher refs)
   utils.js               25 — execFileAsync, pathExists, resolveInDir, errMsg, fsp
   projects.js            81 — loadProjects, saveProjects, getGitInfo (3 handlers)
   skills.js              37 — Skill CRUD (3 handlers)
   specialists.js         67 — Specialist CRUD, BUILTIN_SPECIALISTS array (3 handlers)
-  specialists-setup.js   41 — Copy builtin specialists to ~/.braska on startup
+  specialists-setup.js   48 — Copy builtin specialists to ~/.braska on startup
   todos.js              124 — Todo CRUD + fs.watch (6 handlers)
   pty.js                 96 — PTY spawn/write/resize/kill (4 handlers)
   files.js              129 — File read/save, filetree CRUD/watch (12 handlers)
@@ -41,19 +41,25 @@ main/
   migration.js           40 — One-time data migration from legacy app names
 
 renderer/
-  app.js                262 — Entry point, init wiring, event delegation
+  app.js                266 — Entry point, init wiring, event delegation
   state.js               73 — All shared state objects (see Architecture above)
-  utils.js              238 — escHtml, parseDiffOutput, icons, formatting
+  utils.js              251 — escHtml, parseDiffOutput, icons, formatting
+  dom-patch.js           81 — Keyed-list DOM reconciler for incremental updates
   sidebar.js            144 — Project list, worktree expand/collapse
   tabs.js               186 — Tab CRUD, switching, tab bar rendering
   terminals.js          325 — xterm setup, PTY bridge, browser/editor tabs
   notifications.js      198 — Notification log, busy/done indicators
   settings.js           288 — Settings view (specialists, skills)
-  todos-panel.js        228 — Todo list, status changes
-  file-explorer.js      670 — File tree, drag-drop, rename, context menus
+  todos-panel.js        230 — Todo list, status changes
+  file-explorer.js      342 — File tree rendering, panel switching, resize
+  file-explorer-ops.js  399 — Rename, create, context menu, keyboard nav
   worktree-modals.js    434 — Worktree create/delete/merge modals
-  git-changes.js        861 — Staging, commit, branch, stash, diff UI
-  github-panel.js       741 — PRs, issues, CI status, notifications
+  git-changes.js        399 — Status panel, staging, commit toolbar (incremental DOM)
+  git-changes-actions.js 222 — Changes body click delegation
+  git-changes-modals.js 357 — Pull-main flow, branch modal, diff viewer
+  github-panel.js       262 — GitHub auth, section routing, CI, notifications
+  github-prs.js         249 — PR list, detail, create form
+  github-issues.js      264 — Issue list, detail, create form
 
 specialists/                — Builtin templates (copied to ~/.braska/specialists/ at startup)
   todoist/  debugger/  code-reviewer/  github-specialist/  merger/

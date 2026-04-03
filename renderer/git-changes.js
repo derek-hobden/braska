@@ -1,55 +1,48 @@
-// ── Git Changes panel, diff viewer, branch modal, pull-latest-main ──
-// Extracted from the monolithic renderer into an ES module.
-
+// ── Git Changes panel — status, staging, commit toolbar ─────────
 import { tabState, gitState } from './state.js';
-import { escHtml, statSpan, changeEntry, parseDiffOutput, renderDiffContent } from './utils.js';
+import { escHtml, statSpan, createChangeEntryEl } from './utils.js';
+import { reconcileChildren, patchText, patchHtml } from './dom-patch.js';
+import { initChangesModals, doPullLatestMain, openBranchModal, openDiffTab } from './git-changes-modals.js';
+import { initChangesActions } from './git-changes-actions.js';
 
 // ── Cross-module deps (injected via initGitChanges) ────────────
 let _refreshFileTree = null;
 let _startTask = null;
-let _loadProjects = null;
-let _switchTab = null;
-let _addTabToOrder = null;
-let _renderTabBar = null;
-let _tabsForWorkDir = null;
 
 export function initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir }) {
   _refreshFileTree = refreshFileTree;
   _startTask = startTask;
-  _loadProjects = loadProjects;
-  _switchTab = switchTab;
-  _addTabToOrder = addTabToOrder;
-  _renderTabBar = renderTabBar;
-  _tabsForWorkDir = tabsForWorkDir;
 
-  // ── Wire up DOM event listeners that depend on injected deps ──
+  // Forward deps to modals sub-module
+  initChangesModals({
+    refreshChanges, showChangesStatus, stageAndPromptCommit, refreshWorktreeMetrics,
+    startTask, loadProjects, switchTab, addTabToOrder, renderTabBar,
+  });
+
   _initCommitListeners();
   _initAmendListener();
   _initGenerateListener();
   _initFetchListener();
   _initPullListener();
   _initPushListener();
-  _initPullMainListeners();
   _initStashToolbarListener();
-  _initBranchModalListeners();
-  _initChangesBodyDelegation();
+  initChangesActions({
+    refreshChanges, showChangesStatus, refreshWorktreeMetrics,
+    openDiffTab, startTask, changesBody,
+  });
 }
 
+// Re-export for app.js
+export { doPullLatestMain, openBranchModal, openDiffTab };
+
 // ── DOM refs (queried once per session) ─────────────────────────
-const changesPanelWrapper = document.getElementById('changes-panel-wrapper');
 const changesBody = document.getElementById('changes-body');
 const changesCommitInput = document.getElementById('changes-commit-input');
 const changesCommitBtn = document.getElementById('changes-commit-btn');
 const changesGenerateBtn = document.getElementById('changes-generate-btn');
 
 // ── Helper: refreshWorktreeMetrics (imported from sidebar) ──────
-// Called after most git operations to update sidebar badges.
-// We import it lazily in every call-site that needs it since sidebar
-// isn't a constructor dependency.
 async function refreshWorktreeMetrics() {
-  // sidebar.js exports this; but to avoid a circular dep we call it
-  // through the module that already wired us. We use dynamic import
-  // only once and cache.
   const { refreshWorktreeMetrics: fn } = await import('./sidebar.js');
   return fn();
 }
@@ -73,7 +66,6 @@ export async function stageAndPromptCommit(path, dirtyCount) {
   if (!stageResult.ok) {
     return 'error';
   }
-  // switchRightPanelTab is in the orchestrator; here we just pulse the tab
   const changesTab = document.querySelector('.filetree-tab[data-panel="changes"]');
   if (changesTab) {
     changesTab.classList.add('attention');
@@ -84,14 +76,136 @@ export async function stageAndPromptCommit(path, dirtyCount) {
   return 'ok';
 }
 
-// ── Main refresh ────────────────────────────────────────────────
+// ── Generation counter — prevents stale IPC data from overwriting fresh data ──
+let _refreshGen = 0;
+
+// ── Action button HTML fragments (reused across renders) ────────
+const UNSTAGE_BTN = '<button class="changes-file-action changes-unstage" title="Unstage">&minus;</button>';
+const STAGE_BTN = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
+const DISCARD_BTN = '<button class="changes-file-action changes-discard" title="Discard changes">↺</button>';
+const ACTION_PLACEHOLDER = '<span class="changes-action-placeholder"></span>';
+
+// ── Badge class lookup ──────────────────────────────────────────
+const BADGE_CLASS = { M: 'changes-badge-m', A: 'changes-badge-a', D: 'changes-badge-d', R: 'changes-badge-r', C: 'changes-badge-c', U: 'changes-badge-u', '?': 'changes-badge-q' };
+const badgeCls = (status) => BADGE_CLASS[status] || 'changes-badge-m';
+
+// ── Section definitions ─────────────────────────────────────────
+const SECTION_DEFS = {
+  staged: {
+    label: 'Staged',
+    actions: '<button class="changes-section-action review-staged" title="Review staged changes">Review</button><span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
+    entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'true' }, statSpan(f.added, f.deleted), UNSTAGE_BTN, ACTION_PLACEHOLDER),
+  },
+  unstaged: {
+    label: 'Changes',
+    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
+    entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'false' }, statSpan(f.added, f.deleted), STAGE_BTN, DISCARD_BTN),
+  },
+  untracked: {
+    label: 'Untracked',
+    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-untracked" title="Stage all untracked">+</button><span class="changes-action-placeholder"></span></span>',
+    entryFn: (f) => createChangeEntryEl(f, '?', 'changes-badge-q', { file: f, untracked: 'true' }, '<span class="changes-added">new</span>', STAGE_BTN, ACTION_PLACEHOLDER),
+  },
+};
+
+function createSectionEl(sec) {
+  const el = document.createElement('div');
+  el.className = 'changes-section';
+  const def = SECTION_DEFS[sec.key];
+  if (def) {
+    el.innerHTML = `<div class="changes-section-header">${def.label}<span class="changes-section-count">${sec.items.length}</span>${def.actions}</div>`;
+    const entries = document.createElement('div');
+    entries.className = 'changes-section-entries';
+    for (const item of sec.items) entries.appendChild(def.entryFn(item));
+    el.appendChild(entries);
+  } else if (sec.key === 'stashes') {
+    el.innerHTML = `<div class="changes-section-header">Stashes<span class="changes-section-count">${sec.items.length}</span></div>`;
+    const entries = document.createElement('div');
+    entries.className = 'changes-section-entries';
+    for (let i = 0; i < sec.items.length; i++) entries.appendChild(createStashEl(sec.items[i], i));
+    el.appendChild(entries);
+  } else if (sec.key === 'commits') {
+    el.innerHTML = '<div class="changes-section-header">Recent Commits</div>';
+    const entries = document.createElement('div');
+    entries.className = 'changes-section-entries';
+    for (const c of sec.items) entries.appendChild(createCommitEl(c));
+    el.appendChild(entries);
+  } else {
+    el.innerHTML = '<div class="changes-empty">No changes</div>';
+  }
+  return el;
+}
+
+function updateSectionEl(el, sec) {
+  const def = SECTION_DEFS[sec.key];
+  if (def) {
+    patchText(el, '.changes-section-count', String(sec.items.length));
+    const entries = el.querySelector('.changes-section-entries');
+    reconcileChildren(entries, sec.items, 'file',
+      item => typeof item === 'string' ? item : item.file,
+      item => def.entryFn(item),
+      (existing, item) => {
+        const f = typeof item === 'string' ? item : item;
+        if (f.added !== undefined) patchHtml(existing, '.changes-file-stats', statSpan(f.added, f.deleted));
+      },
+    );
+  } else if (sec.key === 'stashes') {
+    patchText(el, '.changes-section-count', String(sec.items.length));
+    const entries = el.querySelector('.changes-section-entries');
+    // Stashes shift indexes on pop — rebuild entries
+    entries.innerHTML = '';
+    for (let i = 0; i < sec.items.length; i++) entries.appendChild(createStashEl(sec.items[i], i));
+  } else if (sec.key === 'commits') {
+    const entries = el.querySelector('.changes-section-entries');
+    reconcileChildren(entries, sec.items, 'hash',
+      c => c.hash,
+      c => createCommitEl(c),
+      (existing, c) => {
+        patchText(existing, '.changes-commit-msg', c.message);
+        patchText(existing, '.changes-commit-meta', `${c.author} · ${c.date}`);
+      },
+    );
+  }
+}
+
+function createStashEl(s, i) {
+  const el = document.createElement('div');
+  el.className = 'changes-stash-entry';
+  el.innerHTML = `<span class="changes-stash-msg">${escHtml(s.message)}</span><span class="changes-stash-date">${escHtml(s.date)}</span><button class="changes-stash-btn pop" data-index="${i}" title="Pop stash">Pop</button><button class="changes-stash-btn drop" data-index="${i}" title="Drop stash">Drop</button>`;
+  return el;
+}
+
+function createCommitEl(c) {
+  const el = document.createElement('div');
+  el.className = 'changes-commit';
+  el.dataset.hash = c.hash;
+  el.innerHTML = `<div class="changes-commit-header"><span class="changes-commit-hash">${c.hash.slice(0, 7)}</span><span class="changes-commit-msg">${escHtml(c.message)}</span><button class="changes-commit-revert" data-revert-hash="${escHtml(c.hash)}" title="Revert this commit (creates a new undo commit)">Revert</button></div><div class="changes-commit-meta">${escHtml(c.author)} &middot; ${escHtml(c.date)}</div><div class="changes-commit-files"></div>`;
+  return el;
+}
+
+// ── Main refresh (incremental) ──────────────────────────────────
 export async function refreshChanges(workDir) {
-  changesBody.innerHTML = '<div class="changes-empty">Loading...</div>';
+  const gen = ++_refreshGen;
+  const scrollTop = changesBody.scrollTop;
+
+  // Preserve expanded commit state
+  const expandedHashes = new Set(
+    [...changesBody.querySelectorAll('.changes-commit.expanded')].map(el => el.dataset.hash)
+  );
+
+  // Show loading only on first render (no existing sections)
+  if (!changesBody.querySelector('[data-section]')) {
+    changesBody.innerHTML = '<div class="changes-empty">Loading...</div>';
+  }
+
   const [status, commits, stashes] = await Promise.all([
     window.gitDiff.status(workDir),
     window.gitDiff.log(workDir, 20),
     window.gitDiff.stashList(workDir),
   ]);
+
+  // Bail if a newer refresh started while we were waiting
+  if (gen !== _refreshGen) return;
 
   if (!status.isGit) {
     changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
@@ -100,282 +214,35 @@ export async function refreshChanges(workDir) {
     return;
   }
 
-  // Update commit button state
+  // Update toolbar state
   changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
   changesGenerateBtn.disabled = status.staged.length === 0;
   document.getElementById('changes-amend-btn').disabled = commits.length === 0;
 
-  let html = '';
+  // Build section descriptors (only include non-empty sections)
+  const sections = [];
+  if (status.staged.length) sections.push({ key: 'staged', items: status.staged });
+  if (status.unstaged.length) sections.push({ key: 'unstaged', items: status.unstaged });
+  if (status.untracked.length) sections.push({ key: 'untracked', items: status.untracked });
+  if (stashes.length) sections.push({ key: 'stashes', items: stashes });
+  if (commits.length) sections.push({ key: 'commits', items: commits });
+  if (!sections.length) sections.push({ key: 'empty', items: [] });
 
-  const unstageBtn = '<button class="changes-file-action changes-unstage" title="Unstage">&minus;</button>';
-  const stageBtn = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
-  const discardBtn = '<button class="changes-file-action changes-discard" title="Discard changes">↺</button>';
+  // Reconcile sections
+  reconcileChildren(changesBody, sections, 'section',
+    sec => sec.key,
+    sec => createSectionEl(sec),
+    (el, sec) => updateSectionEl(el, sec),
+  );
 
-  if (status.staged.length > 0) {
-    html += `<div class="changes-section-header">Staged`
-      + `<span class="changes-section-count">${status.staged.length}</span>`
-      + `<button class="changes-section-action review-staged" title="Review staged changes">Review</button>`
-      + `<button class="changes-section-action unstage-all" title="Unstage all">&minus; All</button>`
-      + `</div>`;
-    for (const f of status.staged)
-      html += changeEntry(f.file, 'A', 'changes-badge-a', `data-file="${escHtml(f.file)}" data-staged="true"`, statSpan(f.added, f.deleted), unstageBtn);
+  // Restore expanded commits
+  for (const hash of expandedHashes) {
+    const commitEl = changesBody.querySelector(`.changes-commit[data-hash="${hash}"]`);
+    if (commitEl) commitEl.classList.add('expanded');
   }
 
-  if (status.unstaged.length > 0) {
-    html += `<div class="changes-section-header">Changes`
-      + `<span class="changes-section-count">${status.unstaged.length}</span>`
-      + `<button class="changes-section-action stage-all-unstaged" title="Stage all changes">+ All</button>`
-      + `<button class="changes-section-action discard-all-unstaged" title="Discard all changes">↺ All</button>`
-      + `</div>`;
-    for (const f of status.unstaged)
-      html += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-staged="false"`, statSpan(f.added, f.deleted), stageBtn, discardBtn);
-  }
-
-  if (status.untracked.length > 0) {
-    html += `<div class="changes-section-header">Untracked`
-      + `<span class="changes-section-count">${status.untracked.length}</span>`
-      + `<button class="changes-section-action stage-all-untracked" title="Stage all untracked">+ All</button>`
-      + `</div>`;
-    for (const f of status.untracked)
-      html += changeEntry(f, 'U', 'changes-badge-u', `data-file="${escHtml(f)}" data-untracked="true"`, '<span class="changes-added">new</span>', stageBtn);
-  }
-
-  if (stashes.length > 0) {
-    html += `<div class="changes-section-header">Stashes`
-      + `<span class="changes-section-count">${stashes.length}</span>`
-      + `</div>`;
-    for (let i = 0; i < stashes.length; i++) {
-      const s = stashes[i];
-      html += `<div class="changes-stash-entry">
-        <span class="changes-stash-msg">${escHtml(s.message)}</span>
-        <span class="changes-stash-date">${escHtml(s.date)}</span>
-        <button class="changes-stash-btn pop" data-index="${i}" title="Pop stash">Pop</button>
-        <button class="changes-stash-btn drop" data-index="${i}" title="Drop stash">Drop</button>
-      </div>`;
-    }
-  }
-
-  if (commits.length > 0) {
-    html += '<div class="changes-section-header">Recent Commits</div>';
-    for (const c of commits) {
-      html += `<div class="changes-commit" data-hash="${c.hash}">
-        <div class="changes-commit-header">
-          <span class="changes-commit-hash">${c.hash.slice(0, 7)}</span>
-          <span class="changes-commit-msg">${escHtml(c.message)}</span>
-          <button class="changes-commit-revert" data-revert-hash="${escHtml(c.hash)}" title="Revert this commit (creates a new undo commit)">Revert</button>
-        </div>
-        <div class="changes-commit-meta">${escHtml(c.author)} &middot; ${escHtml(c.date)}</div>
-        <div class="changes-commit-files"></div>
-      </div>`;
-    }
-  }
-
-  if (!html) html = '<div class="changes-empty">No changes</div>';
-  changesBody.innerHTML = html;
-}
-
-// ── changesBody click delegation ────────────────────────────────
-function _initChangesBodyDelegation() {
-  changesBody.addEventListener('click', async (e) => {
-    const activeWorkDir = tabState.activeWorkDir;
-
-    // Stage button
-    const stageBtnEl = e.target.closest('.changes-stage');
-    if (stageBtnEl) {
-      e.stopPropagation();
-      const fileEl = stageBtnEl.closest('.changes-file');
-      const file = fileEl.dataset.file;
-      if (file && activeWorkDir) {
-        const result = await window.gitOps.stage(activeWorkDir, [file]);
-        if (result.ok) { showChangesStatus('Staged', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else showChangesStatus('Stage failed', 'error');
-      }
-      return;
-    }
-
-    // Unstage button
-    const unstageBtnEl = e.target.closest('.changes-unstage');
-    if (unstageBtnEl) {
-      e.stopPropagation();
-      const fileEl = unstageBtnEl.closest('.changes-file');
-      const file = fileEl.dataset.file;
-      if (file && activeWorkDir) {
-        const result = await window.gitOps.unstage(activeWorkDir, [file]);
-        if (result.ok) { showChangesStatus('Unstaged', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else showChangesStatus('Unstage failed', 'error');
-      }
-      return;
-    }
-
-    // Stash pop
-    const stashPopBtn = e.target.closest('.changes-stash-btn.pop');
-    if (stashPopBtn) {
-      const idx = parseInt(stashPopBtn.dataset.index);
-      if (activeWorkDir) {
-        const result = await window.gitOps.stashPop(activeWorkDir, idx);
-        if (result.ok) { showChangesStatus('Stash popped', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else {
-          if (result.hasConflicts) { refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          showChangesStatus(result.hasConflicts ? 'Conflicts on stash pop — resolve manually' : (result.error || '').split('\n')[0], 'error');
-        }
-      }
-      return;
-    }
-
-    // Stash drop
-    const stashDropBtn = e.target.closest('.changes-stash-btn.drop');
-    if (stashDropBtn) {
-      const idx = parseInt(stashDropBtn.dataset.index);
-      if (activeWorkDir) {
-        const result = await window.gitOps.stashDrop(activeWorkDir, idx);
-        if (result.ok) { showChangesStatus('Stash dropped', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else showChangesStatus((result.error || '').split('\n')[0], 'error');
-      }
-      return;
-    }
-
-    // Review staged files
-    if (e.target.closest('.review-staged')) {
-      if (activeWorkDir) {
-        _startTask('code-reviewer', activeWorkDir, {
-          initialPrompt: 'Review the currently staged changes (git diff --cached). Provide feedback on code quality, potential bugs, and suggestions for improvement.'
-        });
-      } else {
-        showChangesStatus('No active directory', 'error');
-      }
-      return;
-    }
-
-    // Unstage all
-    if (e.target.closest('.unstage-all')) {
-      if (activeWorkDir) {
-        const files = [...changesBody.querySelectorAll('[data-staged="true"]')].map(el => el.dataset.file);
-        if (files.length) {
-          const result = await window.gitOps.unstage(activeWorkDir, files);
-          if (result.ok) { showChangesStatus('Unstaged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          else showChangesStatus('Unstage failed', 'error');
-        }
-      }
-      return;
-    }
-
-    // Discard single file
-    const discardBtnEl = e.target.closest('.changes-discard');
-    if (discardBtnEl) {
-      e.stopPropagation();
-      const fileEl = discardBtnEl.closest('.changes-file');
-      const file = fileEl?.dataset.file;
-      if (file && activeWorkDir && confirm(`Discard changes to ${file}? This cannot be undone.`)) {
-        const result = await window.gitOps.discard(activeWorkDir, [file]);
-        if (result.ok) { showChangesStatus('Changes discarded', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else showChangesStatus('Discard failed: ' + (result.error || '').split('\n')[0], 'error');
-      }
-      return;
-    }
-
-    // Discard all unstaged changes
-    if (e.target.closest('.discard-all-unstaged')) {
-      e.stopPropagation();
-      if (activeWorkDir) {
-        const files = [...changesBody.querySelectorAll('[data-staged="false"]')].map(el => el.dataset.file);
-        if (files.length && confirm(`Discard all ${files.length} changes? This cannot be undone.`)) {
-          const result = await window.gitOps.discard(activeWorkDir, files);
-          if (result.ok) { showChangesStatus('All changes discarded', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          else showChangesStatus('Discard failed: ' + (result.error || '').split('\n')[0], 'error');
-        }
-      }
-      return;
-    }
-
-    // Revert commit
-    const revertBtn = e.target.closest('.changes-commit-revert');
-    if (revertBtn) {
-      e.stopPropagation();
-      const hash = revertBtn.dataset.revertHash;
-      if (hash && activeWorkDir && confirm(`Revert commit ${hash.slice(0, 7)}? This will create a new commit that undoes those changes.`)) {
-        revertBtn.textContent = 'Reverting…';
-        revertBtn.disabled = true;
-        const result = await window.gitOps.revertCommit(activeWorkDir, hash);
-        if (result.ok) {
-          showChangesStatus('Commit reverted', 'success');
-          refreshChanges(activeWorkDir);
-          refreshWorktreeMetrics();
-        } else {
-          if (result.hasConflicts) {
-            revertBtn.textContent = 'Revert';
-            revertBtn.disabled = false;
-            refreshChanges(activeWorkDir);
-            refreshWorktreeMetrics();
-            showChangesStatus('Revert conflicts — resolve manually then commit', 'error');
-          } else {
-            revertBtn.textContent = 'Revert';
-            revertBtn.disabled = false;
-            showChangesStatus('Revert failed: ' + (result.error || '').split('\n')[0], 'error');
-          }
-        }
-      }
-      return;
-    }
-
-    // Stage all unstaged changes
-    if (e.target.closest('.stage-all-unstaged')) {
-      if (activeWorkDir) {
-        const files = [...changesBody.querySelectorAll('[data-staged="false"]')].map(el => el.dataset.file);
-        if (files.length) {
-          const result = await window.gitOps.stage(activeWorkDir, files);
-          if (result.ok) { showChangesStatus('Staged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          else showChangesStatus('Stage failed', 'error');
-        }
-      }
-      return;
-    }
-
-    // Stage all untracked
-    if (e.target.closest('.stage-all-untracked')) {
-      if (activeWorkDir) {
-        const files = [...changesBody.querySelectorAll('[data-untracked="true"]')].map(el => el.dataset.file);
-        if (files.length) {
-          const result = await window.gitOps.stage(activeWorkDir, files);
-          if (result.ok) { showChangesStatus('Staged all', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-          else showChangesStatus('Stage failed', 'error');
-        }
-      }
-      return;
-    }
-
-    // File click — open diff or editor
-    const fileEl = e.target.closest('.changes-file');
-    if (fileEl) {
-      const file = fileEl.dataset.file;
-      const commitHash = fileEl.dataset.commit;
-      const untracked = fileEl.dataset.untracked === 'true';
-      const staged = fileEl.dataset.staged === 'true';
-      if (untracked) {
-        const { openFileEditor } = await import('./terminals.js');
-        openFileEditor(file, file.split('/').pop());
-      } else if (commitHash) {
-        openDiffTab(activeWorkDir, file, false, commitHash);
-      } else {
-        openDiffTab(activeWorkDir, file, staged, null);
-      }
-      return;
-    }
-
-    // Commit expand — toggle file list
-    const commitEl = e.target.closest('.changes-commit');
-    if (commitEl) {
-      const hash = commitEl.dataset.hash;
-      const filesEl = commitEl.querySelector('.changes-commit-files');
-      const isExpanded = commitEl.classList.toggle('expanded');
-      if (isExpanded && filesEl.children.length === 0) {
-        const files = await window.gitDiff.commitFiles(activeWorkDir, hash);
-        let fhtml = '';
-        for (const f of files)
-          fhtml += changeEntry(f.file, 'M', 'changes-badge-m', `data-file="${escHtml(f.file)}" data-commit="${hash}"`, statSpan(f.added, f.deleted));
-        filesEl.innerHTML = fhtml || '<div class="changes-empty">No files</div>';
-      }
-    }
-  });
+  // Restore scroll position
+  changesBody.scrollTop = scrollTop;
 }
 
 // ── Commit message input ────────────────────────────────────────
@@ -521,143 +388,6 @@ function _initPushListener() {
   });
 }
 
-// ── Pull Latest Main — modals & flow ────────────────────────────
-
-function showPullMainDirtyModal(workDir, dirtyCount) {
-  gitState.currentPullMainWorkDir = workDir;
-  document.getElementById('pull-main-dirty-msg').textContent =
-    `You have ${dirtyCount} uncommitted change${dirtyCount !== 1 ? 's' : ''}. Stash them automatically before merging, or commit them first.`;
-  document.getElementById('pull-main-dirty-modal').classList.add('active');
-  return new Promise(resolve => { gitState._pullMainDirtyResolve = resolve; });
-}
-
-function closePullMainDirtyModal() {
-  document.getElementById('pull-main-dirty-modal').classList.remove('active');
-  gitState._pullMainDirtyResolve = null;
-}
-
-function showPullMainConflictsModal(workDir, conflictedFiles, isStashConflict) {
-  gitState.currentPullMainWorkDir = workDir;
-  gitState._pullMainIsStashConflict = isStashConflict;
-  const title = document.getElementById('pull-main-conflicts-title');
-  const msg = document.getElementById('pull-main-conflicts-msg');
-  const abortBtn = document.getElementById('pull-main-abort-btn');
-  if (isStashConflict) {
-    title.textContent = 'Stash Restore Conflicts';
-    msg.textContent = `Your stash was restored after a successful merge, but caused conflicts in ${conflictedFiles.length} file(s):`;
-    abortBtn.textContent = 'Discard Stashed Changes';
-  } else {
-    title.textContent = 'Merge Conflicts';
-    msg.innerHTML = `Merging <code>origin/main</code> caused conflicts in ${conflictedFiles.length} file(s):`;
-    abortBtn.textContent = 'Abort Merge';
-  }
-  const ul = document.getElementById('pull-main-conflict-files');
-  ul.innerHTML = conflictedFiles.map(f => `<li>${escHtml(f)}</li>`).join('');
-  document.getElementById('pull-main-stash-note').style.display = 'none';
-  document.getElementById('pull-main-conflicts-modal').classList.add('active');
-}
-
-function closePullMainConflictsModal() {
-  document.getElementById('pull-main-conflicts-modal').classList.remove('active');
-}
-
-export async function doPullLatestMain(workDir) {
-  let result = await window.gitOps.pullLatestMain(workDir, { autoStash: false });
-
-  if (result.isDirty) {
-    const choice = await showPullMainDirtyModal(workDir, result.dirtyCount);
-    closePullMainDirtyModal();
-    if (choice === 'cancel') return;
-    if (choice === 'commit') {
-      const stageOutcome = await stageAndPromptCommit(workDir, result.dirtyCount);
-      if (stageOutcome === 'ok') showChangesStatus('Staged — commit and pull again', 'info');
-      else if (stageOutcome === 'cancelled') showChangesStatus('Cancelled', 'info');
-      else if (stageOutcome === 'error') showChangesStatus('Stage failed', 'error');
-      return;
-    }
-    // choice === 'stash'
-    showChangesStatus('Stashing & merging...', 'info');
-    result = await window.gitOps.pullLatestMain(workDir, { autoStash: true });
-  }
-
-  if (result.hasConflicts) {
-    showPullMainConflictsModal(workDir, result.conflictedFiles || [], false);
-    refreshChanges(workDir);
-    refreshWorktreeMetrics();
-    return;
-  }
-
-  if (result.stashPopConflicts) {
-    showPullMainConflictsModal(workDir, result.conflictedFiles || [], true);
-    refreshChanges(workDir);
-    refreshWorktreeMetrics();
-    return;
-  }
-
-  if (!result.ok) {
-    showChangesStatus((result.error || 'Pull main failed').split('\n')[0], 'error');
-    return;
-  }
-
-  if (result.alreadyUpToDate) {
-    showChangesStatus('Already up to date with main', 'success');
-  } else if (result.stashPopped) {
-    showChangesStatus('Merged & restored your changes', 'success');
-  } else {
-    showChangesStatus('Merged latest main', 'success');
-  }
-  refreshChanges(workDir);
-  refreshWorktreeMetrics();
-}
-
-function _initPullMainListeners() {
-  document.getElementById('pull-main-stash-btn').addEventListener('click', () => {
-    if (gitState._pullMainDirtyResolve) gitState._pullMainDirtyResolve('stash');
-  });
-  document.getElementById('pull-main-commit-btn').addEventListener('click', () => {
-    if (gitState._pullMainDirtyResolve) gitState._pullMainDirtyResolve('commit');
-  });
-  document.getElementById('pull-main-dirty-cancel').addEventListener('click', () => {
-    if (gitState._pullMainDirtyResolve) gitState._pullMainDirtyResolve('cancel');
-  });
-
-  document.getElementById('pull-main-open-merger-btn').addEventListener('click', () => {
-    const workDir = gitState.currentPullMainWorkDir;
-    const isStash = gitState._pullMainIsStashConflict;
-    const initialPrompt = isStash
-      ? `Your stashed changes (WIP: before pulling main) were being restored after a successful merge of \`origin/main\`, but caused conflicts.\n\nWorking directory: ${workDir}\n\nThe stash restore is already in progress. Resolve each conflicted file by opening it, fixing the conflict markers, then staging it:\n  git -C '${workDir}' add <file>\n\nOnce all conflicts are resolved, drop the stash:\n  git -C '${workDir}' stash drop stash@{0}\n\nUse AskUserQuestion whenever you are unsure which side to keep.`
-      : `The merge of \`origin/main\` into your branch is in progress and has conflicts.\n\nWorking directory: ${workDir}\n\nThe merge is already started — do NOT run git merge again. Resolve each conflicted file by opening it, fixing the conflict markers, then staging it:\n  git -C '${workDir}' add <file>\n\nOnce all conflicts are resolved, commit the merge:\n  git -C '${workDir}' commit\n\nUse AskUserQuestion whenever you are unsure which side to keep.`;
-    closePullMainConflictsModal();
-    _startTask('merger', workDir, { initialPrompt });
-  });
-
-  document.getElementById('pull-main-abort-btn').addEventListener('click', async () => {
-    const workDir = gitState.currentPullMainWorkDir;
-    const isStash = gitState._pullMainIsStashConflict;
-    closePullMainConflictsModal();
-    if (isStash) {
-      await window.gitOps.restoreWorkingTree(workDir);
-      await window.gitOps.stashDrop(workDir, 0);
-      showChangesStatus('Stash discarded', 'info');
-    } else {
-      await window.gitOps.abortMerge(workDir);
-      showChangesStatus('Merge aborted', 'info');
-    }
-    refreshChanges(workDir);
-    refreshWorktreeMetrics();
-  });
-
-  // Pull Latest Main toolbar button
-  document.getElementById('changes-pull-main-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const btn = document.getElementById('changes-pull-main-btn');
-    btn.disabled = true;
-    await doPullLatestMain(activeWorkDir);
-    btn.disabled = false;
-  });
-}
-
 // ── Stash toolbar button ────────────────────────────────────────
 function _initStashToolbarListener() {
   document.getElementById('changes-stash-btn').addEventListener('click', async () => {
@@ -667,195 +397,4 @@ function _initStashToolbarListener() {
     if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
     else showChangesStatus((result.error || 'Stash failed').split('\n')[0], 'error');
   });
-}
-
-// ── Branch modal ────────────────────────────────────────────────
-const branchModal = document.getElementById('branch-modal');
-const branchList = document.getElementById('branch-list');
-const branchError = document.getElementById('branch-error');
-const branchCreateInput = document.getElementById('branch-create-input');
-
-export async function openBranchModal() {
-  branchError.classList.remove('visible');
-  branchCreateInput.value = '';
-  branchList.innerHTML = '<div class="changes-empty">Loading...</div>';
-  branchModal.classList.add('active');
-  await refreshBranchList();
-}
-
-async function refreshBranchList() {
-  const activeWorkDir = tabState.activeWorkDir;
-  const branches = await window.gitDiff.branchList(activeWorkDir);
-  let html = '';
-  for (const b of branches) {
-    const currentCls = b.isCurrent ? ' current' : '';
-    const wtCls = b.inWorktree ? ' in-worktree' : '';
-    const badges = [];
-    if (b.isCurrent) badges.push('<span class="branch-badge">current</span>');
-    if (b.inWorktree) badges.push('<span class="branch-badge wt">worktree</span>');
-    if (b.tracking) badges.push(`<span class="branch-badge">${escHtml(b.tracking)}</span>`);
-    let syncHtml = '';
-    if (b.ahead || b.behind) {
-      const parts = [];
-      if (b.ahead) parts.push('+' + b.ahead);
-      if (b.behind) parts.push('-' + b.behind);
-      syncHtml = `<span class="branch-sync">${parts.join(' ')}</span>`;
-    }
-    const actions = [];
-    if (!b.isCurrent && !b.inWorktree) {
-      actions.push(`<button class="branch-action-btn switch" data-branch="${escHtml(b.name)}">Switch</button>`);
-      actions.push(`<button class="branch-action-btn delete" data-branch="${escHtml(b.name)}">Delete</button>`);
-    }
-    html += `<div class="branch-item${currentCls}${wtCls}">
-      <span class="branch-name">${escHtml(b.name)}</span>
-      ${badges.join('')}${syncHtml}
-      <div class="branch-actions">${actions.join('')}</div>
-    </div>`;
-  }
-  branchList.innerHTML = html || '<div class="changes-empty">No branches</div>';
-}
-
-function _initBranchModalListeners() {
-  document.getElementById('changes-branch-btn').addEventListener('click', () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    openBranchModal();
-  });
-
-  document.getElementById('branch-close-btn').addEventListener('click', () => {
-    branchModal.classList.remove('active');
-  });
-
-  branchModal.addEventListener('click', (e) => {
-    if (e.target === branchModal) branchModal.classList.remove('active');
-  });
-
-  // Branch create
-  document.getElementById('branch-create-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    const name = branchCreateInput.value.trim();
-    if (!name || !activeWorkDir) return;
-    branchError.classList.remove('visible');
-    const result = await window.gitOps.branchCreate(activeWorkDir, name);
-    if (result.ok) {
-      branchCreateInput.value = '';
-      await refreshBranchList();
-      refreshChanges(activeWorkDir);
-      refreshWorktreeMetrics();
-      showChangesStatus(`Created branch ${name}`, 'success');
-    } else {
-      branchError.textContent = (result.error || '').split('\n')[0];
-      branchError.classList.add('visible');
-    }
-  });
-
-  // Branch switch / delete (delegated)
-  branchList.addEventListener('click', async (e) => {
-    const activeWorkDir = tabState.activeWorkDir;
-
-    const switchBtn = e.target.closest('.branch-action-btn.switch');
-    if (switchBtn) {
-      const name = switchBtn.dataset.branch;
-      branchError.classList.remove('visible');
-      const result = await window.gitOps.branchSwitch(activeWorkDir, name);
-      if (result.ok) {
-        await refreshBranchList();
-        refreshChanges(activeWorkDir);
-        refreshWorktreeMetrics();
-        _loadProjects();
-        showChangesStatus(`Switched to ${name}`, 'success');
-      } else {
-        branchError.textContent = (result.error || '').split('\n')[0];
-        branchError.classList.add('visible');
-      }
-      return;
-    }
-
-    const deleteBtn = e.target.closest('.branch-action-btn.delete');
-    if (deleteBtn) {
-      const name = deleteBtn.dataset.branch;
-      branchError.classList.remove('visible');
-      const result = await window.gitOps.branchDelete(activeWorkDir, name, false);
-      if (result.ok) {
-        await refreshBranchList();
-        refreshWorktreeMetrics();
-        showChangesStatus(`Deleted branch ${name}`, 'success');
-      } else if (result.notMerged) {
-        if (confirm(`Branch '${name}' is not fully merged. Force delete?`)) {
-          const forceResult = await window.gitOps.branchDelete(activeWorkDir, name, true);
-          if (forceResult.ok) {
-            await refreshBranchList();
-            refreshWorktreeMetrics();
-            showChangesStatus(`Deleted branch ${name}`, 'success');
-          } else {
-            branchError.textContent = (forceResult.error || '').split('\n')[0];
-            branchError.classList.add('visible');
-          }
-        }
-      } else {
-        branchError.textContent = (result.error || '').split('\n')[0];
-        branchError.classList.add('visible');
-      }
-      return;
-    }
-  });
-}
-
-// ── Diff viewer tab ─────────────────────────────────────────────
-export async function openDiffTab(workDir, filePath, staged, commitHash) {
-  const diffKey = commitHash ? `${commitHash}:${filePath}` : `${staged ? 'staged' : 'unstaged'}:${filePath}`;
-  for (const [id, tab] of tabState.tabs) {
-    if (tab.type === 'diff' && tab.diffKey === diffKey && tab.workDir === workDir) {
-      _switchTab(id);
-      return;
-    }
-  }
-
-  const mainIntro = document.getElementById('main');
-  const settingsPanel = document.getElementById('settings-panel');
-  const launchpad = document.getElementById('launchpad');
-  const terminalView = document.getElementById('terminal-view');
-  const terminalContainers = document.getElementById('terminal-containers');
-
-  mainIntro.style.display = 'none';
-  settingsPanel.classList.remove('active');
-  launchpad.classList.remove('active');
-  terminalView.classList.add('active');
-
-  const diffText = commitHash
-    ? await window.gitDiff.diffCommit(workDir, commitHash, filePath)
-    : await window.gitDiff.diff(workDir, filePath, staged);
-
-  const parsed = parseDiffOutput(diffText);
-  const id = tabState.nextBrowserTabId--;
-
-  const pane = document.createElement('div');
-  pane.className = 'terminal-pane diff-pane';
-  terminalContainers.appendChild(pane);
-
-  const suffix = commitHash ? commitHash.slice(0, 7) : (staged ? 'staged' : 'working');
-  const toolbar = document.createElement('div');
-  toolbar.className = 'diff-toolbar';
-  toolbar.innerHTML = `
-    <span class="diff-filepath">${escHtml(filePath)} <span style="color:#555">(${suffix})</span></span>
-    <div class="toolbar-spacer"></div>
-    <span class="diff-stats"><span class="changes-added">+${parsed.totalAdded}</span>&ensp;<span class="changes-deleted">&minus;${parsed.totalDeleted}</span></span>
-  `;
-  pane.appendChild(toolbar);
-
-  const content = document.createElement('div');
-  content.className = 'diff-content';
-  if (parsed.hunks.length > 0) {
-    content.innerHTML = renderDiffContent(parsed);
-  } else {
-    content.innerHTML = '<div class="changes-empty" style="padding:20px">No diff available</div>';
-  }
-  pane.appendChild(content);
-
-  const tabLabel = filePath.split('/').pop();
-  tabState.tabs.set(id, { type: 'diff', pane, tabEl: null, label: tabLabel, workDir, filePath, diffKey });
-  _addTabToOrder(id, workDir);
-  tabState.activeTabId = id;
-  _renderTabBar();
-  _switchTab(id);
 }

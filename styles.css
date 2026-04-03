@@ -1034,6 +1034,17 @@
       border-radius: 6px;
       font-size: 0.9rem;
       color: #ccc;
+      display: flex;
+      align-items: center;
+    }
+    .specialist-picker-hint {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: #666;
+      background: #1e1e1e;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: -apple-system, system-ui, monospace;
     }
     .specialist-picker-item:hover {
       background: #333;
@@ -1509,7 +1520,6 @@
       user-select: none;
     }
     .changes-section-action {
-      margin-left: auto;
       border: none;
       background: none;
       color: #666;
@@ -1520,8 +1530,43 @@
       padding: 0 2px;
     }
     .changes-section-action:hover { color: #ccc; }
-    .review-staged { color: #5b8fbf; margin-right: 6px; }
+    .review-staged { color: #5b8fbf; margin-left: auto; margin-right: 6px; }
     .review-staged:hover { color: #7db3e0; }
+    .changes-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: auto;
+      width: 38px;
+      flex-shrink: 0;
+    }
+    .changes-section-action-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 3px;
+      background: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      line-height: 1;
+      color: #666;
+    }
+    .changes-section-action-icon:hover { color: #ccc; background: #333; }
+    .changes-section-action-icon.stage-all-unstaged,
+    .changes-section-action-icon.stage-all-untracked { color: #3fb950; }
+    .changes-section-action-icon.stage-all-unstaged:hover,
+    .changes-section-action-icon.stage-all-untracked:hover { color: #56d364; }
+    .changes-section-action-icon.unstage-all { color: #f85149; }
+    .changes-section-action-icon.unstage-all:hover { color: #ff6e67; }
+    .changes-section-action-icon.discard-all-unstaged { color: #888; }
+    .changes-section-action-icon.discard-all-unstaged:hover { color: #f85149; }
+    .changes-action-placeholder { width: 18px; flex-shrink: 0; }
     .changes-file {
       display: flex;
       align-items: center;
@@ -1557,9 +1602,12 @@
       font-weight: 700;
     }
     .changes-badge-m { color: #d29922; }
-    .changes-badge-u { color: #3fb950; }
     .changes-badge-a { color: #3fb950; }
     .changes-badge-d { color: #f85149; }
+    .changes-badge-r { color: #d2a8ff; }
+    .changes-badge-c { color: #d2a8ff; }
+    .changes-badge-u { color: #f85149; }
+    .changes-badge-q { color: #8b949e; }
     .changes-section-count {
       font-size: 0.62rem;
       background: #333;
@@ -1731,7 +1779,15 @@
     }
     .changes-generate-btn.generating svg { animation: pyrefly-pulse 1.5s ease-in-out infinite; }
 
-    /* Stage/unstage action buttons on file entries */
+    /* Action buttons container — right-aligned, fixed width for column alignment */
+    .changes-file-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: auto;
+      width: 38px;
+      flex-shrink: 0;
+    }
     .changes-file-action {
       display: inline-flex;
       align-items: center;
@@ -1754,7 +1810,7 @@
     .changes-file-action:hover { opacity: 1 !important; background: #333; }
     .changes-file-action.changes-stage { color: #3fb950; }
     .changes-file-action.changes-unstage { color: #f85149; }
-    .changes-file-action.changes-discard { color: #888; font-size: 13px; margin-left: auto; }
+    .changes-file-action.changes-discard { color: #888; font-size: 13px; }
     .changes-file-action.changes-discard:hover { color: #f85149; }
     .changes-commit-revert {
       margin-left: auto;

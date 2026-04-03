@@ -51,7 +51,8 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
     const doneBtn = e.target.closest('.todo-done-btn');
     if (doneBtn) {
       const todoPath = doneBtn.dataset.todoPath;
-      await window.todos.close(tabState.activeWorkDir, todoPath, 'done');
+      const doneResult = await window.todos.close(tabState.activeWorkDir, todoPath, 'done');
+      if (!doneResult?.ok) console.error('[Braska] Failed to close todo:', doneResult?.error);
       refreshTodos(tabState.activeWorkDir);
       return;
     }
@@ -59,7 +60,8 @@ export function initTodosPanel({ loadProjects, openWorkDir, startTask, showSpeci
     const cancelBtn = e.target.closest('.todo-cancel-btn');
     if (cancelBtn) {
       const todoPath = cancelBtn.dataset.todoPath;
-      await window.todos.close(tabState.activeWorkDir, todoPath, 'cancelled');
+      const cancelResult = await window.todos.close(tabState.activeWorkDir, todoPath, 'cancelled');
+      if (!cancelResult?.ok) console.error('[Braska] Failed to cancel todo:', cancelResult?.error);
       refreshTodos(tabState.activeWorkDir);
       return;
     }

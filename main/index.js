@@ -4,6 +4,13 @@ const { ptyProcesses } = require('./state');
 const { migrateData } = require('./migration');
 const { ensureBuiltinSpecialists } = require('./specialists-setup');
 
+process.on('uncaughtException', (err) => {
+  console.error('[Braska] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Braska] Unhandled rejection:', reason);
+});
+
 if (process.platform === 'darwin') {
   app.setName('Braska');
 }
@@ -30,6 +37,9 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
       webviewTag: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 

@@ -231,7 +231,7 @@ function onSettingsPanelBodyClick(e) {
   if (skillRemoveBtn) {
     window.skills.remove(skillRemoveBtn.dataset.remove).then(skills => {
       renderSkillsList(skills);
-    });
+    }).catch(err => console.error('[Braska]', err));
     return;
   }
   const skillItem = e.target.closest('.skill-item');
@@ -239,7 +239,7 @@ function onSettingsPanelBodyClick(e) {
     window.skills.list().then(all => {
       const skill = all.find(s => s.name === skillItem.dataset.name);
       if (skill) showSkillForm(skill.name, skill.content);
-    });
+    }).catch(err => console.error('[Braska]', err));
     return;
   }
   // Specialists
@@ -247,7 +247,7 @@ function onSettingsPanelBodyClick(e) {
   if (specialistRemoveBtn) {
     window.specialists.remove(specialistRemoveBtn.dataset.remove).then(specialists => {
       renderSpecialistsList(specialists);
-    });
+    }).catch(err => console.error('[Braska]', err));
     return;
   }
   const specialistItem = e.target.closest('.specialist-item');
@@ -255,7 +255,7 @@ function onSettingsPanelBodyClick(e) {
     window.specialists.list().then(all => {
       const specialist = all.find(ex => ex.name === specialistItem.dataset.name);
       if (specialist) showSpecialistForm(specialist.name, specialist.instructions, specialist.skills);
-    });
+    }).catch(err => console.error('[Braska]', err));
   }
 }
 

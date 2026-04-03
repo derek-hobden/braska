@@ -118,14 +118,16 @@ function showTabTypePicker(workDir) {
 function renderSpecialistPickerItems(specialists) {
   const builtinSpecialists = specialists.filter(ex => ex.builtin);
   const customSpecialists = specialists.filter(ex => !ex.builtin);
-  const claudeItem = `<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${specialistDisplayName('__CLAUDE__')}</div>`;
+  let n = 1;
+  const hint = () => n <= 9 ? `<span class="specialist-picker-hint">⌘${n++}</span>` : (n++, '');
+  const claudeItem = `<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${specialistDisplayName('__CLAUDE__')}${hint()}</div>`;
   const builtinItems = builtinSpecialists.map(ex => {
     const esc = ex.name.replace(/"/g, '&quot;');
-    return `<div class="specialist-picker-item builtin" data-name="${esc}">${specialistDisplayName(ex.name)}</div>`;
+    return `<div class="specialist-picker-item builtin" data-name="${esc}">${specialistDisplayName(ex.name)}${hint()}</div>`;
   }).join('');
   const customItems = customSpecialists.map(ex => {
     const esc = ex.name.replace(/"/g, '&quot;');
-    return `<div class="specialist-picker-item" data-name="${esc}">${specialistDisplayName(ex.name)}</div>`;
+    return `<div class="specialist-picker-item" data-name="${esc}">${specialistDisplayName(ex.name)}${hint()}</div>`;
   }).join('');
   let html = '<div class="specialist-picker-label">System</div>' + claudeItem + builtinItems;
   if (customItems) {
@@ -256,7 +258,48 @@ document.getElementById('launchpad-browser').addEventListener('click', () => {
 // ── Keyboard shortcuts ──
 
 document.addEventListener('keydown', (e) => {
-  // Cmd+1-9 to switch tabs
+  const tabTypePicker = document.getElementById('tab-type-picker');
+  const specialistPicker = document.getElementById('specialist-picker');
+  const tabTypeActive = tabTypePicker.classList.contains('active');
+  const specialistActive = specialistPicker.classList.contains('active');
+
+  // Cmd+T to open tab-type picker
+  if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+    e.preventDefault();
+    if (tabState.activeWorkDir) showTabTypePicker(tabState.activeWorkDir);
+    return;
+  }
+
+  // Escape closes any open picker
+  if (e.key === 'Escape') {
+    if (specialistActive) {
+      e.preventDefault();
+      document.getElementById('specialist-picker-cancel').click();
+      return;
+    }
+    if (tabTypeActive) {
+      e.preventDefault();
+      document.getElementById('tab-type-picker-cancel').click();
+      return;
+    }
+  }
+
+  // Number keys (bare or Cmd+) select items in open pickers
+  if (tabTypeActive && e.key >= '1' && e.key <= '9') {
+    e.preventDefault();
+    const item = tabTypePicker.querySelector(`.tab-type-picker-item[data-hotkey="${e.key}"]`);
+    if (item) item.click();
+    return;
+  }
+  if (specialistActive && e.key >= '1' && e.key <= '9') {
+    e.preventDefault();
+    const items = specialistPicker.querySelectorAll('.specialist-picker-item');
+    const idx = parseInt(e.key) - 1;
+    if (idx < items.length) items[idx].click();
+    return;
+  }
+
+  // Cmd+1-9 to switch tabs (only when no picker is open)
   if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '9') {
     e.preventDefault();
     const idx = parseInt(e.key) - 1;

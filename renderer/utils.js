@@ -205,11 +205,24 @@ export function wordDiff(oldText, newText) {
 }
 
 /** Build the HTML for a single change-entry row in the changes panel. */
-export function changeEntry(file, badge, cls, attrs, stats, actionHtml, rightActionHtml) {
+export function changeEntry(file, badge, cls, attrs, stats, primaryAction, secondaryAction) {
   const idx = file.lastIndexOf('/');
   const name = idx >= 0 ? file.slice(idx + 1) : file;
   const folder = idx >= 0 ? file.slice(0, idx) : '';
-  return `<div class="changes-file" title="${escHtml(file)}" ${attrs}>${actionHtml || ''}<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span>${rightActionHtml || ''}</div>`;
+  return `<div class="changes-file" title="${escHtml(file)}" ${attrs}><span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span><span class="changes-file-actions">${primaryAction || ''}${secondaryAction || ''}</span></div>`;
+}
+
+/** Build a change-entry row as a DOM element (for incremental updates). */
+export function createChangeEntryEl(file, badge, cls, dataAttrs, stats, primaryAction, secondaryAction) {
+  const idx = file.lastIndexOf('/');
+  const name = idx >= 0 ? file.slice(idx + 1) : file;
+  const folder = idx >= 0 ? file.slice(0, idx) : '';
+  const el = document.createElement('div');
+  el.className = 'changes-file';
+  el.title = file;
+  for (const [k, v] of Object.entries(dataAttrs)) el.dataset[k] = v;
+  el.innerHTML = `<span class="changes-badge ${cls}">${badge}</span><span class="changes-file-name">${escHtml(name)}</span>${folder ? `<span class="changes-file-folder">${escHtml(folder)}</span>` : ''}<span class="changes-file-stats">${stats}</span><span class="changes-file-actions">${primaryAction || ''}${secondaryAction || ''}</span>`;
+  return el;
 }
 
 /** Get a human-readable label for a workDir from the sidebar DOM. */

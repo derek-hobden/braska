@@ -17,14 +17,37 @@ function register({ ipcMain }) {
         });
       };
 
+      const parseNameStatus = (out) => {
+        const t = out.trim();
+        if (!t) return new Map();
+        const map = new Map();
+        for (const line of t.split('\n')) {
+          const [statusCode, ...rest] = line.split('\t');
+          // R100/C100 → just 'R'/'C'; M/D/A stay as-is
+          const status = statusCode[0];
+          const file = status === 'R' || status === 'C' ? rest[1] : rest[0];
+          map.set(file, status);
+        }
+        return map;
+      };
+
+      const mergeStatus = (numstat, nameStatus) =>
+        numstat.map(f => ({ ...f, status: nameStatus.get(f.file) || 'M' }));
+
       let unstaged = [], staged = [], untracked = [];
       try {
-        const { stdout } = await execFileAsync('git', ['diff', '--no-renames', '--numstat'], opts);
-        unstaged = parseNumstat(stdout);
+        const [num, ns] = await Promise.all([
+          execFileAsync('git', ['diff', '--numstat'], opts),
+          execFileAsync('git', ['diff', '--name-status'], opts),
+        ]);
+        unstaged = mergeStatus(parseNumstat(num.stdout), parseNameStatus(ns.stdout));
       } catch {}
       try {
-        const { stdout } = await execFileAsync('git', ['diff', '--cached', '--no-renames', '--numstat'], opts);
-        staged = parseNumstat(stdout);
+        const [num, ns] = await Promise.all([
+          execFileAsync('git', ['diff', '--cached', '--numstat'], opts),
+          execFileAsync('git', ['diff', '--cached', '--name-status'], opts),
+        ]);
+        staged = mergeStatus(parseNumstat(num.stdout), parseNameStatus(ns.stdout));
       } catch {}
       try {
         const { stdout } = await execFileAsync('git', ['ls-files', '--others', '--exclude-standard'], opts);

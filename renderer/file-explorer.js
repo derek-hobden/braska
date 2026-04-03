@@ -1,7 +1,8 @@
-// File explorer — file tree panel, inline rename/create, context menu, keyboard nav
+// File explorer — file tree panel, rendering, panel switching, resize
 
 import { tabState, explorerState } from './state.js';
 import { SVG_FOLDER, SVG_FILE, fileIcon } from './utils.js';
+import { initFileExplorerOps, startInlineCreate } from './file-explorer-ops.js';
 
 // ── DOM refs (queried once at module level) ──
 const filetreePanel = document.getElementById('filetree-panel');
@@ -81,7 +82,7 @@ export function switchRightPanelTab(panel) {
   if (panel === 'changes' && activeWorkDir()) _refreshChanges?.(activeWorkDir());
   if (panel === 'explorer' && activeWorkDir()) refreshFileTree(activeWorkDir());
   if (panel === 'todos' && activeWorkDir()) {
-    window.todos.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir()));
+    window.todos.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir())).catch(err => console.error('[Braska]', err));
   }
   if (panel === 'github' && activeWorkDir()) refreshGitHub(activeWorkDir());
 }
@@ -96,16 +97,9 @@ function refreshRightPanel(workDir) {
   else refreshFileTree(workDir);
 }
 
-// Thin wrappers — these functions live in other modules but are called
-// from switchRightPanelTab / refreshRightPanel. They are resolved lazily
-// so that this module has no hard import-time dependency on todos or github.
-function refreshTodos(workDir) {
-  _refreshTodos?.(workDir);
-}
-
-function refreshGitHub(workDir) {
-  _refreshGitHub?.(workDir);
-}
+// Thin wrappers — resolved lazily so this module has no hard dependency on todos/github
+function refreshTodos(workDir) { _refreshTodos?.(workDir); }
+function refreshGitHub(workDir) { _refreshGitHub?.(workDir); }
 
 // ── File tree rendering ─────────────────────────────────────────
 
@@ -188,7 +182,14 @@ async function renderFileTreeLevel(workDir, relDir, container, depth) {
       ftFocusItem(entryEl);
       explorerState.ftCtxTarget = entryEl;
       explorerState.ftCtxIsDir = entry.isDirectory;
-      showFtContextMenu(e.clientX, e.clientY);
+      ftContextMenu.style.left = e.clientX + 'px';
+      ftContextMenu.style.top = e.clientY + 'px';
+      ftContextMenu.classList.add('active');
+      requestAnimationFrame(() => {
+        const rect = ftContextMenu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) ftContextMenu.style.left = (e.clientX - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight) ftContextMenu.style.top = (e.clientY - rect.height) + 'px';
+      });
     });
     container.appendChild(entryEl);
   }
@@ -215,13 +216,10 @@ export function updateFileTreeHighlights() {
   document.querySelectorAll('.ft-entry[data-path]').forEach(el => {
     if (openPaths.has(el.dataset.path)) {
       const isActive = el.dataset.path === activePath;
-      // Mark the file itself
       el.classList.add(isActive ? 'active-file' : 'open');
-      // Mark all parent directories
       let node = el.parentElement?.closest('.ft-entry');
       while (node) {
         if (node.classList.contains('ft-entry')) {
-          // Active wins over open
           if (isActive && !node.classList.contains('active-file')) {
             node.classList.remove('open');
             node.classList.add('active-file');
@@ -246,158 +244,7 @@ function ftFocusItem(entryEl) {
   }
 }
 
-// ── Pyrefly particle animations ─────────────────────────────────
-
-function spawnPyreflies(rect, color, direction) {
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  for (let i = 0; i < 10; i++) {
-    const el = document.createElement('div');
-    el.className = `ft-pyrefly ${direction}`;
-    const angle = (i / 10) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-    const dist = 18 + Math.random() * 38;
-    const dx = Math.cos(angle) * dist;
-    const dy = Math.sin(angle) * dist - (direction === 'out' ? 12 : 0);
-    el.style.cssText = `left:${cx}px;top:${cy}px;color:${color};--dx:${dx}px;--dy:${dy}px;`;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 650);
-  }
-}
-
-// ── Inline rename ───────────────────────────────────────────────
-
-function startInlineRename(entryEl) {
-  const itemEl = entryEl.querySelector(':scope > .ft-item');
-  const nameEl = itemEl?.querySelector('.ft-name');
-  if (!nameEl || !entryEl.dataset.path) return;
-  const originalName = nameEl.textContent;
-  const relPath = entryEl.dataset.path;
-
-  const input = document.createElement('input');
-  input.className = 'ft-rename-input';
-  input.type = 'text';
-  input.value = originalName;
-  nameEl.replaceWith(input);
-
-  // Select name without extension for files
-  const isFile = !!itemEl.classList.contains('ft-file');
-  const dotIdx = originalName.lastIndexOf('.');
-  if (isFile && dotIdx > 0) input.setSelectionRange(0, dotIdx);
-  else input.select();
-  input.focus();
-
-  let committed = false;
-  const commit = async () => {
-    if (committed) return;
-    committed = true;
-    const newName = input.value.trim();
-    if (!newName || newName === originalName) { input.replaceWith(nameEl); return; }
-    const result = await window.fileOps.rename(activeWorkDir(), relPath, newName);
-    if (!result?.ok) input.replaceWith(nameEl);
-    // On success the watcher rebuilds the tree
-  };
-  input.addEventListener('keydown', async (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); await commit(); }
-    else if (e.key === 'Escape') { committed = true; input.replaceWith(nameEl); }
-  });
-  input.addEventListener('blur', commit);
-}
-
-// ── Inline create (new file / new folder) ───────────────────────
-
-async function startInlineCreate(targetEntryEl, isDir) {
-  let dirRelPath = '';
-  let depth = 0;
-  let container;
-
-  if (targetEntryEl) {
-    // If given a file, use its parent directory entry
-    let dirEl = targetEntryEl;
-    if (!dirEl.querySelector(':scope > .ft-item.ft-dir')) {
-      dirEl = dirEl.parentElement?.closest('.ft-entry') || null;
-    }
-    if (dirEl) {
-      dirRelPath = dirEl.dataset.path || '';
-      depth = dirRelPath ? dirRelPath.split('/').length : 0;
-      container = dirEl.querySelector(':scope > .ft-children');
-      dirEl.classList.add('expanded');
-    }
-  }
-  if (!container) { container = filetreeBody; depth = 0; }
-
-  const tempEntry = document.createElement('div');
-  tempEntry.className = 'ft-entry';
-  const tempItem = document.createElement('div');
-  tempItem.className = `ft-item ${isDir ? 'ft-dir' : 'ft-file'}`;
-  tempItem.style.paddingLeft = (8 + depth * 16) + 'px';
-  tempItem.innerHTML = `<span class="ft-icon" style="color:${isDir ? '#e8c882' : '#888'}">${isDir ? SVG_FOLDER : SVG_FILE}</span>`;
-  const input = document.createElement('input');
-  input.className = 'ft-rename-input';
-  input.type = 'text';
-  input.placeholder = isDir ? 'folder-name' : 'file-name';
-  tempItem.appendChild(input);
-  tempEntry.appendChild(tempItem);
-  container.insertBefore(tempEntry, container.firstChild);
-  input.focus();
-
-  let committed = false;
-  const commit = async () => {
-    if (committed) return;
-    committed = true;
-    const name = input.value.trim();
-    tempEntry.remove();
-    if (!name || !activeWorkDir()) return;
-    const result = isDir
-      ? await window.fileOps.createDir(activeWorkDir(), dirRelPath, name)
-      : await window.fileOps.createFile(activeWorkDir(), dirRelPath, name);
-    if (result?.ok) {
-      const newRelPath = (dirRelPath ? dirRelPath + '/' : '') + name;
-      setTimeout(() => {
-        const newEl = filetreeBody.querySelector(`.ft-entry[data-path="${CSS.escape(newRelPath)}"]`);
-        if (newEl) {
-          const color = isDir ? '#e8c882' : fileIcon(name).color;
-          spawnPyreflies(newEl.querySelector('.ft-item').getBoundingClientRect(), color, 'in');
-          ftFocusItem(newEl);
-        }
-      }, 400);
-    }
-  };
-  input.addEventListener('keydown', async (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); await commit(); }
-    else if (e.key === 'Escape') { committed = true; tempEntry.remove(); }
-  });
-  input.addEventListener('blur', commit);
-}
-
-// ── Context menu ────────────────────────────────────────────────
-
-function showFtContextMenu(x, y) {
-  ftContextMenu.style.left = x + 'px';
-  ftContextMenu.style.top = y + 'px';
-  ftContextMenu.classList.add('active');
-  requestAnimationFrame(() => {
-    const rect = ftContextMenu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) ftContextMenu.style.left = (x - rect.width) + 'px';
-    if (rect.bottom > window.innerHeight) ftContextMenu.style.top = (y - rect.height) + 'px';
-  });
-}
-
-// ── Keyboard navigation helper ──────────────────────────────────
-
-function getVisibleFtEntries() {
-  return Array.from(filetreeBody.querySelectorAll('.ft-entry')).filter(el => {
-    let node = el.parentElement;
-    while (node && node !== filetreeBody) {
-      if (node.classList.contains('ft-children') && getComputedStyle(node).display === 'none') return false;
-      node = node.parentElement;
-    }
-    return true;
-  });
-}
-
-// ── Resizable panels (IIFE) ────────────────────────────────────
+// ── Resizable panels ────────────────────────────────────────────
 
 function initResizablePanels() {
   const sidebar = document.getElementById('sidebar');
@@ -406,7 +253,6 @@ function initResizablePanels() {
   const MIN_SIDEBAR = 180;
   const MIN_FILETREE = 180;
 
-  // Restore persisted widths
   const savedSidebarW = localStorage.getItem('sidebar-width');
   const savedFiletreeW = localStorage.getItem('filetree-width');
   if (savedSidebarW) { sidebar.style.width = savedSidebarW + 'px'; sidebar.style.minWidth = MIN_SIDEBAR + 'px'; }
@@ -480,212 +326,15 @@ export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, 
     startInlineCreate(explorerState.ftFocusedEl, true);
   });
 
-  // Context menu item actions
-  ftContextMenu.addEventListener('click', async (e) => {
-    const item = e.target.closest('.wt-ctx-item');
-    if (!item || item.classList.contains('disabled')) return;
-    ftContextMenu.classList.remove('active');
-    const action = item.dataset.action;
-    const relPath = explorerState.ftCtxTarget?.dataset.path || '';
-
-    if (action === 'new-file') {
-      await startInlineCreate(explorerState.ftCtxTarget, false);
-    } else if (action === 'new-folder') {
-      await startInlineCreate(explorerState.ftCtxTarget, true);
-    } else if (action === 'rename') {
-      if (explorerState.ftCtxTarget) startInlineRename(explorerState.ftCtxTarget);
-    } else if (action === 'copy-path') {
-      if (activeWorkDir()) navigator.clipboard.writeText(activeWorkDir() + '/' + relPath);
-    } else if (action === 'reveal') {
-      if (relPath && activeWorkDir()) window.fileOps.reveal(activeWorkDir(), relPath);
-    } else if (action === 'open-terminal') {
-      if (!activeWorkDir()) return;
-      let targetDir = activeWorkDir();
-      if (relPath) {
-        const abs = activeWorkDir() + '/' + relPath;
-        targetDir = explorerState.ftCtxIsDir ? abs : abs.substring(0, abs.lastIndexOf('/'));
-      }
-      _startTask('__TERMINAL__', activeWorkDir(), { cwd: targetDir });
-    } else if (action === 'gitignore') {
-      if (relPath && activeWorkDir()) window.fileOps.gitignore(activeWorkDir(), relPath);
-    } else if (action === 'delete') {
-      if (!relPath || !activeWorkDir()) return;
-      const name = relPath.split('/').pop();
-      if (!confirm(`Delete "${name}"?`)) return;
-      const itemEl = explorerState.ftCtxTarget?.querySelector('.ft-item');
-      const rect = itemEl?.getBoundingClientRect();
-      const color = explorerState.ftCtxIsDir ? '#e8c882' : fileIcon(name).color;
-      if (rect) spawnPyreflies(rect, color, 'out');
-      await window.fileOps.delete(activeWorkDir(), relPath);
-    }
-  });
-
-  // filetreeBody: right-click context menu (background = root-level)
-  filetreeBody.addEventListener('contextmenu', (e) => {
-    if (!activeWorkDir()) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const entry = e.target.closest('.ft-entry');
-    explorerState.ftCtxTarget = entry || null;
-    explorerState.ftCtxIsDir = entry ? !!entry.querySelector(':scope > .ft-item.ft-dir') : true;
-    if (entry) ftFocusItem(entry);
-    showFtContextMenu(e.clientX, e.clientY);
-  });
-
-  // Close ft context menu on outside click/contextmenu
-  document.addEventListener('click', () => ftContextMenu.classList.remove('active'));
-  document.addEventListener('contextmenu', () => ftContextMenu.classList.remove('active'));
-
-  // filetreeBody: drag-drop at root level
-  filetreeBody.addEventListener('dragover', (e) => {
-    if (e.target.closest('.ft-entry')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    filetreeBody.classList.add('ft-drop-root');
-  });
-  filetreeBody.addEventListener('dragleave', (e) => {
-    if (!filetreeBody.contains(e.relatedTarget)) filetreeBody.classList.remove('ft-drop-root');
-  });
-  filetreeBody.addEventListener('drop', async (e) => {
-    if (e.target.closest('.ft-entry')) return;
-    e.preventDefault();
-    filetreeBody.classList.remove('ft-drop-root');
-    if (!activeWorkDir()) return;
-    const paths = window.dragDrop.getLastDroppedPaths();
-    if (paths.length) await window.fileOps.copyIn(activeWorkDir(), '', paths);
-  });
-
-  // Keyboard navigation
-  filetreeBody.addEventListener('keydown', async (e) => {
-    const tag = document.activeElement?.tagName?.toLowerCase();
-    if (tag === 'input' || tag === 'textarea') return;
-    const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-    if (activePanel !== 'explorer') return;
-
-    const visible = getVisibleFtEntries();
-    if (visible.length === 0) return;
-    const idx = explorerState.ftFocusedEl ? visible.indexOf(explorerState.ftFocusedEl) : -1;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      ftFocusItem(visible[idx < 0 ? 0 : Math.min(idx + 1, visible.length - 1)]);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      ftFocusItem(visible[idx <= 0 ? 0 : idx - 1]);
-    } else if (e.key === 'ArrowRight') {
-      if (!explorerState.ftFocusedEl) return;
-      e.preventDefault();
-      if (explorerState.ftFocusedEl.querySelector(':scope > .ft-item.ft-dir')) {
-        if (!explorerState.ftFocusedEl.classList.contains('expanded')) {
-          explorerState.ftFocusedEl.querySelector(':scope > .ft-item').click();
-        } else {
-          const first = explorerState.ftFocusedEl.querySelector(':scope > .ft-children > .ft-entry');
-          if (first) ftFocusItem(first);
-        }
-      }
-    } else if (e.key === 'ArrowLeft') {
-      if (!explorerState.ftFocusedEl) return;
-      e.preventDefault();
-      if (explorerState.ftFocusedEl.classList.contains('expanded')) {
-        explorerState.ftFocusedEl.querySelector(':scope > .ft-item').click();
-      } else {
-        const parent = explorerState.ftFocusedEl.parentElement?.closest('.ft-entry');
-        if (parent) ftFocusItem(parent);
-      }
-    } else if (e.key === 'Enter') {
-      if (!explorerState.ftFocusedEl) return;
-      e.preventDefault();
-      explorerState.ftFocusedEl.querySelector(':scope > .ft-item')?.click();
-    } else if (e.key === 'F2') {
-      if (!explorerState.ftFocusedEl) return;
-      e.preventDefault();
-      startInlineRename(explorerState.ftFocusedEl);
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (!explorerState.ftFocusedEl || !activeWorkDir()) return;
-      const relPath = explorerState.ftFocusedEl.dataset.path;
-      if (!relPath) return;
-      const name = relPath.split('/').pop();
-      if (!confirm(`Delete "${name}"?`)) return;
-      e.preventDefault();
-      const isDir = !!explorerState.ftFocusedEl.querySelector(':scope > .ft-item.ft-dir');
-      const color = isDir ? '#e8c882' : fileIcon(name).color;
-      const rect = explorerState.ftFocusedEl.querySelector('.ft-item')?.getBoundingClientRect();
-      if (rect) spawnPyreflies(rect, color, 'out');
-      explorerState.ftFocusedEl = null;
-      await window.fileOps.delete(activeWorkDir(), relPath);
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
-      // Clipboard paste — only acts on file:// URIs (won't intercept text paste)
-      if (!activeWorkDir()) return;
-      try {
-        const items = await navigator.clipboard.read();
-        const paths = [];
-        for (const item of items) {
-          if (item.types.includes('text/uri-list')) {
-            const blob = await item.getType('text/uri-list');
-            const text = await blob.text();
-            for (const line of text.split('\n')) {
-              const u = line.trim();
-              if (u.startsWith('file://')) {
-                try { paths.push(decodeURIComponent(new URL(u).pathname)); } catch {}
-              }
-            }
-          }
-        }
-        if (paths.length > 0) {
-          e.preventDefault();
-          const dirEl = explorerState.ftFocusedEl?.querySelector(':scope > .ft-item.ft-dir')
-            ? explorerState.ftFocusedEl
-            : explorerState.ftFocusedEl?.parentElement?.closest('.ft-entry') || null;
-          const targetRelDir = dirEl?.dataset.path || '';
-          await window.fileOps.copyIn(activeWorkDir(), targetRelDir, paths);
-        }
-      } catch {}
-    }
-  });
-
-  // Global keyboard shortcuts for panel toggles
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-      e.preventDefault();
-      toggleSidebar();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
-      e.preventDefault();
-      toggleFiletree();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-      e.preventDefault();
-      if (!explorerState.filetreeVisible) {
-        toggleFiletree();
-        switchRightPanelTab('changes');
-      } else if (document.querySelector('.filetree-tab[data-panel="changes"]')?.classList.contains('active')) {
-        toggleFiletree();
-      } else {
-        switchRightPanelTab('changes');
-      }
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-      e.preventDefault();
-      if (!explorerState.filetreeVisible) {
-        toggleFiletree();
-        switchRightPanelTab('todos');
-      } else if (document.querySelector('.filetree-tab[data-panel="todos"]')?.classList.contains('active')) {
-        toggleFiletree();
-      } else {
-        switchRightPanelTab('todos');
-      }
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
-      e.preventDefault();
-      if (!explorerState.filetreeVisible) {
-        toggleFiletree();
-        switchRightPanelTab('github');
-      } else if (document.querySelector('.filetree-tab[data-panel="github"]')?.classList.contains('active')) {
-        toggleFiletree();
-      } else {
-        switchRightPanelTab('github');
-      }
-    }
+  // Initialize operations sub-module (context menu, keyboard, drag-drop)
+  initFileExplorerOps({
+    activeWorkDir,
+    filetreeBody,
+    ftContextMenu,
+    refreshFileTree,
+    ftFocusItem,
+    startTask,
+    switchRightPanelTab: { toggleSidebar, toggleFiletree, switchRightPanelTab },
   });
 
   // Initialize resizable panels
