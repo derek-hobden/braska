@@ -104,7 +104,7 @@ const SECTION_DEFS = {
   },
   unstaged: {
     label: 'Changes',
-    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
+    actions: '<button class="changes-section-action review-loop" title="Auto-review, fix, and stage all changes">Review Loop</button><span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'false' }, statSpan(f.added, f.deleted), STAGE_BTN, DISCARD_BTN),
     getPath: (f) => f.file,
   },

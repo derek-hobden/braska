@@ -1535,6 +1535,8 @@
     .changes-section-action:hover { color: #ccc; }
     .review-staged { color: #5b8fbf; margin-left: auto; margin-right: 6px; }
     .review-staged:hover { color: #7db3e0; }
+    .review-loop { color: #b07de0; margin-left: auto; margin-right: 6px; }
+    .review-loop:hover { color: #c9a4f0; }
     .changes-header-actions {
       display: flex;
       align-items: center;
