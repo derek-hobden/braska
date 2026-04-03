@@ -1,7 +1,9 @@
+const path = require('path');
 const pty = require('node-pty');
 const { fsp } = require('./utils');
 const { ptyProcesses, getNextPtyId } = require('./state');
 const { getTodoDir } = require('./todo');
+const { parseFrontmatter, CLAUDE_AGENTS_DIR } = require('./agents');
 
 function register({ ipcMain, BrowserWindow }) {
   ipcMain.handle('pty:spawn', async (event, agentName, workDir, dims, initialPrompt) => {
@@ -36,10 +38,15 @@ function register({ ipcMain, BrowserWindow }) {
       }
     } else {
       // Native Claude Code agent: CWD is the project dir, agent config loaded from ~/.claude/agents/.
-      // No --dangerously-skip-permissions here — each agent controls its own permission mode
-      // via the permissionMode field in its YAML frontmatter (e.g. todoist uses bypassPermissions).
       if (!/^[a-zA-Z0-9_-]+$/.test(agentName)) throw new Error(`Invalid agent name: ${agentName}`);
-      const baseCmd = `cd '${safeWorkDir}' && claude --agent '${agentName}'${todoDirFlag}`;
+      let permFlag = '';
+      try {
+        const agentFile = path.join(CLAUDE_AGENTS_DIR, `${agentName}.md`);
+        const content = await fsp.readFile(agentFile, 'utf-8');
+        const { meta } = parseFrontmatter(content);
+        if (meta.permissionMode === 'bypassPermissions') permFlag = ' --dangerously-skip-permissions';
+      } catch {}
+      const baseCmd = `cd '${safeWorkDir}' && claude --agent '${agentName}'${permFlag}${todoDirFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];

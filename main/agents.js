@@ -43,4 +43,4 @@ function register({ ipcMain }) {
   ipcMain.handle('agents:list', () => listAgents());
 }
 
-module.exports = { register, listAgents, BUILTIN_AGENTS, CLAUDE_AGENTS_DIR };
+module.exports = { register, listAgents, parseFrontmatter, BUILTIN_AGENTS, CLAUDE_AGENTS_DIR };
