@@ -2106,6 +2106,10 @@
       width: 24px;
     }
     .todo-number.todo-active {
+      color: rgba(88, 166, 255, 0.45);
+      filter: drop-shadow(0 0 4px rgba(88, 166, 255, 0.4));
+    }
+    .todo-number.todo-focused {
       color: #58a6ff;
       filter: drop-shadow(0 0 4px #58a6ff);
     }
