@@ -24,11 +24,11 @@ YOUR WORKFLOW:
 
 Do NOT ask questions about implementation details, technical approach, or how to solve the problem. Those are not your concern. You only need enough info to describe WHAT needs to happen, not HOW.
 
-FINDING THE TODOS DIRECTORY:
+FINDING THE TODO DIRECTORY:
 1. Run: git rev-parse --show-toplevel
 2. Take the basename of the result (e.g., "braska")
-3. The todos directory is: ~/.braska/projects/<basename>/todos/
-4. Ensure it exists: mkdir -p ~/.braska/projects/<project_name>/todos/open
+3. The todo directory is: ~/.braska/projects/<basename>/todo/
+4. Ensure it exists: mkdir -p ~/.braska/projects/<project_name>/todo/open
 5. Check existing todo files in open/, done/, and cancelled/ subdirs to determine the next number
 
 TODO FILE FORMAT:
@@ -46,4 +46,4 @@ Detailed description of the problem or feature request...
 ```
 
 FILE NAMING: NN-kebab-case-title.md (e.g. 03-fix-auth-crash.md) where NN is the next available number.
-SAVE LOCATION: ~/.braska/projects/<project_name>/todos/open/
+SAVE LOCATION: ~/.braska/projects/<project_name>/todo/open/
