@@ -45,6 +45,8 @@ const changesBody = document.getElementById('changes-body');
 const changesCommitInput = document.getElementById('changes-commit-input');
 const changesCommitBtn = document.getElementById('changes-commit-btn');
 const changesGenerateBtn = document.getElementById('changes-generate-btn');
+const changesReviewBtn = document.getElementById('changes-review-btn');
+const changesReviewLoopBtn = document.getElementById('changes-review-loop-btn');
 
 // ── Helper: refreshWorktreeMetrics (imported from sidebar) ──────
 async function refreshWorktreeMetrics() {
@@ -98,13 +100,13 @@ const badgeCls = (status) => BADGE_CLASS[status] || 'changes-badge-m';
 const SECTION_DEFS = {
   staged: {
     label: 'Staged',
-    actions: '<button class="changes-section-action review-staged" title="Review staged changes">Review</button><span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
+    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'true' }, statSpan(f.added, f.deleted), UNSTAGE_BTN, ACTION_PLACEHOLDER),
     getPath: (f) => f.file,
   },
   unstaged: {
     label: 'Changes',
-    actions: '<button class="changes-section-action review-loop" title="Auto-review, fix, and stage all changes">Review Loop</button><span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
+    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'false' }, statSpan(f.added, f.deleted), STAGE_BTN, DISCARD_BTN),
     getPath: (f) => f.file,
   },
@@ -229,6 +231,8 @@ export async function refreshChanges(workDir) {
     changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
     changesCommitBtn.disabled = true;
     changesGenerateBtn.disabled = true;
+    changesReviewBtn.disabled = true;
+    changesReviewLoopBtn.disabled = true;
     return;
   }
 
@@ -236,6 +240,9 @@ export async function refreshChanges(workDir) {
   changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
   changesGenerateBtn.disabled = status.staged.length === 0;
   document.getElementById('changes-amend-btn').disabled = commits.length === 0;
+  const hasAnyChanges = status.staged.length > 0 || status.unstaged.length > 0 || status.untracked.length > 0;
+  changesReviewBtn.disabled = !hasAnyChanges;
+  changesReviewLoopBtn.disabled = !hasAnyChanges;
 
   // Build section descriptors (only include non-empty sections)
   const sections = [];

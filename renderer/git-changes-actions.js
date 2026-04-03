@@ -40,6 +40,26 @@ export function initChangesActions(deps) {
   _startTask = deps.startTask;
   _changesBody = deps.changesBody;
 
+  // Toolbar review buttons (outside changesBody, need direct listeners)
+  document.getElementById('changes-review-btn').addEventListener('click', () => {
+    const activeWorkDir = tabState.activeWorkDir;
+    if (activeWorkDir) {
+      _startTask('code-reviewer', activeWorkDir, {
+        initialPrompt: 'Review all current git changes (staged, unstaged, and untracked). Use `git diff --cached` for staged changes and `git diff` for unstaged changes. Provide feedback on code quality, potential bugs, and suggestions for improvement.'
+      });
+    } else {
+      _showChangesStatus('No active directory', 'error');
+    }
+  });
+  document.getElementById('changes-review-loop-btn').addEventListener('click', () => {
+    const activeWorkDir = tabState.activeWorkDir;
+    if (activeWorkDir) {
+      _startTask('__CLAUDE__', activeWorkDir, { initialPrompt: REVIEW_LOOP_PROMPT });
+    } else {
+      _showChangesStatus('No active directory', 'error');
+    }
+  });
+
   _changesBody.addEventListener('click', async (e) => {
     const activeWorkDir = tabState.activeWorkDir;
 
@@ -94,30 +114,6 @@ export function initChangesActions(deps) {
         const result = await window.gitOps.stashDrop(activeWorkDir, idx);
         if (result.ok) { _showChangesStatus('Stash dropped', 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
         else _showChangesStatus((result.error || '').split('\n')[0], 'error');
-      }
-      return;
-    }
-
-    // Review staged files
-    if (e.target.closest('.review-staged')) {
-      if (activeWorkDir) {
-        _startTask('code-reviewer', activeWorkDir, {
-          initialPrompt: 'Review the currently staged changes (git diff --cached). Provide feedback on code quality, potential bugs, and suggestions for improvement.'
-        });
-      } else {
-        _showChangesStatus('No active directory', 'error');
-      }
-      return;
-    }
-
-    // Hands-off workflow: Claude reviews, fixes, and stages until everything passes
-    if (e.target.closest('.review-loop')) {
-      if (activeWorkDir) {
-        _startTask('__CLAUDE__', activeWorkDir, {
-          initialPrompt: REVIEW_LOOP_PROMPT
-        });
-      } else {
-        _showChangesStatus('No active directory', 'error');
       }
       return;
     }
