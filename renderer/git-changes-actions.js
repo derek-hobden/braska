@@ -3,6 +3,27 @@
 import { tabState } from './state.js';
 import { escHtml, statSpan, changeEntry } from './utils.js';
 
+// ── Review-loop prompt ───────────────────────────────────────
+const REVIEW_LOOP_PROMPT = `You are running an automated review loop on this project's unstaged git changes. Follow these steps precisely:
+
+STEP 1 — REVIEW: Use the Agent tool to spawn a code-reviewer agent with this prompt: "Review all unstaged changes (git diff). For each file, give a clear PASS or FAIL verdict with specific feedback for any failures." Wait for the review to complete and parse the results.
+
+STEP 2 — STAGE PASSING FILES: For every file that received a PASS verdict, run \`git add <file>\` to stage it. Report which files were staged.
+
+STEP 3 — FIX FAILING FILES: For each file that received a FAIL verdict, use the Agent tool to spawn a programmer sub-agent with this prompt: "Fix the following code review feedback in <file>: <feedback>". The sub-agent has full edit access. Wait for all fixes to complete.
+
+STEP 4 — LOOP: After all fixes are applied, go back to STEP 1 to re-review the remaining unstaged changes. Repeat until the code-reviewer gives all files a PASS verdict and all changed files are staged.
+
+STEP 5 — DONE: When there are no more unstaged changes (git diff returns empty), report the final summary of what was reviewed, fixed, and staged.
+
+Important rules:
+- Never stage a file that has not passed review.
+- When spawning the code-reviewer agent, use: subagent_type="code-reviewer"
+- When spawning programmer agents for fixes, use the default Agent (no subagent_type) with clear instructions about what file to fix and what the reviewer said.
+- If a file fails review 3 times in a row, skip it and report it as needing manual attention.
+- If you have completed 5 full review cycles and files still fail, stop and report the remaining failures.
+- Always run \`git diff --stat\` before each review cycle to confirm what files remain unstaged.`;
+
 // ── Deps (injected via initChangesActions) ─────────────────────
 let _refreshChanges = null;
 let _showChangesStatus = null;
@@ -82,6 +103,18 @@ export function initChangesActions(deps) {
       if (activeWorkDir) {
         _startTask('code-reviewer', activeWorkDir, {
           initialPrompt: 'Review the currently staged changes (git diff --cached). Provide feedback on code quality, potential bugs, and suggestions for improvement.'
+        });
+      } else {
+        _showChangesStatus('No active directory', 'error');
+      }
+      return;
+    }
+
+    // Hands-off workflow: Claude reviews, fixes, and stages until everything passes
+    if (e.target.closest('.review-loop')) {
+      if (activeWorkDir) {
+        _startTask('__CLAUDE__', activeWorkDir, {
+          initialPrompt: REVIEW_LOOP_PROMPT
         });
       } else {
         _showChangesStatus('No active directory', 'error');
