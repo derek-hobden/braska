@@ -31,7 +31,9 @@ export function renderProjects(projects) {
       const lockIcon = w.isLocked ? '<span class="wt-lock-icon" title="Locked">&#128274;</span>' : '';
       const mainAttr = w.isMain ? ' data-is-main="true"' : '';
       const lockedAttr = w.isLocked ? ' data-is-locked="true"' : '';
-      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}><span class="wt-icon">${SVG_GIT_BRANCH}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
+      const todoMatch = (w.branch || '').match(/^todo-(\d+)/);
+      const todoNumAttr = todoMatch ? ` data-todo-num="${todoMatch[1]}"` : '';
+      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="wt-icon">${SVG_GIT_BRANCH}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     return `
       <div class="project-entry${p.isGit ? ' is-git' : ''}" data-path="${esc}">

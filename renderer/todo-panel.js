@@ -128,7 +128,7 @@ function getActiveTodoNumbers() {
   // Include todos that have an open tab (even without a worktree branch match)
   for (const tab of tabState.tabs.values()) {
     if (tab.todoNumber && getProjectRootForWorkDir(tab.workDir) === projectRoot) {
-      active.add(tab.todoNumber);
+      active.add(String(tab.todoNumber));
     }
   }
   return active;
@@ -176,7 +176,8 @@ export async function refreshTodos(workDir) {
     for (const todo of openTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
-      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}">
+      const prioClass = todo.priority ? `todo-priority-${todo.priority.toLowerCase()}` : '';
+      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" data-todo-num="${num}">
         <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
         ${todo.type ? `<span class="todo-icon-wrap" title="${escHtml(todo.type)}">${todoTypeIcon(todo.type)}</span>` : ''}
@@ -190,7 +191,7 @@ export async function refreshTodos(workDir) {
     for (const todo of doneTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
-      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
+      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" data-todo-num="${num}" style="opacity:0.6">
         <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
         ${todo.type ? `<span class="todo-icon-wrap" title="${escHtml(todo.type)}">${todoTypeIcon(todo.type)}</span>` : ''}
@@ -204,7 +205,7 @@ export async function refreshTodos(workDir) {
     for (const todo of cancelledTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
-      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
+      html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" data-todo-num="${num}" style="opacity:0.6">
         <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title" style="text-decoration:line-through">${escHtml(todo.title)}</span>
       </div>`;

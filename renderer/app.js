@@ -12,6 +12,7 @@ import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switch
 import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, initGitChanges } from './git-changes.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
+import { initHoverLink } from './hover-link.js';
 
 // ── Prevent Electron from navigating to dropped files ──
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -187,6 +188,7 @@ initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refre
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
+initHoverLink();
 
 // ── Tab type picker & agent picker modal handlers ──
 

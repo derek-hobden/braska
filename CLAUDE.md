@@ -52,6 +52,7 @@ renderer/
   notifications.js          — Notification log, busy/done indicators
   settings.js               — Settings view (agents read-only, skills)
   todo-panel.js             — Todo list, status changes
+  hover-link.js             — Bidirectional hover glow between worktree ↔ todo items
   file-explorer.js          — File tree rendering, panel switching, resize
   file-explorer-ops.js      — Rename, create, context menu, keyboard nav
   worktree-modals.js        — Worktree create/delete/merge modals

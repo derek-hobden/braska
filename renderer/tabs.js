@@ -54,6 +54,7 @@ export function renderTabBar() {
     const hasNotif = !isBusy && notifLog.some(n => n.tabId === id && !n.seen);
     el.className = 'term-tab' + (id === tabState.activeTabId ? ' active' : '') + (isBusy ? ' is-busy' : '') + (hasNotif ? ' has-notification' : '');
     el.dataset.id = id;
+    if (tab.todoNumber) el.dataset.todoNum = tab.todoNumber;
     el.draggable = true;
     const baseLabel = tab.customLabel || tab.label;
     const displayLabel = escHtml((tab.dirty ? '\u25CF ' : '') + baseLabel);

@@ -2122,6 +2122,11 @@
       color: #58a6ff;
       filter: drop-shadow(0 0 4px #58a6ff);
     }
+    .worktree-item.hover-glow-linked .wt-branch-name { color: #FFD700; }
+    .worktree-item.hover-glow-linked .wt-icon { color: #FFD700; opacity: 1; }
+    .todo-item.hover-glow-linked .todo-number,
+    .todo-item.hover-glow-linked .todo-title { color: #FFD700; }
+    .term-tab.hover-glow-linked { color: #FFD700; }
     .todo-detail { padding: 16px; }
     .todo-detail-header {
       display: flex;
