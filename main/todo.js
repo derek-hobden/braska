@@ -77,11 +77,13 @@ async function listTodos(workDir) {
         const content = await fsp.readFile(filePath, 'utf-8');
         const titleMatch = content.match(/^# (.+)$/m);
         const prioMatch = content.match(/^## Priority:\s*(.+)$/m);
+        const typeMatch = content.match(/^## Type:\s*(.+)$/m);
         const ghIssueMatch = content.match(/^## GitHub Issue:\s*#?(\d+)/m);
         results.push({
           filename: f,
           title: titleMatch ? titleMatch[1].trim() : f.replace(/\.md$/, ''),
           priority: prioMatch ? prioMatch[1].trim() : null,
+          type: typeMatch ? typeMatch[1].trim().toLowerCase() : null,
           githubIssue: ghIssueMatch ? parseInt(ghIssueMatch[1]) : null,
           status,
           path: path.join(status, f),         // relative to todo root: "open/01-foo.md"

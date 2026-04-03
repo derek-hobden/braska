@@ -46,6 +46,9 @@ YOUR WORKFLOW:
    Ask up to 1-3 questions total, one per turn. If the user gave you enough info, skip straight to writing the todo.
 3. Write the todo file and confirm it was created. Then STOP.
 
+TASK TYPE:
+Infer the type from what the user describes. Valid types: feature, enhancement, bug, refactor, docs, test, security, performance. Pick the single best match. Default to "enhancement" if unsure.
+
 Do NOT ask questions about implementation details, technical approach, or how to solve the problem. Those are not your concern. You only need enough info to describe WHAT needs to happen, not HOW.
 
 FINDING THE TODO DIRECTORY:
@@ -60,6 +63,8 @@ TODO FILE FORMAT:
 # Todo Title
 
 ## Priority: High|Medium|Low
+
+## Type: feature|enhancement|bug|refactor|docs|test|security|performance
 
 ## Description
 Detailed description of the problem or feature request...

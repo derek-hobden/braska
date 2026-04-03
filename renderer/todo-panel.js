@@ -3,7 +3,7 @@
 // detail view, worktree creation for todos, and agent launching.
 
 import { tabState, ghState } from './state.js';
-import { escHtml, generateTodoBranchName } from './utils.js';
+import { escHtml, generateTodoBranchName, todoPriorityIcon, todoTypeIcon } from './utils.js';
 
 // ── DOM refs (queried once at module level) ────────────────────
 const todoBody = document.getElementById('todo-body');
@@ -161,11 +161,11 @@ export async function refreshTodos(workDir) {
     for (const todo of openTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
       const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
-      const prioClass = todo.priority ? `todo-priority-${todo.priority.toLowerCase()}` : '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}">
         <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
-        ${todo.priority ? `<span class="todo-priority ${prioClass}">${escHtml(todo.priority)}</span>` : ''}
+        ${todo.type ? `<span class="todo-icon-wrap" title="${escHtml(todo.type)}">${todoTypeIcon(todo.type)}</span>` : ''}
+        ${todo.priority ? `<span class="todo-icon-wrap" title="${escHtml(todo.priority)} priority">${todoPriorityIcon(todo.priority)}</span>` : ''}
       </div>`;
     }
   }
@@ -178,6 +178,8 @@ export async function refreshTodos(workDir) {
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
         <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
+        ${todo.type ? `<span class="todo-icon-wrap" title="${escHtml(todo.type)}">${todoTypeIcon(todo.type)}</span>` : ''}
+        ${todo.priority ? `<span class="todo-icon-wrap" title="${escHtml(todo.priority)} priority">${todoPriorityIcon(todo.priority)}</span>` : ''}
       </div>`;
     }
   }

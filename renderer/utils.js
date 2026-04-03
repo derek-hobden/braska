@@ -61,6 +61,42 @@ export const FILE_ICON_MAP = {
   zsh:  { svg: SVG_HASH, color: '#3fb950' },
 };
 
+// ── Todo icons ─────────────────────────────────────────────────
+
+// 3-bar priority icon — one bar is colored by level, rest are grey
+export function todoPriorityIcon(priority) {
+  const p = (priority || '').toLowerCase();
+  const top = p === 'high' ? '#f85149' : 'transparent';
+  const mid = p === 'medium' ? '#d29922' : 'transparent';
+  const bot = p === 'low' ? '#3fb950' : 'transparent';
+  const border = p === 'high' ? '#f85149' : p === 'medium' ? '#d29922' : p === 'low' ? '#3fb950' : '#555';
+  return `<svg class="todo-icon todo-prio-icon" viewBox="0 0 16 12"><rect x=".5" y=".5" width="15" height="11" rx="2.5" fill="none" stroke="${border}" stroke-opacity="0.45"/><rect x="4" y="2" width="8" height="1.8" rx=".9" fill="${top}"/><rect x="4" y="5.1" width="8" height="1.8" rx=".9" fill="${mid}"/><rect x="4" y="8.2" width="8" height="1.8" rx=".9" fill="${bot}"/></svg>`;
+}
+
+// Grey type icons — simple silhouettes per category
+const TODO_TYPE_ICONS = {
+  // sparkle star
+  feature: '<svg class="todo-icon" viewBox="0 0 16 16" fill="#8b949e"><path d="M8 0l2 5h5l-4 3.5 1.5 5L8 10.5 3.5 13.5 5 8.5 1 5h5z"/></svg>',
+  // upward arrow
+  enhancement: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="13" x2="8" y2="3"/><polyline points="4 7 8 3 12 7"/></svg>',
+  // bug
+  bug: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round"><ellipse cx="8" cy="10" rx="4" ry="4.5"/><path d="M6 6.5a2.5 2.5 0 0 1 4 0"/><line x1="2" y1="8" x2="4" y2="9"/><line x1="14" y1="8" x2="12" y2="9"/><line x1="2" y1="13" x2="4" y2="12"/><line x1="14" y1="13" x2="12" y2="12"/><line x1="3" y1="5" x2="5" y2="6.5"/><line x1="13" y1="5" x2="11" y2="6.5"/></svg>',
+  // circular arrows
+  refactor: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6A5.5 5.5 0 0 0 3.5 5"/><path d="M3 10a5.5 5.5 0 0 0 9.5 1"/><polyline points="13 2 13 6 9 6"/><polyline points="3 14 3 10 7 10"/></svg>',
+  // document page
+  docs: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1H4a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 4 15h8a1.5 1.5 0 0 0 1.5-1.5V5.5z"/><polyline points="9 1 9 5.5 13.5 5.5"/><line x1="5.5" y1="9" x2="10.5" y2="9"/><line x1="5.5" y1="12" x2="8.5" y2="12"/></svg>',
+  // checkmark in circle
+  test: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="5.5 8 7.5 10 10.5 6"/></svg>',
+  // shield
+  security: '<svg class="todo-icon" viewBox="0 0 16 16" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5L2.5 4v4c0 3.5 2.5 5.5 5.5 7 3-1.5 5.5-3.5 5.5-7V4z"/></svg>',
+  // lightning bolt
+  performance: '<svg class="todo-icon" viewBox="0 0 16 16" fill="#8b949e"><path d="M9.5 1L4 9h4l-1.5 6L13 7H9z"/></svg>',
+};
+
+export function todoTypeIcon(type) {
+  return TODO_TYPE_ICONS[(type || '').toLowerCase()] || '';
+}
+
 // ── Pure utility functions ──────────────────────────────────────
 
 /** Strip ANSI escape codes and control characters from a string. */

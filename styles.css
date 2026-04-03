@@ -2085,17 +2085,19 @@
       white-space: nowrap;
       color: #ccc;
     }
-    .todo-priority {
+    .todo-icon-wrap {
       flex-shrink: 0;
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 8px;
+      display: flex;
+      align-items: center;
     }
-    .todo-priority-high { color: #f85149; background: rgba(248,81,73,0.12); }
-    .todo-priority-medium { color: #d29922; background: rgba(210,153,34,0.12); }
-    .todo-priority-low { color: #3fb950; background: rgba(63,185,80,0.12); }
+    .todo-icon {
+      width: 14px;
+      height: 14px;
+    }
+    .todo-prio-icon {
+      width: 16px;
+      height: 12px;
+    }
     .todo-number {
       color: #555;
       font-size: 0.75rem;
