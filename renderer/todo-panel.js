@@ -24,6 +24,11 @@ export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentP
   _showGitHubIssueDetail = showGitHubIssueDetail;
   _switchRightPanelTab = switchRightPanelTab;
 
+  // ── Todo close modal button handlers ────────────────────────
+  document.getElementById('todo-close-done-btn').addEventListener('click', () => closeTodoCloseModal('done'));
+  document.getElementById('todo-close-leave-btn').addEventListener('click', () => closeTodoCloseModal('leave'));
+  document.getElementById('todo-close-cancel-btn').addEventListener('click', () => closeTodoCloseModal('cancel'));
+
   // ── Event delegation on todoBody ─────────────────────────────
   todoBody.addEventListener('click', async (e) => {
     const backBtn = e.target.closest('.todo-detail-back');
@@ -108,11 +113,42 @@ export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentP
   });
 }
 
+// ── Active todo detection ─────────────────────────────────────
+
+function getActiveTodoNumbers() {
+  const projectRoot = getProjectRootForWorkDir(tabState.activeWorkDir);
+  if (!projectRoot) return new Set();
+  const entry = document.querySelector(`.project-entry[data-path="${CSS.escape(projectRoot)}"]`);
+  if (!entry) return new Set();
+  const active = new Set();
+  for (const el of entry.querySelectorAll('.wt-branch-name')) {
+    const match = el.textContent.trim().match(/^todo-(\d+)/);
+    if (match) active.add(match[1]);
+  }
+  return active;
+}
+
+// ── Todo close prompt ─────────────────────────────────────────
+
+let _todoCloseResolve = null;
+
+export function showTodoClosePrompt(todoNumber) {
+  document.getElementById('todo-close-title').textContent = `Todo #${todoNumber}`;
+  document.getElementById('todo-close-modal').classList.add('active');
+  return new Promise(resolve => { _todoCloseResolve = resolve; });
+}
+
+function closeTodoCloseModal(result) {
+  document.getElementById('todo-close-modal').classList.remove('active');
+  if (_todoCloseResolve) { _todoCloseResolve(result); _todoCloseResolve = null; }
+}
+
 // ── Public functions ───────────────────────────────────────────
 
 export async function refreshTodos(workDir) {
   const prevScroll = todoBody.scrollTop;
   const todos = await window.todo.list(workDir);
+  const activeTodoNums = getActiveTodoNumbers();
 
   const openTodos = todos.filter(i => i.status === 'open');
   const doneTodos = todos.filter(i => i.status === 'done');
@@ -124,9 +160,10 @@ export async function refreshTodos(workDir) {
     html += `<div class="todo-section-header">Open<span class="changes-section-count">${openTodos.length}</span></div>`;
     for (const todo of openTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+      const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
       const prioClass = todo.priority ? `todo-priority-${todo.priority.toLowerCase()}` : '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}">
-        <span class="todo-number">#${num}</span>
+        <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
         ${todo.priority ? `<span class="todo-priority ${prioClass}">${escHtml(todo.priority)}</span>` : ''}
       </div>`;
@@ -137,8 +174,9 @@ export async function refreshTodos(workDir) {
     html += `<div class="todo-section-header">Done<span class="changes-section-count">${doneTodos.length}</span></div>`;
     for (const todo of doneTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+      const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
-        <span class="todo-number">#${num}</span>
+        <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title">${escHtml(todo.title)}</span>
       </div>`;
     }
@@ -148,8 +186,9 @@ export async function refreshTodos(workDir) {
     html += `<div class="todo-section-header">Cancelled<span class="changes-section-count">${cancelledTodos.length}</span></div>`;
     for (const todo of cancelledTodos) {
       const num = todo.filename.match(/^(\d+)/)?.[1] || '';
+      const activeClass = activeTodoNums.has(num) ? ' todo-active' : '';
       html += `<div class="todo-item" data-path="${escHtml(todo.path)}" data-abs-path="${escHtml(todo.absolutePath)}" data-title="${escHtml(todo.title)}" style="opacity:0.6">
-        <span class="todo-number">#${num}</span>
+        <span class="todo-number${activeClass}">#${num}</span>
         <span class="todo-title" style="text-decoration:line-through">${escHtml(todo.title)}</span>
       </div>`;
     }

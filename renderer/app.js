@@ -11,7 +11,7 @@ import { updateNotifUI, initNotifications } from './notifications.js';
 import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
 import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, initGitChanges } from './git-changes.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
-import { refreshTodos, initTodoPanel } from './todo-panel.js';
+import { refreshTodos, showTodoClosePrompt, initTodoPanel } from './todo-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -180,7 +180,7 @@ initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
-initTabs({ showTabTypePicker, updateFileTreeHighlights });
+initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos });
 initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
@@ -231,7 +231,8 @@ document.getElementById('agent-picker-list').addEventListener('click', (e) => {
     const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
     startTask(name, appState.pendingWorkDir, {
       initialPrompt: `/plan Read the todo file at ${todoAbsPath} and complete the task. When finished, ask me if I'd like to close the todo as done.`,
-      todoNumber: todoNum
+      todoNumber: todoNum,
+      todoPath
     });
   } else {
     startTask(name, appState.pendingWorkDir);

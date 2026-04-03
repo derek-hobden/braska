@@ -7,6 +7,8 @@ import { escHtml } from './utils.js';
 // ── Cross-module deps (set via initTabs) ───────────────────────
 let showTabTypePicker = null;
 let updateFileTreeHighlights = null;
+let showTodoClosePrompt = null;
+let refreshTodos = null;
 
 // ── Display label helper ──────────────────────────────────────
 export function getDisplayLabel(id) {
@@ -231,6 +233,21 @@ export function switchTab(id) {
 export async function closeTab(id) {
   const tab = tabState.tabs.get(id);
   if (!tab) return;
+
+  // Prompt user when closing a tab that's working on an open todo
+  if (tab.todoNumber && tab.todoPath && tab.todoPath.startsWith('open/') && showTodoClosePrompt) {
+    const choice = await showTodoClosePrompt(tab.todoNumber);
+    if (choice === 'cancel') return;
+    if (choice === 'done') {
+      try {
+        await window.todo.close(tab.workDir, tab.todoPath, 'done');
+      } catch (err) {
+        console.error('[Braska] Failed to close todo on tab close:', err);
+      }
+      if (refreshTodos) refreshTodos(tabState.activeWorkDir);
+    }
+  }
+
   clearNotifForTab(id);
   if (busyTabs.has(id)) clearTabBusy(id);
   const closedWorkDir = tab.workDir;
@@ -268,9 +285,11 @@ export async function closeTab(id) {
 
 // ── Initialization ─────────────────────────────────────────────
 
-export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights }) {
+export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights, showTodoClosePrompt: _showTodoClosePrompt, refreshTodos: _refreshTodos }) {
   showTabTypePicker = _showTabTypePicker;
   updateFileTreeHighlights = _updateFileTreeHighlights;
+  showTodoClosePrompt = _showTodoClosePrompt;
+  refreshTodos = _refreshTodos;
 
   window.windowActions.onCloseActiveTab(() => {
     if (tabState.activeTabId != null) closeTab(tabState.activeTabId);

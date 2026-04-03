@@ -74,7 +74,7 @@ export async function startTask(agentName, workDir, options = {}) {
   });
   resizeObs.observe(pane);
 
-  tabState.tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, agentName });
+  tabState.tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, agentName, todoNumber: options.todoNumber || null, todoPath: options.todoPath || null });
   addTabToOrder(id, workDir);
   tabState.activeTabId = id;
 

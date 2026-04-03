@@ -541,6 +541,7 @@
     #wt-merge-open-merger:hover { background: #3a2860; color: #d0bcff; }
 
     /* Pull Latest Main modals */
+    #todo-close-modal,
     #pull-main-dirty-modal,
     #pull-main-conflicts-modal {
       display: none;
@@ -551,6 +552,7 @@
       align-items: center;
       justify-content: center;
     }
+    #todo-close-modal.active,
     #pull-main-dirty-modal.active,
     #pull-main-conflicts-modal.active { display: flex; }
     .pull-main-modal-content {
@@ -2100,6 +2102,10 @@
       font-family: Menlo, Monaco, "Courier New", monospace;
       flex-shrink: 0;
       width: 24px;
+    }
+    .todo-number.todo-active {
+      color: #58a6ff;
+      filter: drop-shadow(0 0 4px #58a6ff);
     }
     .todo-detail { padding: 16px; }
     .todo-detail-header {
