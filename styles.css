@@ -860,70 +860,50 @@
       background: #1a3a5c;
     }
 
-    /* Specialist items & form */
-    .specialist-item {
+    /* Agent items */
+    .agent-item {
       display: flex;
       align-items: center;
       padding: 8px 10px;
       border-radius: 5px;
-      cursor: pointer;
       gap: 10px;
       font-size: 0.9rem;
       color: #ccc;
     }
-    .specialist-item:hover { background: #252525; }
-    .specialist-item .specialist-name {
+    .agent-item .agent-name {
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .agent-item .agent-description {
       flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: #666;
+      font-size: 0.82rem;
     }
-    .specialist-remove-btn {
-      background: none;
-      border: none;
-      color: #555;
-      font-size: 0.9rem;
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      opacity: 0.15;
-      flex-shrink: 0;
-      transition: opacity 0.2s ease;
-    }
-    .specialist-item:hover .specialist-remove-btn { opacity: 0.5; }
-    .specialist-remove-btn:hover { opacity: 1 !important; color: #e55; background: #2a1515; }
-    .specialist-skills-section {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .specialist-skills-label {
-      font-size: 0.8rem;
+    .agent-item .agent-badge {
+      font-size: 0.7rem;
       color: #888;
+      background: #2a2a2a;
+      padding: 1px 6px;
+      border-radius: 3px;
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
-    .specialist-skills-list {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .specialist-skills-list label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.85rem;
-      color: #ccc;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 4px;
-    }
-    .specialist-skills-list label:hover { background: #252525; }
-    .specialist-skills-empty {
-      color: #555;
+    .agents-hint {
+      margin-top: 16px;
+      padding: 10px 12px;
       font-size: 0.82rem;
-      font-style: italic;
+      color: #777;
+      border-top: 1px solid #2a2a2a;
+    }
+    .agents-hint code {
+      background: #2a2a2a;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.8rem;
     }
 
     /* Main content */
@@ -1004,8 +984,8 @@
       color: #ccc;
     }
 
-    /* Specialist picker modal */
-    #specialist-picker {
+    /* Agent picker modal */
+    #agent-picker {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -1014,8 +994,8 @@
       align-items: center;
       justify-content: center;
     }
-    #specialist-picker.active { display: flex; }
-    #specialist-picker-content {
+    #agent-picker.active { display: flex; }
+    #agent-picker-content {
       background: #252525;
       border: 1px solid #3a3a3a;
       border-radius: 10px;
@@ -1023,12 +1003,12 @@
       min-width: 280px;
       max-width: 400px;
     }
-    #specialist-picker-content h3 {
+    #agent-picker-content h3 {
       margin: 0 0 16px 0;
       font-size: 0.95rem;
       color: #ccc;
     }
-    .specialist-picker-item {
+    .agent-picker-item {
       padding: 10px 14px;
       cursor: pointer;
       border-radius: 6px;
@@ -1037,7 +1017,7 @@
       display: flex;
       align-items: center;
     }
-    .specialist-picker-hint {
+    .agent-picker-hint {
       margin-left: auto;
       font-size: 0.75rem;
       color: #666;
@@ -1046,29 +1026,29 @@
       border-radius: 4px;
       font-family: -apple-system, system-ui, monospace;
     }
-    .specialist-picker-item:hover {
+    .agent-picker-item:hover {
       background: #333;
       color: #fff;
     }
-    .specialist-picker-separator {
+    .agent-picker-separator {
       height: 1px;
       background: #333;
       margin: 8px 0;
     }
-    .specialist-picker-label {
+    .agent-picker-label {
       padding: 4px 14px;
       font-size: 0.7rem;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .specialist-picker-item.builtin {
+    .agent-picker-item.builtin {
       color: #8b9fc7;
     }
-    .specialist-picker-item.builtin:hover {
+    .agent-picker-item.builtin:hover {
       color: #b0c4f0;
     }
-    #specialist-picker-cancel {
+    #agent-picker-cancel {
       margin-top: 12px;
       background: none;
       border: 1px solid #444;
@@ -1079,7 +1059,7 @@
       font-size: 0.82rem;
       width: 100%;
     }
-    #specialist-picker-cancel:hover {
+    #agent-picker-cancel:hover {
       background: #2a2a2a;
       color: #ccc;
     }

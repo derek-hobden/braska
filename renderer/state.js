@@ -5,12 +5,12 @@
 
 // ── Application-wide state ──────────────────────────────────────
 export const appState = {
-  activeSection: null,        // current settings section ('skills' | 'specialists' | 'mcp-servers' | null)
+  activeSection: null,        // current settings section ('skills' | 'agents' | 'mcp-servers' | null)
   savedActiveTabId: null,     // preserved tab id when entering settings
   savedActiveWorkDir: null,   // preserved workDir when entering settings
-  pendingWorkDir: null,       // workDir waiting for specialist/tab-type picker
-  pendingTodoPath: null,      // todo relative path for specialist picker
-  pendingTodoAbsPath: null,   // todo absolute path for specialist picker
+  pendingWorkDir: null,       // workDir waiting for agent/tab-type picker
+  pendingTodoPath: null,      // todo relative path for agent picker
+  pendingTodoAbsPath: null,   // todo absolute path for agent picker
 };
 
 // ── Tab management state ────────────────────────────────────────

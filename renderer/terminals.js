@@ -3,14 +3,14 @@
 import { tabState } from './state.js';
 import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.js';
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
-import { specialistDisplayName, stripAnsi } from './utils.js';
+import { agentDisplayName, stripAnsi } from './utils.js';
 
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;
 
 // ── Terminal tab creation ──────────────────────────────────────
 
-export async function startTask(specialistName, workDir, options = {}) {
+export async function startTask(agentName, workDir, options = {}) {
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
@@ -27,7 +27,7 @@ export async function startTask(specialistName, workDir, options = {}) {
   launchpad.classList.remove('active');
   terminalView.classList.add('active');
 
-  const baseName = specialistDisplayName(specialistName);
+  const baseName = agentDisplayName(agentName);
   const label = options.todoNumber ? `#${options.todoNumber} - ${baseName}` : baseName;
 
   // Create pane
@@ -53,23 +53,37 @@ export async function startTask(specialistName, workDir, options = {}) {
 
   // Spawn pty — returns tab id
   const dims = fitAddon.proposeDimensions();
-  const id = await window.pty.spawn(specialistName, options.cwd || workDir, dims, options.initialPrompt || null);
+  let id;
+  try {
+    id = await window.pty.spawn(agentName, options.cwd || workDir, dims, options.initialPrompt || null);
+  } catch (err) {
+    term.dispose();
+    pane.remove();
+    // Restore launchpad if no other tabs exist for this workDir
+    const hasTabs = [...tabState.tabs.values()].some(t => t.workDir === workDir);
+    if (!hasTabs) {
+      terminalView.classList.remove('active');
+      launchpad.classList.add('active');
+    }
+    console.error('Failed to spawn PTY:', err);
+    return;
+  }
 
   const resizeObs = new ResizeObserver(() => {
     if (tabState.activeTabId === id) fitAddon.fit();
   });
   resizeObs.observe(pane);
 
-  tabState.tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, specialistName });
+  tabState.tabs.set(id, { type: 'terminal', term, fitAddon, resizeObs, pane, tabEl: null, label, workDir, agentName });
   addTabToOrder(id, workDir);
   tabState.activeTabId = id;
 
   // Wire data
-  const isClaudeTab = specialistName !== '__TERMINAL__';
+  const isClaudeTab = agentName !== '__TERMINAL__';
   window.pty.onData(id, data => {
     term.write(data);
     if (isClaudeTab && tabState.activeTabId !== id) {
-      // Claude/specialist in background: green busy dot while active, blue when done
+      // Agent in background: green busy dot while active, blue when done
       // Filter escape-only data (cursor moves, TUI redraws) — only real content triggers busy
       const meaningful = stripAnsi(data).trim().length;
       if (meaningful > 0) {
@@ -132,9 +146,9 @@ export async function startTask(specialistName, workDir, options = {}) {
     const paths = window.dragDrop.getLastDroppedPaths();
     if (paths.length === 0) return;
 
-    const isClaudeSession = specialistName !== '__TERMINAL__';
+    const isClaudeSession = agentName !== '__TERMINAL__';
     const parts = paths.map(p => {
-      // For Claude/specialist sessions, prefix with @ so Claude Code attaches the file
+      // For Claude/agent sessions, prefix with @ so Claude Code attaches the file
       if (isClaudeSession) {
         return p.includes(' ') ? `@"${p}"` : `@${p}`;
       }

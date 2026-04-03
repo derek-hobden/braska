@@ -1,6 +1,6 @@
 // ── Todo panel module ───────────────────────────────────────────
 // Extracted from the monolithic renderer. Handles todo listing,
-// detail view, worktree creation for todos, and specialist launching.
+// detail view, worktree creation for todos, and agent launching.
 
 import { tabState, ghState } from './state.js';
 import { escHtml, generateTodoBranchName } from './utils.js';
@@ -12,15 +12,15 @@ const todoBody = document.getElementById('todo-body');
 let _loadProjects = null;
 let _openWorkDir = null;
 let _startTask = null;
-let _showSpecialistPickerForTodo = null;
+let _showAgentPickerForTodo = null;
 let _showGitHubIssueDetail = null;
 let _switchRightPanelTab = null;
 
-export function initTodoPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab }) {
+export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _startTask = startTask;
-  _showSpecialistPickerForTodo = showSpecialistPickerForTodo;
+  _showAgentPickerForTodo = showAgentPickerForTodo;
   _showGitHubIssueDetail = showGitHubIssueDetail;
   _switchRightPanelTab = switchRightPanelTab;
 
@@ -36,7 +36,7 @@ export function initTodoPanel({ loadProjects, openWorkDir, startTask, showSpecia
     if (workBtn) {
       const todoPath = workBtn.dataset.todoPath;
       const todoAbsPath = workBtn.dataset.absPath;
-      _showSpecialistPickerForTodo(tabState.activeWorkDir, todoPath, todoAbsPath);
+      _showAgentPickerForTodo(tabState.activeWorkDir, todoPath, todoAbsPath);
       return;
     }
 
@@ -226,5 +226,5 @@ export async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {
   if (entry) entry.classList.add('expanded');
   await _loadProjects();
   _openWorkDir(wtPath);
-  _showSpecialistPickerForTodo(wtPath, todoPath, todoAbsPath);
+  _showAgentPickerForTodo(wtPath, todoPath, todoAbsPath);
 }

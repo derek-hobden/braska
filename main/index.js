@@ -1,8 +1,8 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const { ptyProcesses } = require('./state');
-const { migrateData } = require('./migration');
-const { ensureBuiltinSpecialists } = require('./specialists-setup');
+const { migrateData, migrateSpecialistsToAgents } = require('./migration');
+const { ensureBuiltinAgents } = require('./agents-setup');
 
 process.on('uncaughtException', (err) => {
   console.error('[Braska] Uncaught exception:', err);
@@ -119,7 +119,8 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   await migrateData(app);
-  await ensureBuiltinSpecialists();
+  await migrateSpecialistsToAgents();
+  await ensureBuiltinAgents();
 
   // Custom menu removes Reload / Force Reload to prevent accidental Cmd+R
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -157,7 +158,7 @@ app.whenReady().then(async () => {
   const deps = { ipcMain, BrowserWindow, dialog, shell, app };
   require('./projects').register(deps);
   require('./skills').register(deps);
-  require('./specialists').register(deps);
+  require('./agents').register(deps);
   require('./todo').register(deps);
   require('./pty').register(deps);
   require('./files').register(deps);

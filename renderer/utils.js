@@ -83,8 +83,8 @@ export function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Convert a specialist name (e.g. '__CLAUDE__', 'code-reviewer') to a display name. */
-export function specialistDisplayName(name) {
+/** Convert an agent name (e.g. '__CLAUDE__', 'code-reviewer') to a display name. */
+export function agentDisplayName(name) {
   if (name === '__CLAUDE__') return 'Claude';
   if (name === '__TERMINAL__') return 'Terminal';
   return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

@@ -18,10 +18,8 @@ contextBridge.exposeInMainWorld('skills', {
   remove: (name) => ipcRenderer.invoke('skills:remove', name),
 });
 
-contextBridge.exposeInMainWorld('specialists', {
-  list: () => ipcRenderer.invoke('specialists:list'),
-  save: (name, instructions, skills) => ipcRenderer.invoke('specialists:save', name, instructions, skills),
-  remove: (name) => ipcRenderer.invoke('specialists:remove', name),
+contextBridge.exposeInMainWorld('agents', {
+  list: () => ipcRenderer.invoke('agents:list'),
 });
 
 contextBridge.exposeInMainWorld('filetree', {
@@ -136,7 +134,7 @@ ipcRenderer.on('pty:exit', (_ev, id, code) => {
 });
 
 contextBridge.exposeInMainWorld('pty', {
-  spawn: (specialistName, workDir, dims, initialPrompt) => ipcRenderer.invoke('pty:spawn', specialistName, workDir, dims, initialPrompt),
+  spawn: (agentName, workDir, dims, initialPrompt) => ipcRenderer.invoke('pty:spawn', agentName, workDir, dims, initialPrompt),
   write: (id, data) => ipcRenderer.send('pty:write', id, data),
   resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
   kill: (id) => ipcRenderer.invoke('pty:kill', id),

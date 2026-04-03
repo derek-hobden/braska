@@ -1,8 +1,9 @@
 // Settings panel module
 // Extracted from monolithic renderer — manages the settings view,
-// skills panel, and specialists panel.
+// skills panel, and agents panel.
 
 import { tabState } from './state.js';
+import { agentDisplayName, escHtml } from './utils.js';
 
 // ---------------------------------------------------------------------------
 // Lazy imports — resolved after all modules have loaded to avoid circular deps
@@ -39,15 +40,6 @@ let terminalView;
 let activeSection = null;
 let savedActiveTabId = null;
 let savedActiveWorkDir = null;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function specialistDisplayName(name) {
-  if (name === '__CLAUDE__') return 'Claude';
-  if (name === '__TERMINAL__') return 'Terminal';
-  return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
 
 // ---------------------------------------------------------------------------
 // Core settings functions
@@ -103,11 +95,9 @@ function openSection(section) {
     settingsPanelAddBtn.style.display = '';
     settingsPanelAddBtn.onclick = () => showSkillForm('', '');
     loadSkillsPanel();
-  } else if (section === 'specialists') {
-    settingsPanelTitle.textContent = 'Specialists';
-    settingsPanelAddBtn.style.display = '';
-    settingsPanelAddBtn.onclick = () => showSpecialistForm('', '', []);
-    loadSpecialistsPanel();
+  } else if (section === 'agents') {
+    settingsPanelTitle.textContent = 'Agents';
+    loadAgentsPanel();
   } else if (section === 'mcp-servers') {
     settingsPanelTitle.textContent = 'MCP Servers';
     settingsPanelBody.innerHTML = '<div class="settings-empty">No MCP servers configured</div>';
@@ -162,64 +152,21 @@ function showSkillForm(name, content) {
 }
 
 // ---------------------------------------------------------------------------
-// Specialists panel
+// Agents panel (read-only view — CRUD via /agents command in a Claude tab)
 // ---------------------------------------------------------------------------
-async function loadSpecialistsPanel() {
-  const specialists = await window.specialists.list();
-  renderSpecialistsList(specialists);
-}
-
-function renderSpecialistsList(specialists) {
-  specialists = specialists.filter(ex => !ex.builtin);
-  const listHtml = specialists.length === 0
-    ? '<div class="settings-empty">No specialists configured</div>'
-    : specialists.map(ex => {
-        const esc = ex.name.replace(/"/g, '&quot;');
-        return `<div class="specialist-item" data-name="${esc}">
-          <span class="specialist-name">${specialistDisplayName(ex.name)}</span>
-          <button class="specialist-remove-btn" data-remove="${esc}" title="Remove specialist">&times;</button>
+async function loadAgentsPanel() {
+  const agents = await window.agents.list();
+  const listHtml = agents.length === 0
+    ? '<div class="settings-empty">No agents configured</div>'
+    : agents.map(a => {
+        const desc = a.description ? `<span class="agent-description">${escHtml(a.description)}</span>` : '';
+        const badge = a.builtin ? '<span class="agent-badge">builtin</span>' : '';
+        return `<div class="agent-item">
+          <span class="agent-name">${escHtml(agentDisplayName(a.name))}</span>${badge}${desc}
         </div>`;
       }).join('');
-  settingsPanelBody.innerHTML = `<div id="specialists-list">${listHtml}</div><div id="specialist-form-container"></div>`;
-}
-
-async function showSpecialistForm(name, instructions, assignedSkills) {
-  const container = document.getElementById('specialist-form-container');
-  if (!container) return;
-  const isEdit = name !== '';
-  const nameEsc = name.replace(/"/g, '&quot;');
-  const instrEsc = (instructions || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const allSkills = await window.skills.list();
-  const skillsHtml = allSkills.length === 0
-    ? '<div class="specialist-skills-empty">No skills available — create skills first</div>'
-    : allSkills.map(s => {
-        const checked = assignedSkills.includes(s.name) ? 'checked' : '';
-        const sEsc = s.name.replace(/"/g, '&quot;');
-        return `<label><input type="checkbox" value="${sEsc}" ${checked}> ${s.name}</label>`;
-      }).join('');
-  container.innerHTML = `<div class="skill-form">
-    <input type="text" id="specialist-name-input" placeholder="Specialist name" value="${nameEsc}" ${isEdit ? 'readonly style="opacity:0.6;cursor:default"' : ''} />
-    <textarea id="specialist-instructions-input" placeholder="Instructions (saved to claude.md)">${instrEsc}</textarea>
-    <div class="specialist-skills-section">
-      <span class="specialist-skills-label">Assigned Skills</span>
-      <div class="specialist-skills-list">${skillsHtml}</div>
-    </div>
-    <div class="skill-form-actions">
-      <button id="specialist-cancel-btn">Cancel</button>
-      <button id="specialist-save-btn" class="save-btn">Save</button>
-    </div>
-  </div>`;
-  document.getElementById('specialist-cancel-btn').addEventListener('click', () => { container.innerHTML = ''; });
-  document.getElementById('specialist-save-btn').addEventListener('click', async () => {
-    const n = document.getElementById('specialist-name-input').value.trim();
-    const instr = document.getElementById('specialist-instructions-input').value;
-    if (!n) return;
-    const checkedSkills = [...container.querySelectorAll('.specialist-skills-list input:checked')].map(cb => cb.value);
-    const specialists = await window.specialists.save(n, instr, checkedSkills);
-    container.innerHTML = '';
-    renderSpecialistsList(specialists);
-  });
-  document.getElementById(isEdit ? 'specialist-instructions-input' : 'specialist-name-input').focus();
+  settingsPanelBody.innerHTML = `<div id="agents-list">${listHtml}</div>
+    <div class="agents-hint">Agents are stored in <code>~/.claude/agents/</code>. Use the <strong>/agents</strong> command in any Claude tab to create, edit, or remove agents.</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,21 +189,7 @@ function onSettingsPanelBodyClick(e) {
     }).catch(err => console.error('[Braska]', err));
     return;
   }
-  // Specialists
-  const specialistRemoveBtn = e.target.closest('.specialist-remove-btn');
-  if (specialistRemoveBtn) {
-    window.specialists.remove(specialistRemoveBtn.dataset.remove).then(specialists => {
-      renderSpecialistsList(specialists);
-    }).catch(err => console.error('[Braska]', err));
-    return;
-  }
-  const specialistItem = e.target.closest('.specialist-item');
-  if (specialistItem) {
-    window.specialists.list().then(all => {
-      const specialist = all.find(ex => ex.name === specialistItem.dataset.name);
-      if (specialist) showSpecialistForm(specialist.name, specialist.instructions, specialist.skills);
-    }).catch(err => console.error('[Braska]', err));
-  }
+  // Agents panel is read-only — no click handlers needed
 }
 
 // ---------------------------------------------------------------------------

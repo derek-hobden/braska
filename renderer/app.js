@@ -106,47 +106,45 @@ export function openWorkDir(workDir) {
   }
 }
 
-// ── Specialist/tab picker functions ──
+// ── Agent/tab picker functions ──
 
-import { specialistDisplayName } from './utils.js';
+import { agentDisplayName, escHtml } from './utils.js';
 
 function showTabTypePicker(workDir) {
   appState.pendingWorkDir = workDir;
   document.getElementById('tab-type-picker').classList.add('active');
 }
 
-function renderSpecialistPickerItems(specialists) {
-  const builtinSpecialists = specialists.filter(ex => ex.builtin);
-  const customSpecialists = specialists.filter(ex => !ex.builtin);
+function renderAgentPickerItems(agents) {
+  const builtinAgents = agents.filter(ex => ex.builtin);
+  const customAgents = agents.filter(ex => !ex.builtin);
   let n = 1;
-  const hint = () => n <= 9 ? `<span class="specialist-picker-hint">⌘${n++}</span>` : (n++, '');
-  const claudeItem = `<div class="specialist-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${specialistDisplayName('__CLAUDE__')}${hint()}</div>`;
-  const builtinItems = builtinSpecialists.map(ex => {
-    const esc = ex.name.replace(/"/g, '&quot;');
-    return `<div class="specialist-picker-item builtin" data-name="${esc}">${specialistDisplayName(ex.name)}${hint()}</div>`;
+  const hint = () => n <= 9 ? `<span class="agent-picker-hint">⌘${n++}</span>` : (n++, '');
+  const claudeItem = `<div class="agent-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${escHtml(agentDisplayName('__CLAUDE__'))}${hint()}</div>`;
+  const builtinItems = builtinAgents.map(ex => {
+    return `<div class="agent-picker-item builtin" data-name="${escHtml(ex.name)}">${escHtml(agentDisplayName(ex.name))}${hint()}</div>`;
   }).join('');
-  const customItems = customSpecialists.map(ex => {
-    const esc = ex.name.replace(/"/g, '&quot;');
-    return `<div class="specialist-picker-item" data-name="${esc}">${specialistDisplayName(ex.name)}${hint()}</div>`;
+  const customItems = customAgents.map(ex => {
+    return `<div class="agent-picker-item" data-name="${escHtml(ex.name)}">${escHtml(agentDisplayName(ex.name))}${hint()}</div>`;
   }).join('');
-  let html = '<div class="specialist-picker-label">System</div>' + claudeItem + builtinItems;
-  if (customItems) {
-    html += '<div class="specialist-picker-separator"></div><div class="specialist-picker-label">Custom</div>' + customItems;
+  let html = '<div class="agent-picker-label">System</div>' + claudeItem + builtinItems;
+  if (customAgents.length > 0) {
+    html += '<div class="agent-picker-separator"></div><div class="agent-picker-label">Custom</div>' + customItems;
   }
   return html;
 }
 
-async function showSpecialistPicker(workDir) {
+async function showAgentPicker(workDir) {
   appState.pendingWorkDir = workDir;
-  const specialists = await window.specialists.list();
-  document.getElementById('specialist-picker-list').innerHTML = renderSpecialistPickerItems(specialists);
-  document.getElementById('specialist-picker').classList.add('active');
+  const agents = await window.agents.list();
+  document.getElementById('agent-picker-list').innerHTML = renderAgentPickerItems(agents);
+  document.getElementById('agent-picker').classList.add('active');
 }
 
-export function showSpecialistPickerForTodo(workDir, todoPath, todoAbsPath) {
+export function showAgentPickerForTodo(workDir, todoPath, todoAbsPath) {
   appState.pendingTodoPath = todoPath;
   appState.pendingTodoAbsPath = todoAbsPath;
-  showSpecialistPicker(workDir);
+  showAgentPicker(workDir);
 }
 
 // ── File watcher callbacks ──
@@ -188,9 +186,9 @@ initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
-initTodoPanel({ loadProjects, openWorkDir, startTask, showSpecialistPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
+initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
 
-// ── Tab type picker & specialist picker modal handlers ──
+// ── Tab type picker & agent picker modal handlers ──
 
 document.getElementById('tab-type-picker-cancel').addEventListener('click', () => {
   document.getElementById('tab-type-picker').classList.remove('active');
@@ -207,23 +205,23 @@ document.getElementById('tab-type-picker-list').addEventListener('click', (e) =>
   } else if (item.dataset.type === 'browser') {
     startBrowser(appState.pendingWorkDir);
     appState.pendingWorkDir = null;
-  } else {
-    showSpecialistPicker(appState.pendingWorkDir);
+  } else if (item.dataset.type === 'agent') {
+    showAgentPicker(appState.pendingWorkDir);
   }
 });
 
-document.getElementById('specialist-picker-cancel').addEventListener('click', () => {
-  document.getElementById('specialist-picker').classList.remove('active');
+document.getElementById('agent-picker-cancel').addEventListener('click', () => {
+  document.getElementById('agent-picker').classList.remove('active');
   appState.pendingWorkDir = null;
   appState.pendingTodoPath = null;
   appState.pendingTodoAbsPath = null;
 });
 
-document.getElementById('specialist-picker-list').addEventListener('click', (e) => {
-  const item = e.target.closest('.specialist-picker-item');
+document.getElementById('agent-picker-list').addEventListener('click', (e) => {
+  const item = e.target.closest('.agent-picker-item');
   if (!item || !appState.pendingWorkDir) return;
   const name = item.dataset.name;
-  document.getElementById('specialist-picker').classList.remove('active');
+  document.getElementById('agent-picker').classList.remove('active');
 
   if (appState.pendingTodoPath) {
     const todoPath = appState.pendingTodoPath;
@@ -243,8 +241,8 @@ document.getElementById('specialist-picker-list').addEventListener('click', (e) 
 
 // ── Launchpad buttons ──
 
-document.getElementById('launchpad-specialist').addEventListener('click', () => {
-  if (tabState.activeWorkDir) showSpecialistPicker(tabState.activeWorkDir);
+document.getElementById('launchpad-agent').addEventListener('click', () => {
+  if (tabState.activeWorkDir) showAgentPicker(tabState.activeWorkDir);
 });
 
 document.getElementById('launchpad-terminal').addEventListener('click', () => {
@@ -259,9 +257,9 @@ document.getElementById('launchpad-browser').addEventListener('click', () => {
 
 document.addEventListener('keydown', (e) => {
   const tabTypePicker = document.getElementById('tab-type-picker');
-  const specialistPicker = document.getElementById('specialist-picker');
+  const agentPicker = document.getElementById('agent-picker');
   const tabTypeActive = tabTypePicker.classList.contains('active');
-  const specialistActive = specialistPicker.classList.contains('active');
+  const agentActive = agentPicker.classList.contains('active');
 
   // Cmd+T to open tab-type picker
   if ((e.metaKey || e.ctrlKey) && e.key === 't') {
@@ -272,9 +270,9 @@ document.addEventListener('keydown', (e) => {
 
   // Escape closes any open picker
   if (e.key === 'Escape') {
-    if (specialistActive) {
+    if (agentActive) {
       e.preventDefault();
-      document.getElementById('specialist-picker-cancel').click();
+      document.getElementById('agent-picker-cancel').click();
       return;
     }
     if (tabTypeActive) {
@@ -291,9 +289,9 @@ document.addEventListener('keydown', (e) => {
     if (item) item.click();
     return;
   }
-  if (specialistActive && e.key >= '1' && e.key <= '9') {
+  if (agentActive && e.key >= '1' && e.key <= '9') {
     e.preventDefault();
-    const items = specialistPicker.querySelectorAll('.specialist-picker-item');
+    const items = agentPicker.querySelectorAll('.agent-picker-item');
     const idx = parseInt(e.key) - 1;
     if (idx < items.length) items[idx].click();
     return;

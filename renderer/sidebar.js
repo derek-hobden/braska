@@ -113,7 +113,7 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
       _openWorktreeCreateModal(projectPath);
       return;
     }
-    // Worktree click → switch to its tabs or show specialist picker
+    // Worktree click → switch to its tabs or show launchpad
     const worktreeItem = e.target.closest('.worktree-item');
     if (worktreeItem) {
       _openWorkDir(worktreeItem.dataset.path);

@@ -1,24 +1,22 @@
-const path = require('path');
 const pty = require('node-pty');
 const { fsp } = require('./utils');
 const { ptyProcesses, getNextPtyId } = require('./state');
 const { getTodoDir } = require('./todo');
-const { getSpecialistsDir } = require('./specialists');
 
 function register({ ipcMain, BrowserWindow }) {
-  ipcMain.handle('pty:spawn', async (event, specialistName, workDir, dims, initialPrompt) => {
+  ipcMain.handle('pty:spawn', async (event, agentName, workDir, dims, initialPrompt) => {
     const id = getNextPtyId();
     const shell = process.env.SHELL || '/bin/zsh';
-    let cwd, args;
+    let cwd = workDir;
+    let args;
 
-    // For Claude/specialist spawns, explicitly cd to workDir before running the command.
     // Login shells (-l) read profile files that may change the working directory,
-    // so we cannot rely on cwd alone to guarantee the correct working directory.
+    // so we explicitly cd to workDir before running claude.
     const safeWorkDir = workDir.replace(/'/g, "'\"'\"'");
 
     // Compute todo dir for all Claude-based sessions so agents can @ reference todo files
     let todoDirFlag = '';
-    if (specialistName !== '__TERMINAL__') {
+    if (agentName !== '__TERMINAL__') {
       try {
         const todoDir = await getTodoDir(workDir);
         await fsp.mkdir(todoDir, { recursive: true });
@@ -27,11 +25,9 @@ function register({ ipcMain, BrowserWindow }) {
       } catch {}
     }
 
-    if (specialistName === '__TERMINAL__') {
-      cwd = workDir;
+    if (agentName === '__TERMINAL__') {
       args = ['-l'];
-    } else if (specialistName === '__CLAUDE__') {
-      cwd = workDir;
+    } else if (agentName === '__CLAUDE__') {
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag} -- '${safePrompt}'`];
@@ -39,12 +35,11 @@ function register({ ipcMain, BrowserWindow }) {
         args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag}`];
       }
     } else {
-      // CWD is specialist dir so .claude/settings.json and hooks load from there.
-      // Project dir loaded via --add-dir so CLAUDE.md and project files are accessible.
-      const specialistDir = path.join(await getSpecialistsDir(), specialistName);
-      const safeSpecialistDir = specialistDir.replace(/'/g, "'\"'\"'");
-      cwd = specialistDir;
-      const baseCmd = `cd '${safeSpecialistDir}' && claude --dangerously-skip-permissions --add-dir '${safeWorkDir}'${todoDirFlag}`;
+      // Native Claude Code agent: CWD is the project dir, agent config loaded from ~/.claude/agents/.
+      // No --dangerously-skip-permissions here — each agent controls its own permission mode
+      // via the permissionMode field in its YAML frontmatter (e.g. todoist uses bypassPermissions).
+      if (!/^[a-zA-Z0-9_-]+$/.test(agentName)) throw new Error(`Invalid agent name: ${agentName}`);
+      const baseCmd = `cd '${safeWorkDir}' && claude --agent '${agentName}'${todoDirFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
@@ -58,7 +53,6 @@ function register({ ipcMain, BrowserWindow }) {
       cols: dims?.cols || 80,
       rows: dims?.rows || 24,
       cwd,
-      env: { ...process.env, CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' },
     });
 
     ptyProcesses.set(id, proc);

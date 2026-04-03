@@ -15,7 +15,7 @@
     "styles.css",
     "renderer/",
     "main/",
-    "specialists/",
+    "agents/",
     "splash.html"
   ],
   "scripts": {
