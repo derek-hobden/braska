@@ -56,12 +56,14 @@ renderer/
   file-explorer.js          — File tree rendering, panel switching, resize
   file-explorer-ops.js      — Rename, create, context menu, keyboard nav
   worktree-modals.js        — Worktree create/delete/merge modals
-  git-changes.js            — Status panel, staging, commit toolbar (incremental DOM)
+  git-changes.js            — Status panel, staging, sub-nav, GitHub view mode (incremental DOM)
+  git-changes-graph.js      — Git graph computation, commit/stash element rendering
+  git-changes-status.js     — Status toast for changes panel
   git-changes-tree.js       — Tree view rendering for git changes panel
   git-changes-actions.js    — Changes body click delegation
   git-changes-modals.js     — Pull-main flow, branch modal, diff viewer
-  post-commit-prompt.js     — Post-commit banner with push/PR actions
-  github-panel.js           — GitHub auth, section routing, CI, notifications
+  journey-zone.js           — State-driven action cards (commit/share/merge-to-main/conflicts), branch header actions, overflow menu
+  github-panel.js           — GitHub auth, section routing, CI, notifications (inline in unified panel)
   github-prs.js             — PR list, detail, create form
   github-issues.js          — Issue list, detail, create form
 

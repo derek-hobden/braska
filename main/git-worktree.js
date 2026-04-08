@@ -294,52 +294,103 @@ function register({ ipcMain }) {
     }
   });
 
+  // Shared: merge a branch into main, abort on conflicts
+  async function mergeIntoMain(workDir, featureBranch, mainWtPath) {
+    const opts = { encoding: 'utf-8', timeout: 30000 };
+    try {
+      await execFileAsync('git', ['merge', featureBranch], { ...opts, cwd: mainWtPath });
+      return { ok: true };
+    } catch (mergeErr) {
+      const msg = (mergeErr.stderr || mergeErr.stdout || mergeErr.message || '').toString();
+      if (msg.includes('CONFLICT') || msg.includes('Automatic merge failed')) {
+        try { await execFileAsync('git', ['merge', '--abort'], { ...opts, cwd: mainWtPath }); } catch { /* ignore */ }
+        return { ok: false, hasConflicts: true, error: 'Merge conflicts — the merge has been aborted' };
+      }
+      return { ok: false, error: msg.split('\n')[0] };
+    }
+  }
+
   ipcMain.handle('git:merge-and-cleanup', async (_event, workDir, featureWorktreePath, force) => {
     try {
       const info = await getGitInfo(workDir);
       if (!info.isGit) return { ok: false, error: 'Not a git repository' };
-
       const featureWt = info.worktrees.find(w => w.path === featureWorktreePath);
       if (!featureWt) return { ok: false, error: 'Worktree not found' };
-
       const mainWt = info.worktrees.find(w => w.isMain);
       if (!mainWt) return { ok: false, error: 'Main worktree not found' };
-
       const featureBranch = featureWt.branch;
-      const targetBranch = mainWt.branch;
-      const opts = { encoding: 'utf-8', timeout: 30000 };
 
-      // Merge feature branch into main (must run from main worktree dir)
-      try {
-        await execFileAsync('git', ['merge', featureBranch], { ...opts, cwd: mainWt.path });
-      } catch (mergeErr) {
-        const msg = (mergeErr.stderr || mergeErr.stdout || mergeErr.message || '').toString();
-        if (msg.includes('CONFLICT') || msg.includes('Automatic merge failed')) {
-          try { await execFileAsync('git', ['merge', '--abort'], { ...opts, cwd: mainWt.path }); } catch { /* ignore */ }
-          return { ok: false, hasConflicts: true, error: 'Merge conflicts detected. The merge has been aborted — no changes were made.' };
-        }
-        return { ok: false, error: msg };
-      }
+      const merge = await mergeIntoMain(workDir, featureBranch, mainWt.path);
+      if (!merge.ok) return merge;
 
-      // Cleanup: remove worktree then delete branch
       try {
         const removeArgs = force
           ? ['worktree', 'remove', '--force', featureWorktreePath]
           : ['worktree', 'remove', featureWorktreePath];
-        await execFileAsync('git', removeArgs, { ...opts, timeout: 60000, cwd: workDir });
-
-        try {
-          await execFileAsync('git', ['branch', '-d', featureBranch], { ...opts, cwd: workDir });
-        } catch {
-          await execFileAsync('git', ['branch', '-D', featureBranch], { ...opts, cwd: workDir });
-        }
+        const opts = { encoding: 'utf-8', timeout: 60000 };
+        await execFileAsync('git', removeArgs, { ...opts, cwd: workDir });
+        try { await execFileAsync('git', ['branch', '-d', featureBranch], { ...opts, cwd: workDir }); }
+        catch { await execFileAsync('git', ['branch', '-D', featureBranch], { ...opts, cwd: workDir }); }
       } catch (cleanupErr) {
         return { ok: false, mergeSucceeded: true, cleanupError: cleanupErr.stderr || cleanupErr.message };
       }
-
-      return { ok: true, mergedBranch: featureBranch, targetBranch };
+      return { ok: true, mergedBranch: featureBranch, targetBranch: mainWt.branch };
     } catch (err) {
       return { ok: false, error: err.message };
+    }
+  });
+
+  // Lightweight merge: merge feature branch into main without cleanup
+  ipcMain.handle('git:merge-to-main', async (_event, workDir) => {
+    try {
+      const info = await getGitInfo(workDir);
+      if (!info.isGit) return { ok: false, error: 'Not a git repository' };
+      const featureWt = info.worktrees.find(w => w.path === workDir);
+      if (!featureWt) return { ok: false, error: 'Worktree not found' };
+      if (featureWt.isMain) return { ok: false, error: 'Already on the main branch' };
+      if (featureWt.branch === '(detached)') return { ok: false, error: 'Cannot merge a detached HEAD' };
+      const mainWt = info.worktrees.find(w => w.isMain);
+      if (!mainWt) return { ok: false, error: 'Main worktree not found' };
+
+      const featureBranch = featureWt.branch;
+      const { stdout: statusOut } = await execFileAsync('git', ['status', '--porcelain'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      if (statusOut.trim()) return { ok: false, isDirty: true, error: 'Commit your changes before merging' };
+
+      try {
+        await execFileAsync('git', ['merge-base', '--is-ancestor', featureBranch, mainWt.branch], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+        return { ok: false, alreadyMerged: true, error: 'Already merged into ' + mainWt.branch };
+      } catch { /* not merged yet */ }
+
+      const merge = await mergeIntoMain(workDir, featureBranch, mainWt.path);
+      if (!merge.ok) return merge;
+      return { ok: true, featureBranch, targetBranch: mainWt.branch, mainWorktreePath: mainWt.path };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  // Push from the main worktree (used after merge-to-main)
+  ipcMain.handle('git:push-main', async (_event, workDir) => {
+    try {
+      const info = await getGitInfo(workDir);
+      if (!info.isGit) return { ok: false, error: 'Not a git repository' };
+      const mainWt = info.worktrees.find(w => w.isMain);
+      if (!mainWt) return { ok: false, error: 'Main worktree not found' };
+      await execFileAsync('git', ['push'], { cwd: mainWt.path, encoding: 'utf-8', timeout: 30000 });
+      return { ok: true, targetBranch: mainWt.branch };
+    } catch (err) {
+      const msg = (err.stderr || err.message || '').toString();
+      return { ok: false, error: msg.split('\n')[0] };
+    }
+  });
+
+  // Quick check: does origin point to GitHub?
+  ipcMain.handle('git:is-github-repo', async (_event, workDir) => {
+    try {
+      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: workDir, encoding: 'utf-8', timeout: 5000 });
+      return { ok: true, isGitHub: /github\.com/i.test(stdout) };
+    } catch {
+      return { ok: true, isGitHub: false };
     }
   });
 }

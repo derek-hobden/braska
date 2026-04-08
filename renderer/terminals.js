@@ -4,7 +4,7 @@ import { tabState } from './state.js';
 import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.js';
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
 import { agentDisplayName, stripAnsi } from './utils.js';
-import { onCommitterExit } from './post-commit-prompt.js';
+import { onCommitterExit } from './journey-zone.js';
 
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;

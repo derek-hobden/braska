@@ -1,6 +1,6 @@
 // ── File explorer operations — rename, create, context menu, keyboard nav ──
 
-import { explorerState } from './state.js';
+import { explorerState, ghState } from './state.js';
 import { SVG_FOLDER, SVG_FILE, fileIcon } from './utils.js';
 
 // ── Deps (injected via initFileExplorerOps) ────────────────────
@@ -394,14 +394,14 @@ function _initGlobalShortcuts() {
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
       e.preventDefault();
-      import('./file-explorer.js').then(mod => {
+      Promise.all([import('./file-explorer.js'), import('./git-changes.js')]).then(([mod, gcMod]) => {
         if (!explorerState.filetreeVisible) {
           mod.toggleFiletree();
-          mod.switchRightPanelTab('github');
-        } else if (document.querySelector('.filetree-tab[data-panel="github"]')?.classList.contains('active')) {
-          mod.toggleFiletree();
+          gcMod.switchToGitHubView(true);
+        } else if (ghState.viewActive) {
+          gcMod.switchToGitHubView(false);
         } else {
-          mod.switchRightPanelTab('github');
+          gcMod.switchToGitHubView(true);
         }
       });
     }

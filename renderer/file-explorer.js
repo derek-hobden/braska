@@ -1,6 +1,6 @@
 // File explorer — file tree panel, rendering, panel switching, resize
 
-import { tabState, explorerState } from './state.js';
+import { tabState, explorerState, ghState } from './state.js';
 import { SVG_FOLDER, SVG_FILE, fileIcon } from './utils.js';
 import { initFileExplorerOps, startInlineCreate } from './file-explorer-ops.js';
 
@@ -13,7 +13,7 @@ const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 const ftContextMenu = document.getElementById('ft-context-menu');
 const changesPanelWrapper = document.getElementById('changes-panel-wrapper');
 const todoBody = document.getElementById('todo-body');
-const githubBody = document.getElementById('github-body');
+// #gh-inline-section visibility is managed by switchToGitHubView in git-changes.js
 
 // ── Cross-module deps (injected via initFileExplorer to avoid circular imports) ──
 let _openFileEditor;
@@ -78,22 +78,22 @@ export function switchRightPanelTab(panel) {
   filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
   changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
   todoBody.style.display = panel === 'todo' ? '' : 'none';
-  githubBody.style.display = panel === 'github' ? '' : 'none';
   if (panel === 'changes' && activeWorkDir()) _refreshChanges?.(activeWorkDir());
   if (panel === 'explorer' && activeWorkDir()) refreshFileTree(activeWorkDir());
   if (panel === 'todo' && activeWorkDir()) {
     window.todo.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir())).catch(err => console.error('[Braska]', err));
   }
-  if (panel === 'github' && activeWorkDir()) refreshGitHub(activeWorkDir());
 }
 
 // refreshRightPanel dispatches to the correct panel refresh
 function refreshRightPanel(workDir) {
   if (!explorerState.filetreeVisible || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-  if (activePanel === 'changes') _refreshChanges?.(workDir);
+  if (activePanel === 'changes') {
+    _refreshChanges?.(workDir);
+    if (ghState.viewActive) refreshGitHub(workDir);
+  }
   else if (activePanel === 'todo') refreshTodos(workDir);
-  else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }
 

@@ -1,10 +1,13 @@
 // ── Git Changes panel — status, staging, commit toolbar ─────────
-import { tabState, gitState } from './state.js';
-import { escHtml, statSpan, createChangeEntryEl, divergenceBadges } from './utils.js';
+import { tabState, gitState, ghState } from './state.js';
+import { escHtml, statSpan, createChangeEntryEl } from './utils.js';
 import { reconcileChildren, patchText, patchHtml } from './dom-patch.js';
 import { initChangesModals, doPullLatestMain, openBranchModal, openDiffTab } from './git-changes-modals.js';
 import { initChangesActions } from './git-changes-actions.js';
 import { initTreeToggle, renderTreeEntries } from './git-changes-tree.js';
+import { computeGraph, renderFullGraphSvg, createCommitEl, createStashEl, GRAPH_ROW_H, GRAPH_COL_W } from './git-changes-graph.js';
+import { showChangesStatus } from './git-changes-status.js';
+import { renderJourneyZone } from './journey-zone.js';
 
 // ── Cross-module deps (injected via initGitChanges) ────────────
 let _refreshFileTree = null;
@@ -22,14 +25,9 @@ export function initGitChanges({ refreshFileTree, startTask, loadProjects, switc
     startTask, loadProjects, switchTab, addTabToOrder, renderTabBar,
   });
 
-  _initCommitChangesListener();
-  _initFetchListener();
-  _initPullListener();
-  _initPushListener();
-  _initStashToolbarListener();
   initChangesActions({
     refreshChanges, showChangesStatus, refreshWorktreeMetrics,
-    openDiffTab, startTask, changesBody,
+    openDiffTab, startTask, changesBody, commitsBody,
   });
   initTreeToggle(gitState, () => tabState.activeWorkDir, refreshChanges);
 }
@@ -37,33 +35,73 @@ export function initGitChanges({ refreshFileTree, startTask, loadProjects, switc
 // Re-export for app.js
 export { doPullLatestMain, openBranchModal, openDiffTab };
 
-// ── Post-commit prompt integration ─────────────────────────────
-let _buildPostCommitSection = null;
-let _dismissPostCommitPrompt = null;
+// ── GitHub view mode (inline within the unified panel) ─────────
+let _refreshGitHub = null;
+let _switchRightPanelTab = null;
 
-export function initPostCommitPromptBridge({ buildPostCommitSection, dismissPostCommitPrompt }) {
-  _buildPostCommitSection = buildPostCommitSection;
-  _dismissPostCommitPrompt = dismissPostCommitPrompt;
+export function initGitHubViewBridge({ refreshGitHub, switchRightPanelTab }) {
+  _refreshGitHub = refreshGitHub;
+  _switchRightPanelTab = switchRightPanelTab;
 }
 
-// ── DOM refs (queried once per session) ─────────────────────────
-// Initialize tree view preference from localStorage
+const changesSubnav = document.getElementById('changes-subnav');
+const changesBody = document.getElementById('changes-body');
+const commitsBody = document.getElementById('commits-body');
+const ghInlineSection = document.getElementById('gh-inline-section');
+
+export function switchToGitHubView(activate = true, { section } = {}) {
+  const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
+  if (activePanel !== 'changes' && _switchRightPanelTab) _switchRightPanelTab('changes');
+  ghState.viewActive = activate;
+  if (section) ghState.section = section;
+  setActiveSubnav(activate ? 'github' : 'changes');
+}
+
+function setActiveSubnav(subview) {
+  changesSubnav.querySelectorAll('.changes-subnav-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.subview === subview)
+  );
+  changesBody.style.display = subview === 'changes' ? '' : 'none';
+  commitsBody.style.display = subview === 'commits' ? '' : 'none';
+  ghInlineSection.style.display = subview === 'github' ? '' : 'none';
+  if (subview === 'github' && _refreshGitHub && tabState.activeWorkDir) {
+    ghState.viewActive = true;
+    _refreshGitHub(tabState.activeWorkDir);
+  } else if (subview !== 'github') {
+    ghState.viewActive = false;
+  }
+  if (subview === 'github') {
+    ghState.hasActivity = false;
+    const dot = document.querySelector('.changes-subnav-btn[data-subview="github"] .activity-dot');
+    if (dot) dot.remove();
+  }
+}
+
+// Sub-nav click handler
+changesSubnav?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.changes-subnav-btn');
+  if (!btn) return;
+  setActiveSubnav(btn.dataset.subview);
+});
+
+// ── Post-commit prompt bridge (legacy) ──
+export function initPostCommitPromptBridge() {}
+
+// ── DOM refs ────────────────────────────────────────────────────
 gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 'true';
 
-const changesBody = document.getElementById('changes-body');
-const changesToolbar = document.getElementById('changes-toolbar');
-const changesCommitArea = document.getElementById('changes-commit-area');
-const changesCommitChangesBtn = document.getElementById('changes-commit-changes-btn');
-const changesReviewBtn = document.getElementById('changes-review-btn');
-const changesReviewLoopBtn = document.getElementById('changes-review-loop-btn');
-const mainDivergenceEl = document.getElementById('changes-main-divergence');
+const branchSubtitleEl = document.getElementById('branch-subtitle');
 
-// ── Helper: main divergence badge next to pull-main button ─────
+// ── Helper: update branch subtitle with divergence info ─────────
 function updateMainDivergence(div) {
-  if (!div) { mainDivergenceEl.innerHTML = ''; return; }
-  const { html, title } = divergenceBadges(div);
-  mainDivergenceEl.innerHTML = html;
-  mainDivergenceEl.title = title;
+  if (!branchSubtitleEl) return;
+  if (!div) { branchSubtitleEl.innerHTML = ''; return; }
+  const parts = [];
+  if (div.ahead > 0) parts.push(`<span class="branch-ahead">${div.ahead} ahead</span>`);
+  if (div.behind > 0) parts.push(`<span class="branch-behind">${div.behind} behind main</span>`);
+  if (div.pushAhead > 0) parts.push(`<span class="branch-unpushed">${div.pushAhead} unpushed</span>`);
+  if (div.pushBehind > 0) parts.push(`<span class="branch-unpulled">${div.pushBehind} unpulled</span>`);
+  branchSubtitleEl.innerHTML = parts.join(' · ');
 }
 
 // ── Helper: refreshWorktreeMetrics (imported from sidebar) ──────
@@ -72,14 +110,8 @@ async function refreshWorktreeMetrics() {
   return fn();
 }
 
-// ── Status toast ────────────────────────────────────────────────
-export function showChangesStatus(msg, type) {
-  const el = document.getElementById('changes-toolbar-status');
-  el.textContent = msg;
-  el.className = 'changes-toolbar-status ' + type;
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => { el.textContent = ''; el.className = 'changes-toolbar-status'; }, type === 'error' ? 8000 : 4000);
-}
+// Re-export showChangesStatus (now lives in git-changes-status.js)
+export { showChangesStatus };
 
 // ── Stage & prompt ──────────────────────────────────────────────
 export async function stageAndPromptCommit(path, dirtyCount) {
@@ -137,7 +169,6 @@ const SECTION_DEFS = {
 };
 
 function createSectionEl(sec) {
-  if (sec.key === 'post-commit-prompt') return _buildPostCommitSection(sec.items[0].workDir, sec.items[0].status, null);
   const el = document.createElement('div');
   el.className = 'changes-section';
   const def = SECTION_DEFS[sec.key];
@@ -177,13 +208,6 @@ function createSectionEl(sec) {
 }
 
 function updateSectionEl(el, sec) {
-  if (sec.key === 'post-commit-prompt') {
-    // Mutate in-place to keep el reference valid for the DOM reconciler
-    const newEl = _buildPostCommitSection(sec.items[0].workDir, sec.items[0].status, null);
-    el.replaceChildren(...newEl.childNodes);
-    el.className = newEl.className;
-    return;
-  }
   const def = SECTION_DEFS[sec.key];
   if (def) {
     patchText(el, '.changes-section-count', String(sec.items.length));
@@ -239,149 +263,19 @@ function updateSectionEl(el, sec) {
   }
 }
 
-function createStashEl(s, i) {
-  const el = document.createElement('div');
-  el.className = 'changes-stash-entry';
-  el.innerHTML = `<span class="changes-stash-msg">${escHtml(s.message)}</span><span class="changes-stash-date">${escHtml(s.date)}</span><button class="changes-stash-btn pop" data-index="${i}" title="Pop stash">Pop</button><button class="changes-stash-btn drop" data-index="${i}" title="Drop stash">Drop</button>`;
-  return el;
-}
-
-// ── Git graph computation ─────────────────────────────────────
-// Assigns each commit a lane (column) and computes connector lines
-const GRAPH_COLORS = ['#4a9eff', '#3fb950', '#f0883e', '#bc8cff', '#f85149', '#56d4dd', '#e3b341', '#db61a2'];
-
-function computeGraph(commits) {
-  // lanes: array of hash strings occupying each column, null = empty
-  const lanes = [];
-  const rows = [];
-
-  for (let i = 0; i < commits.length; i++) {
-    const c = commits[i];
-    const hash = c.hash;
-    const parents = c.parents || [];
-
-    // Find which lane this commit occupies (it was reserved by a child)
-    let col = lanes.indexOf(hash);
-    if (col === -1) {
-      // First commit or branch head — find an empty lane or append
-      col = lanes.indexOf(null);
-      if (col === -1) { col = lanes.length; lanes.push(null); }
-    }
-    lanes[col] = null; // free the lane
-
-    // Connections: lines from this row to the next
-    const connectors = []; // { fromCol, toCol }
-
-    // First parent continues straight down in same lane
-    if (parents[0]) {
-      const existingLane = lanes.indexOf(parents[0]);
-      if (existingLane !== -1) {
-        // Parent already has a lane (merge target) — draw line to it
-        connectors.push({ fromCol: col, toCol: existingLane });
-      } else {
-        // Reserve this lane for first parent
-        lanes[col] = parents[0];
-        connectors.push({ fromCol: col, toCol: col });
-      }
-    }
-
-    // Additional parents (merge sources) — find or create lanes
-    for (let p = 1; p < parents.length; p++) {
-      const parentHash = parents[p];
-      let pLane = lanes.indexOf(parentHash);
-      if (pLane === -1) {
-        // Find empty lane or create new one
-        pLane = lanes.indexOf(null);
-        if (pLane === -1) { pLane = lanes.length; lanes.push(null); }
-        lanes[pLane] = parentHash;
-      }
-      connectors.push({ fromCol: col, toCol: pLane });
-    }
-
-    // Pass-through lanes: lanes occupied by hashes not involved in this commit
-    for (let l = 0; l < lanes.length; l++) {
-      if (lanes[l] !== null && l !== col) {
-        connectors.push({ fromCol: l, toCol: l });
-      }
-    }
-
-    // Trim trailing nulls from lanes
-    while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
-
-    rows.push({
-      col,
-      color: GRAPH_COLORS[col % GRAPH_COLORS.length],
-      connectors,
-      totalLanes: Math.max(lanes.length, col + 1),
-      isMerge: parents.length > 1,
-    });
-  }
-
-  const maxLanes = rows.length ? Math.max(...rows.map(r => r.totalLanes)) : 1;
-  return { rows, maxLanes };
-}
-
-// Render the full graph column as a single SVG overlaying the entries container.
-// Each commit row is a fixed height; the SVG spans all rows.
-const GRAPH_ROW_H = 28;
-const GRAPH_COL_W = 10;
-
-function renderFullGraphSvg(graph) {
-  const { rows, maxLanes } = graph;
-  const w = (maxLanes + 1) * GRAPH_COL_W;
-  const h = rows.length * GRAPH_ROW_H;
-  if (!w || !h) return '';
-  const lines = [];
-  const nodes = [];
-  const sw = 1.5;
-  const x = (col) => col * GRAPH_COL_W + GRAPH_COL_W / 2;
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const cy = i * GRAPH_ROW_H + GRAPH_ROW_H / 2;
-
-    for (const conn of row.connectors) {
-      const x1 = x(conn.fromCol);
-      const x2 = x(conn.toCol);
-      // Next row's center, or just the bottom edge if last row
-      const ny = (i + 1) < graph.rows.length
-        ? (i + 1) * GRAPH_ROW_H + GRAPH_ROW_H / 2
-        : h;
-
-      if (conn.fromCol === row.col) {
-        // Line from this commit's node down
-        const color = GRAPH_COLORS[conn.toCol % GRAPH_COLORS.length];
-        if (x1 === x2) {
-          lines.push(`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${ny}" stroke="${color}" stroke-width="${sw}"/>`);
-        } else {
-          lines.push(`<path d="M${x1},${cy} C${x1},${cy + GRAPH_ROW_H * 0.7} ${x2},${ny - GRAPH_ROW_H * 0.7} ${x2},${ny}" stroke="${color}" stroke-width="${sw}" fill="none"/>`);
-        }
-      } else {
-        // Pass-through: this lane has no node here, just continues straight
-        const color = GRAPH_COLORS[conn.fromCol % GRAPH_COLORS.length];
-        lines.push(`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${ny}" stroke="${color}" stroke-width="${sw}"/>`);
-      }
-    }
-
-    // Node circle
-    const r = row.isMerge ? 3.5 : 2.5;
-    nodes.push(`<circle cx="${x(row.col)}" cy="${cy}" r="${r}" fill="${row.color}" stroke="#111" stroke-width="1"/>`);
-  }
-
-  // Lines behind nodes
-  return `<svg class="git-graph-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${lines.join('')}${nodes.join('')}</svg>`;
-}
-
-function createCommitEl(c) {
-  const el = document.createElement('div');
-  el.className = 'changes-commit';
-  el.dataset.hash = c.hash;
-  el.innerHTML = `<div class="changes-commit-header"><span class="changes-commit-hash">${c.hash.slice(0, 7)}</span><span class="changes-commit-msg">${escHtml(c.message)}</span><button class="changes-commit-revert" data-revert-hash="${escHtml(c.hash)}" title="Revert this commit (creates a new undo commit)">Revert</button></div><div class="changes-commit-meta">${escHtml(c.author)} &middot; ${escHtml(c.date)}</div><div class="changes-commit-files"></div>`;
-  return el;
-}
+// createStashEl, createCommitEl, computeGraph, renderFullGraphSvg,
+// GRAPH_ROW_H, GRAPH_COL_W — now imported from git-changes-graph.js
 
 // ── Main refresh (incremental) ──────────────────────────────────
 export async function refreshChanges(workDir) {
+  try { return await _refreshChangesInner(workDir); }
+  catch (err) {
+    console.error('[Braska] refreshChanges error:', err);
+    changesBody.innerHTML = `<div class="changes-empty" style="color:#f85149">Error: ${escHtml(err.message)}</div>`;
+  }
+}
+
+async function _refreshChangesInner(workDir) {
   const gen = ++_refreshGen;
   const scrollTop = changesBody.scrollTop;
 
@@ -400,12 +294,10 @@ export async function refreshChanges(workDir) {
   if (gen !== _refreshGen) return;
 
   if (!status.isGit) {
-    changesToolbar.style.display = 'none';
-    changesCommitArea.style.display = 'none';
-    changesCommitChangesBtn.disabled = true;
-    changesReviewBtn.disabled = true;
-    changesReviewLoopBtn.disabled = true;
-    mainDivergenceEl.innerHTML = '';
+    // Hide branch header + journey zone + subnav for non-git
+    document.getElementById('branch-header').style.display = 'none';
+    document.getElementById('journey-zone').style.display = 'none';
+    changesSubnav.style.display = 'none';
     changesBody.innerHTML = `<div class="changes-not-git">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
       <div class="changes-not-git-title">Not a git repository</div>
@@ -430,101 +322,77 @@ export async function refreshChanges(workDir) {
     return;
   }
 
-  // Show toolbar/commit area (may have been hidden by non-git state)
-  changesToolbar.style.display = '';
-  changesCommitArea.style.display = '';
+  // Show branch header + subnav (may have been hidden by non-git state)
+  document.getElementById('branch-header').style.display = '';
+  changesSubnav.style.display = '';
 
-  // Update main divergence indicator
+  // Update main divergence indicator + branch subtitle
   updateMainDivergence(status.mainDivergence);
 
-  // Update toolbar state
-  const hasAnyChanges = status.staged.length > 0 || status.unstaged.length > 0 || status.untracked.length > 0;
-  changesCommitChangesBtn.disabled = !hasAnyChanges;
-  changesReviewBtn.disabled = !hasAnyChanges;
-  changesReviewLoopBtn.disabled = !hasAnyChanges;
+  // Render journey zone cards based on current state
+  renderJourneyZone(status);
 
-  // Build section descriptors (only include non-empty sections)
-  const sections = [];
+  // Update branch header
+  const branchNameBtn = document.getElementById('branch-name-btn');
+  if (branchNameBtn && status.branch) branchNameBtn.textContent = status.branch;
 
-  // Post-commit prompt banner (if active for this workDir)
-  if (gitState.postCommitPrompts.has(workDir) && _buildPostCommitSection) {
-    const div = status.mainDivergence;
-    // Show banner if: unpushed commits exist, or branch has no upstream yet
-    const hasPushable = div && (div.pushAhead > 0 || !div.hasUpstream);
-    if (hasPushable) {
-      sections.push({ key: 'post-commit-prompt', items: [{ status, workDir }] });
+  // Show/hide GitHub sub-nav — fast check against remote URL, no auth needed
+  const ghSubnavBtn = changesSubnav.querySelector('[data-subview="github"]');
+  if (ghSubnavBtn) {
+    if (ghState._isGitHubRepo === undefined || ghState._isGitHubRepoWorkDir !== workDir) {
+      // Cache miss — hide immediately to avoid stale visibility
+      ghSubnavBtn.style.display = 'none';
+      window.worktree.isGitHubRepo(workDir).then(r => {
+        // Guard against stale callback from a prior workDir switch
+        if (tabState.activeWorkDir !== workDir) return;
+        ghState._isGitHubRepo = r.isGitHub;
+        ghState._isGitHubRepoWorkDir = workDir;
+        ghSubnavBtn.style.display = r.isGitHub ? '' : 'none';
+      });
     } else {
-      // Nothing to push (or no remote at all) — auto-clear
-      gitState.postCommitPrompts.delete(workDir);
+      ghSubnavBtn.style.display = ghState._isGitHubRepo ? '' : 'none';
     }
   }
 
-  if (status.staged.length) sections.push({ key: 'staged', items: status.staged });
-  if (status.unstaged.length) sections.push({ key: 'unstaged', items: status.unstaged });
-  if (status.untracked.length) sections.push({ key: 'untracked', items: status.untracked });
-  if (stashes.length) sections.push({ key: 'stashes', items: stashes });
-  if (commits.length) sections.push({ key: 'commits', items: commits });
-  if (!sections.length) sections.push({ key: 'empty', items: [] });
+  // Remove loading placeholder (unkeyed, invisible to reconciler)
+  const loadingEl = changesBody.querySelector('.changes-empty');
+  if (loadingEl) loadingEl.remove();
 
-  // Reconcile sections
-  reconcileChildren(changesBody, sections, 'section',
+  // Build section descriptors — file changes go in changesBody, commits/stashes in commitsBody
+  const fileSections = [];
+  if (status.staged.length) fileSections.push({ key: 'staged', items: status.staged });
+  if (status.unstaged.length) fileSections.push({ key: 'unstaged', items: status.unstaged });
+  if (status.untracked.length) fileSections.push({ key: 'untracked', items: status.untracked });
+  if (!fileSections.length) fileSections.push({ key: 'empty', items: [] });
+
+  reconcileChildren(changesBody, fileSections, 'section',
+    sec => sec.key,
+    sec => createSectionEl(sec),
+    (el, sec) => updateSectionEl(el, sec),
+  );
+  changesBody.scrollTop = scrollTop;
+
+  // Commits + stashes go in the Commits sub-view
+  const commitSections = [];
+  if (stashes.length) commitSections.push({ key: 'stashes', items: stashes });
+  if (commits.length) commitSections.push({ key: 'commits', items: commits });
+  if (!commitSections.length) commitSections.push({ key: 'empty', items: [] });
+
+  reconcileChildren(commitsBody, commitSections, 'section',
     sec => sec.key,
     sec => createSectionEl(sec),
     (el, sec) => updateSectionEl(el, sec),
   );
 
-  // Restore scroll position
-  changesBody.scrollTop = scrollTop;
+  // Update Commits sub-nav badge with commit count
+  const commitsNavBtn = changesSubnav.querySelector('[data-subview="commits"]');
+  if (commitsNavBtn) {
+    const count = commits.length + stashes.length;
+    commitsNavBtn.textContent = count > 0 ? `Commits (${commits.length})` : 'Commits';
+  }
 }
 
-// ── Commit Changes (spawns committer agent) ────────────────────
-function _initCommitChangesListener() {
-  changesCommitChangesBtn.addEventListener('click', () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    // Clear any stale post-commit banner before spawning new committer
-    if (_dismissPostCommitPrompt) _dismissPostCommitPrompt(activeWorkDir);
-    // Prevent duplicate committer agents on the same worktree
-    for (const tab of tabState.tabs.values()) {
-      if (tab.agentName === 'committer' && tab.workDir === activeWorkDir) {
-        showChangesStatus('Committer already running', 'error');
-        return;
-      }
-    }
-    _startTask('committer', activeWorkDir, {
-      initialPrompt: 'Commit all current changes in this working directory. Group them into logical batches with clear commit messages.',
-    });
-  });
-}
-
-// ── Fetch button ────────────────────────────────────────────────
-function _initFetchListener() {
-  document.getElementById('changes-fetch-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const btn = document.getElementById('changes-fetch-btn');
-    btn.disabled = true;
-    const result = await window.gitOps.fetch(activeWorkDir);
-    btn.disabled = false;
-    if (result.ok) { showChangesStatus('Fetched', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-    else showChangesStatus('Fetch failed: ' + (result.error || '').split('\n')[0], 'error');
-  });
-}
-
-// ── Pull button ─────────────────────────────────────────────────
-function _initPullListener() {
-  document.getElementById('changes-pull-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const btn = document.getElementById('changes-pull-btn');
-    btn.disabled = true;
-    const result = await window.gitOps.pull(activeWorkDir);
-    btn.disabled = false;
-    if (result.ok) { showChangesStatus('Pulled', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-    else if (result.hasConflicts) { refreshChanges(activeWorkDir); refreshWorktreeMetrics(); showChangesStatus('Pull conflicts — resolve and commit', 'error'); }
-    else showChangesStatus('Pull failed: ' + (result.error || '').split('\n')[0], 'error');
-  });
-}
+// Toolbar listener functions removed — all actions now handled by journey-zone.js
 
 // ── Shared push logic (used by toolbar + post-commit banner) ───
 function onPushSuccess(workDir, msg = 'Pushed') {
@@ -561,25 +429,4 @@ export async function doPush(workDir, { autoUpstream = false } = {}) {
   return { ok: false, error: result.error };
 }
 
-// ── Push button ─────────────────────────────────────────────────
-function _initPushListener() {
-  document.getElementById('changes-push-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const btn = document.getElementById('changes-push-btn');
-    btn.disabled = true;
-    try { await doPush(activeWorkDir, { autoUpstream: false }); }
-    finally { btn.disabled = false; }
-  });
-}
-
-// ── Stash toolbar button ────────────────────────────────────────
-function _initStashToolbarListener() {
-  document.getElementById('changes-stash-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const result = await window.gitOps.stashSave(activeWorkDir, '');
-    if (result.ok) { showChangesStatus('Stashed', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-    else showChangesStatus((result.error || 'Stash failed').split('\n')[0], 'error');
-  });
-}
+// Push/stash toolbar listeners removed — now in journey-zone.js

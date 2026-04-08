@@ -100,7 +100,6 @@
             <button class="filetree-tab active" data-panel="explorer">Explorer</button>
             <button class="filetree-tab" data-panel="todo">TODO</button>
             <button class="filetree-tab" data-panel="changes">Git</button>
-            <button class="filetree-tab" data-panel="github">GitHub</button>
           </div>
         </div>
         <div id="filetree-body" tabindex="0">
@@ -115,46 +114,36 @@
           <div class="ft-empty">No project selected</div>
         </div>
         <div id="changes-panel-wrapper" style="display:none">
-          <div class="changes-toolbar" id="changes-toolbar">
-            <button class="changes-toolbar-btn" id="changes-fetch-btn" title="Fetch (git fetch --all)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </button>
-            <button class="changes-toolbar-btn" id="changes-pull-btn" title="Pull (git pull)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-            </button>
-            <button class="changes-toolbar-btn" id="changes-push-btn" title="Push (git push)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-            </button>
-            <button class="changes-toolbar-btn" id="changes-pull-main-btn" title="Pull latest main (fetch + merge origin/main)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
-            </button>
-            <span class="changes-main-divergence" id="changes-main-divergence"></span>
-            <div class="changes-toolbar-sep"></div>
-            <button class="changes-toolbar-btn" id="changes-stash-btn" title="Stash changes (git stash)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-            </button>
-            <button class="changes-toolbar-btn" id="changes-branch-btn" title="Branch management">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
-            </button>
-            <div class="changes-toolbar-sep"></div>
-            <button class="changes-toolbar-btn" id="changes-tree-toggle" title="Switch to tree view">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/></svg>
-            </button>
-            <div class="changes-toolbar-sep"></div>
-            <button class="changes-toolbar-btn" id="changes-review-btn" disabled title="Review changes with code-reviewer agent">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-            <div class="changes-toolbar-spacer"></div>
-            <span class="changes-toolbar-status" id="changes-toolbar-status"></span>
+          <div id="branch-header">
+            <div id="branch-header-main">
+              <button id="branch-name-btn" title="Switch branch"></button>
+              <button id="branch-overflow-btn" class="branch-overflow-btn" title="More actions">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
+            </div>
+            <div id="branch-subtitle"></div>
+            <div id="branch-overflow-menu" class="overflow-menu" style="display:none">
+              <div class="overflow-menu-section">Sync</div>
+              <button class="overflow-menu-item" data-action="fetch">Fetch</button>
+              <div class="overflow-menu-section">Changes</div>
+              <button class="overflow-menu-item" data-action="stash">Stash</button>
+              <button class="overflow-menu-item" data-action="discard-all">Discard All</button>
+              <div class="overflow-menu-section">View</div>
+              <button class="overflow-menu-item" data-action="tree-toggle">Tree / List</button>
+            </div>
           </div>
-          <div class="changes-commit-area" id="changes-commit-area">
-            <button class="changes-commit-changes-btn" id="changes-commit-changes-btn" disabled title="Auto-commit all changes in logical batches using Claude">Commit Changes</button>
-            <button class="changes-review-loop-btn" id="changes-review-loop-btn" disabled title="Auto-review, fix, and stage all changes">Code Review Loop</button>
+          <div id="journey-zone"></div>
+          <span class="changes-toolbar-status" id="changes-toolbar-status"></span>
+          <div id="changes-subnav">
+            <button class="changes-subnav-btn active" data-subview="changes">Changes</button>
+            <button class="changes-subnav-btn" data-subview="commits">Commits</button>
+            <button class="changes-subnav-btn" data-subview="github" style="display:none">GitHub</button>
           </div>
           <div id="changes-body"></div>
+          <div id="commits-body" style="display:none"></div>
+          <div id="gh-inline-section" style="display:none"></div>
         </div>
         <div id="todo-body" style="display:none"></div>
-        <div id="github-body" style="display:none"></div>
       </div>
     </div>
   </div>

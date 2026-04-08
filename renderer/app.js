@@ -1,7 +1,7 @@
 // ── Braska Renderer Entry Point ──
 // Imports all modules, wires cross-module dependencies, and initializes the app.
 
-import { tabState, appState, watchState } from './state.js';
+import { tabState, appState, watchState, ghState } from './state.js';
 import { loadProjects, refreshWorktreeMetrics, initSidebar } from './sidebar.js';
 import { showWorktreeContextMenu, openWorktreeCreateModal, openMergeModal, initWorktreeModals } from './worktree-modals.js';
 import { enterSettings, exitSettings, bindSettingsDeps, initSettings } from './settings.js';
@@ -9,8 +9,9 @@ import { tabsForWorkDir, renderTabBar, switchTab, closeTab, addTabToOrder, remov
 import { startTask, startBrowser, openFileEditor, initTerminals } from './terminals.js';
 import { updateNotifUI, initNotifications } from './notifications.js';
 import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
-import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, doPush, showChangesStatus, initGitChanges, initPostCommitPromptBridge } from './git-changes.js';
-import { initPostCommitPrompt, buildPostCommitSection, dismissPostCommitPrompt } from './post-commit-prompt.js';
+import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, doPush, showChangesStatus, switchToGitHubView, initGitChanges, initPostCommitPromptBridge, initGitHubViewBridge } from './git-changes.js';
+// post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
+import { initJourneyZone, renderJourneyZone, onCommitterExit, dismissPostCommitPrompt } from './journey-zone.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
@@ -67,9 +68,11 @@ export function refreshRightPanel(workDir) {
   const filetreePanel = document.getElementById('filetree-panel');
   if (filetreePanel.classList.contains('hidden') || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-  if (activePanel === 'changes') refreshChanges(workDir);
+  if (activePanel === 'changes') {
+    refreshChanges(workDir);
+    if (ghState.viewActive) refreshGitHub(workDir);
+  }
   else if (activePanel === 'todo') refreshTodos(workDir);
-  else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }
 
@@ -166,7 +169,7 @@ window.filetree.onChange((filename) => {
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
     if (activePanel === 'todo') return;
-    if (activePanel === 'github') return;
+    // GitHub is now a sub-view of changes, no separate tab to guard
     refreshRightPanel(tabState.activeWorkDir);
   }, 300);
 });
@@ -191,10 +194,11 @@ initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
-initPostCommitPromptBridge({ buildPostCommitSection, dismissPostCommitPrompt });
-initPostCommitPrompt({ doPush, showChangesStatus, refreshWorktreeMetrics, switchRightPanelTab, refreshChanges });
+initPostCommitPromptBridge();
+initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, switchToGitHubView, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
-initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
+initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 
 // ── Tab type picker & agent picker modal handlers ──

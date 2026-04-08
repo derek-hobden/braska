@@ -2016,6 +2016,239 @@
       cursor: default;
     }
 
+    /* ── Branch header ────────────────────────────────── */
+    #branch-header {
+      position: relative;
+      padding: 8px 12px 4px;
+      background: #161b22;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    #branch-header-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #branch-name-btn {
+      background: none;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 2px 8px;
+      cursor: pointer;
+      max-width: calc(100% - 32px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #branch-name-btn:hover { border-color: #555; color: #fff; }
+    .branch-overflow-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .branch-overflow-btn:hover { background: #2a2a2a; color: #ccc; }
+    #branch-subtitle {
+      font-size: 0.72rem;
+      color: #888;
+      padding: 2px 0 0;
+      min-height: 14px;
+    }
+    .branch-ahead { color: #3fb950; }
+    .branch-behind { color: #f85149; }
+    .branch-unpushed { color: #b87fff; }
+    .branch-unpulled { color: #b87fff; }
+
+    /* Overflow menu */
+    .overflow-menu {
+      position: absolute;
+      right: 8px;
+      top: 100%;
+      z-index: 50;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .overflow-menu-section {
+      font-size: 0.65rem;
+      color: #666;
+      text-transform: uppercase;
+      padding: 6px 12px 2px;
+      letter-spacing: 0.05em;
+    }
+    .overflow-menu-item {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 0.78rem;
+      font-family: inherit;
+      padding: 5px 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .overflow-menu-item:hover { background: #2a2a2a; }
+
+    /* ── Journey zone ─────────────────────────────────── */
+    #journey-zone {
+      background: #161b22;
+      padding: 0 8px;
+    }
+    #journey-zone:empty { display: none; }
+
+    /* Pyrefly breathing animation for card dots */
+    @keyframes pyrefly-breathe-blue {
+      0%, 100% { box-shadow: 0 0 3px 1px rgba(74,158,255,0.4); }
+      50%      { box-shadow: 0 0 7px 2px rgba(74,158,255,0.8); }
+    }
+    @keyframes pyrefly-breathe-yellow {
+      0%, 100% { box-shadow: 0 0 3px 1px rgba(227,179,65,0.4); }
+      50%      { box-shadow: 0 0 7px 2px rgba(227,179,65,0.8); }
+    }
+    @keyframes pyrefly-breathe-green {
+      0%, 100% { box-shadow: 0 0 3px 1px rgba(63,185,80,0.4); }
+      50%      { box-shadow: 0 0 7px 2px rgba(63,185,80,0.8); }
+    }
+    @keyframes pyrefly-breathe-red {
+      0%, 100% { box-shadow: 0 0 3px 1px rgba(248,81,73,0.4); }
+      50%      { box-shadow: 0 0 7px 2px rgba(248,81,73,0.8); }
+    }
+    /* Card entrance */
+    @keyframes journey-card-enter {
+      0%   { opacity: 0; transform: translateY(-4px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .journey-card {
+      border-left: 3px solid #4a9eff;
+      padding: 6px 10px;
+      margin: 6px 0;
+      border-radius: 4px;
+      background: #1a2332;
+      animation: journey-card-enter 0.3s ease-out;
+    }
+    .journey-card-action { border-left-color: #4a9eff; }
+    .journey-card-warning { border-left-color: #e3b341; }
+    .journey-card-ready { border-left-color: #3fb950; }
+    .journey-card-conflict { border-left-color: #f85149; background: #2a1a1a; }
+    .journey-card-title {
+      font-size: 0.78rem;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .journey-card-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .journey-card-action .journey-card-dot {
+      background: #4a9eff;
+      animation: pyrefly-breathe-blue 3s ease-in-out infinite;
+    }
+    .journey-card-warning .journey-card-dot {
+      background: #e3b341;
+      animation: pyrefly-breathe-yellow 2.8s ease-in-out infinite 0.4s;
+    }
+    .journey-card-ready .journey-card-dot {
+      background: #3fb950;
+      animation: pyrefly-breathe-green 3.2s ease-in-out infinite 0.8s;
+    }
+    .journey-card-conflict .journey-card-dot {
+      background: #f85149;
+      animation: pyrefly-breathe-red 2.2s ease-in-out infinite;
+    }
+    .journey-card-subtitle {
+      font-size: 0.72rem;
+      color: #d29922;
+      padding: 2px 0 0 12px;
+    }
+    .journey-card-subtitle-link {
+      color: #e3b341;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .journey-card-subtitle-link:hover { color: #f0d060; }
+    .journey-card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      padding-left: 12px;
+    }
+    .journey-card-btn {
+      border: none;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .journey-card-btn:focus-visible { outline: 2px solid #4a9eff; outline-offset: 1px; }
+    .journey-card-btn.primary {
+      background: #2a4a7a;
+      color: #ccc;
+    }
+    .journey-card-btn.primary:hover { background: #345d99; }
+    .journey-card-btn.secondary {
+      background: transparent;
+      border: 1px solid #444;
+      color: #aaa;
+    }
+    .journey-card-btn.secondary:hover { border-color: #666; color: #ccc; }
+    .journey-card-btn:disabled { opacity: 0.4; cursor: default; }
+    .journey-more {
+      font-size: 0.72rem;
+      color: #666;
+      padding: 2px 12px 6px;
+      cursor: pointer;
+    }
+    .journey-more:hover { color: #999; }
+
+    /* ── Changes sub-nav ──────────────────────────────── */
+    #changes-subnav {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid #2a2a2a;
+      background: #161b22;
+      padding: 0 8px;
+    }
+    .changes-subnav-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      font-size: 0.75rem;
+      font-family: inherit;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .changes-subnav-btn:hover { color: #ccc; }
+    .changes-subnav-btn.active {
+      color: #ccc;
+      border-bottom-color: #4a9eff;
+    }
+    .changes-subnav-btn .activity-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f85149;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
     /* Branch management modal */
     #branch-modal {
       display: none;

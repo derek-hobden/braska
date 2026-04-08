@@ -155,15 +155,7 @@ function _initPullMainListeners() {
     _refreshWorktreeMetrics();
   });
 
-  // Pull Latest Main toolbar button
-  document.getElementById('changes-pull-main-btn').addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    const btn = document.getElementById('changes-pull-main-btn');
-    btn.disabled = true;
-    await doPullLatestMain(activeWorkDir);
-    btn.disabled = false;
-  });
+  // Pull-main toolbar button removed — now triggered by journey zone card
 }
 
 // ── Branch modal ────────────────────────────────────────────────
@@ -213,11 +205,7 @@ async function refreshBranchList() {
 }
 
 function _initBranchModalListeners() {
-  document.getElementById('changes-branch-btn').addEventListener('click', () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    openBranchModal();
-  });
+  // Branch toolbar button removed — now triggered by branch-name-btn click in journey-zone.js
 
   document.getElementById('branch-close-btn').addEventListener('click', () => {
     branchModal.classList.remove('active');

@@ -1,9 +1,10 @@
 // ── Git changes tree view — folder hierarchy rendering ──
 import { escHtml, SVG_FOLDER } from './utils.js';
 
-/** Initialize the tree/list toggle button. */
+/** Initialize the tree/list toggle button (legacy — now in overflow menu). */
 export function initTreeToggle(gitState, getActiveWorkDir, refreshChanges) {
   const btn = document.getElementById('changes-tree-toggle');
+  if (!btn) return; // Toolbar removed — toggle is now in the overflow menu via journey-zone.js
   const update = () => {
     btn.classList.toggle('active', gitState.changesTreeView);
     btn.title = gitState.changesTreeView ? 'Switch to list view' : 'Switch to tree view';

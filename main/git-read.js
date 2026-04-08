@@ -70,12 +70,26 @@ function register({ ipcMain }) {
         if (stdout.trim()) untracked = stdout.trim().split('\n');
       } catch {}
 
+      // Current branch name
+      let branch = null;
+      try {
+        const { stdout: branchOut } = await execFileAsync('git', ['symbolic-ref', '--short', 'HEAD'], opts);
+        branch = branchOut.trim();
+      } catch { /* detached HEAD */ }
+
+      // Conflicted files (unmerged)
+      let conflicted = [];
+      try {
+        const { stdout } = await execFileAsync('git', ['diff', '--name-only', '--diff-filter=U'], opts);
+        if (stdout.trim()) conflicted = stdout.trim().split('\n');
+      } catch {}
+
       // Divergence vs local main + push/pull sync vs origin
       let mainDivergence = null;
       try {
         const fast = { ...opts, timeout: 5000 };
-        const { stdout: branchOut } = await execFileAsync('git', ['symbolic-ref', '--short', 'HEAD'], fast);
-        const currentBranch = branchOut.trim();
+        const currentBranch = branch;
+        if (!currentBranch) throw new Error('detached');
         const defaultBranch = await detectDefaultBranch(workDir);
         if (currentBranch !== defaultBranch) {
           const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${defaultBranch}...HEAD`], fast);
@@ -102,7 +116,7 @@ function register({ ipcMain }) {
         } catch {}
       } catch { /* non-critical */ }
 
-      return { isGit: true, unstaged, staged, untracked, mainDivergence };
+      return { isGit: true, branch, unstaged, staged, untracked, conflicted, mainDivergence };
     } catch {
       return { isGit: false, unstaged: [], staged: [], untracked: [] };
     }

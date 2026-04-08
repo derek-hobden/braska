@@ -15,14 +15,16 @@ let _startTask = null;
 let _showAgentPickerForTodo = null;
 let _showGitHubIssueDetail = null;
 let _switchRightPanelTab = null;
+let _switchToGitHubView = null;
 
-export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab }) {
+export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _startTask = startTask;
   _showAgentPickerForTodo = showAgentPickerForTodo;
   _showGitHubIssueDetail = showGitHubIssueDetail;
   _switchRightPanelTab = switchRightPanelTab;
+  _switchToGitHubView = switchToGitHubView;
 
   // ── Todo close modal button handlers ────────────────────────
   document.getElementById('todo-close-done-btn').addEventListener('click', () => closeTodoCloseModal('done'));
@@ -105,8 +107,7 @@ export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentP
       ghLink.addEventListener('click', (ev) => {
         ev.preventDefault();
         const issueNum = parseInt(ghLink.dataset.todoGotoGhIssue);
-        ghState.section = 'issues';
-        _switchRightPanelTab('github');
+        _switchToGitHubView(true, { section: 'issues' });
         setTimeout(() => _showGitHubIssueDetail(tabState.activeWorkDir, issueNum), 100);
       });
     }
