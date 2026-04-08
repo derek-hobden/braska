@@ -7,6 +7,12 @@ import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge } from './
 // ── PR list ────────────────────────────────────────────────────
 
 export async function refreshGitHubPRs(workDir) {
+  // Consume pendingPRForm flag — skip list and open form directly
+  if (ghState.pendingPRForm) {
+    ghState.pendingPRForm = false;
+    return showGitHubPRForm(workDir);
+  }
+
   const content = document.getElementById('gh-content');
   content.innerHTML = '<div class="gh-empty">Loading pull requests...</div>';
 
