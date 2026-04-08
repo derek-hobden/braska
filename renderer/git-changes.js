@@ -144,9 +144,16 @@ function createSectionEl(sec) {
     for (let i = 0; i < sec.items.length; i++) entries.appendChild(createStashEl(sec.items[i], i));
     el.appendChild(entries);
   } else if (sec.key === 'commits') {
-    el.innerHTML = '<div class="changes-section-header">Recent Commits</div>';
+    const collapsed = localStorage.getItem('braska-commits-collapsed') === 'true';
+    if (collapsed) el.classList.add('commits-collapsed');
+    el.innerHTML = `<div class="changes-section-header changes-section-collapsible${collapsed ? ' collapsed' : ''}"><span class="changes-section-chevron">${collapsed ? '▸' : '▾'}</span>Recent Commits<span class="changes-section-count">${sec.items.length}</span></div>`;
     const entries = document.createElement('div');
-    entries.className = 'changes-section-entries';
+    entries.className = 'changes-section-entries commits-graph-wrap';
+    if (collapsed) entries.style.display = 'none';
+    const graph = computeGraph(sec.items);
+    const graphW = (graph.maxLanes + 1) * GRAPH_COL_W;
+    entries.innerHTML = renderFullGraphSvg(graph);
+    entries.style.paddingLeft = graphW + 'px';
     for (const c of sec.items) entries.appendChild(createCommitEl(c));
     el.appendChild(entries);
   } else {
@@ -181,15 +188,33 @@ function updateSectionEl(el, sec) {
     entries.innerHTML = '';
     for (let i = 0; i < sec.items.length; i++) entries.appendChild(createStashEl(sec.items[i], i));
   } else if (sec.key === 'commits') {
+    patchText(el, '.changes-section-count', String(sec.items.length));
     const entries = el.querySelector('.changes-section-entries');
-    reconcileChildren(entries, sec.items, 'hash',
-      c => c.hash,
-      c => createCommitEl(c),
-      (existing, c) => {
-        patchText(existing, '.changes-commit-msg', c.message);
-        patchText(existing, '.changes-commit-meta', `${c.author} · ${c.date}`);
-      },
-    );
+
+    // Capture expanded commits (with their loaded file lists) before rebuild
+    const expandedMap = new Map();
+    for (const commitEl of entries.querySelectorAll('.changes-commit.expanded')) {
+      const filesEl = commitEl.querySelector('.changes-commit-files');
+      if (filesEl && filesEl.children.length > 0) {
+        expandedMap.set(commitEl.dataset.hash, filesEl);
+      }
+    }
+
+    const graph = computeGraph(sec.items);
+    const graphW = (graph.maxLanes + 1) * GRAPH_COL_W;
+    entries.innerHTML = renderFullGraphSvg(graph);
+    entries.style.paddingLeft = graphW + 'px';
+    for (const c of sec.items) {
+      const newEl = createCommitEl(c);
+      if (expandedMap.has(c.hash)) {
+        newEl.classList.add('expanded');
+        // Re-attach the previously loaded file list
+        const newFilesEl = newEl.querySelector('.changes-commit-files');
+        const oldFilesEl = expandedMap.get(c.hash);
+        newFilesEl.replaceWith(oldFilesEl);
+      }
+      entries.appendChild(newEl);
+    }
   }
 }
 
@@ -198,6 +223,132 @@ function createStashEl(s, i) {
   el.className = 'changes-stash-entry';
   el.innerHTML = `<span class="changes-stash-msg">${escHtml(s.message)}</span><span class="changes-stash-date">${escHtml(s.date)}</span><button class="changes-stash-btn pop" data-index="${i}" title="Pop stash">Pop</button><button class="changes-stash-btn drop" data-index="${i}" title="Drop stash">Drop</button>`;
   return el;
+}
+
+// ── Git graph computation ─────────────────────────────────────
+// Assigns each commit a lane (column) and computes connector lines
+const GRAPH_COLORS = ['#4a9eff', '#3fb950', '#f0883e', '#bc8cff', '#f85149', '#56d4dd', '#e3b341', '#db61a2'];
+
+function computeGraph(commits) {
+  // lanes: array of hash strings occupying each column, null = empty
+  const lanes = [];
+  const rows = [];
+
+  for (let i = 0; i < commits.length; i++) {
+    const c = commits[i];
+    const hash = c.hash;
+    const parents = c.parents || [];
+
+    // Find which lane this commit occupies (it was reserved by a child)
+    let col = lanes.indexOf(hash);
+    if (col === -1) {
+      // First commit or branch head — find an empty lane or append
+      col = lanes.indexOf(null);
+      if (col === -1) { col = lanes.length; lanes.push(null); }
+    }
+    lanes[col] = null; // free the lane
+
+    // Connections: lines from this row to the next
+    const connectors = []; // { fromCol, toCol }
+
+    // First parent continues straight down in same lane
+    if (parents[0]) {
+      const existingLane = lanes.indexOf(parents[0]);
+      if (existingLane !== -1) {
+        // Parent already has a lane (merge target) — draw line to it
+        connectors.push({ fromCol: col, toCol: existingLane });
+      } else {
+        // Reserve this lane for first parent
+        lanes[col] = parents[0];
+        connectors.push({ fromCol: col, toCol: col });
+      }
+    }
+
+    // Additional parents (merge sources) — find or create lanes
+    for (let p = 1; p < parents.length; p++) {
+      const parentHash = parents[p];
+      let pLane = lanes.indexOf(parentHash);
+      if (pLane === -1) {
+        // Find empty lane or create new one
+        pLane = lanes.indexOf(null);
+        if (pLane === -1) { pLane = lanes.length; lanes.push(null); }
+        lanes[pLane] = parentHash;
+      }
+      connectors.push({ fromCol: col, toCol: pLane });
+    }
+
+    // Pass-through lanes: lanes occupied by hashes not involved in this commit
+    for (let l = 0; l < lanes.length; l++) {
+      if (lanes[l] !== null && l !== col) {
+        connectors.push({ fromCol: l, toCol: l });
+      }
+    }
+
+    // Trim trailing nulls from lanes
+    while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
+
+    rows.push({
+      col,
+      color: GRAPH_COLORS[col % GRAPH_COLORS.length],
+      connectors,
+      totalLanes: Math.max(lanes.length, col + 1),
+      isMerge: parents.length > 1,
+    });
+  }
+
+  const maxLanes = rows.length ? Math.max(...rows.map(r => r.totalLanes)) : 1;
+  return { rows, maxLanes };
+}
+
+// Render the full graph column as a single SVG overlaying the entries container.
+// Each commit row is a fixed height; the SVG spans all rows.
+const GRAPH_ROW_H = 28;
+const GRAPH_COL_W = 10;
+
+function renderFullGraphSvg(graph) {
+  const { rows, maxLanes } = graph;
+  const w = (maxLanes + 1) * GRAPH_COL_W;
+  const h = rows.length * GRAPH_ROW_H;
+  if (!w || !h) return '';
+  const lines = [];
+  const nodes = [];
+  const sw = 1.5;
+  const x = (col) => col * GRAPH_COL_W + GRAPH_COL_W / 2;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const cy = i * GRAPH_ROW_H + GRAPH_ROW_H / 2;
+
+    for (const conn of row.connectors) {
+      const x1 = x(conn.fromCol);
+      const x2 = x(conn.toCol);
+      // Next row's center, or just the bottom edge if last row
+      const ny = (i + 1) < graph.rows.length
+        ? (i + 1) * GRAPH_ROW_H + GRAPH_ROW_H / 2
+        : h;
+
+      if (conn.fromCol === row.col) {
+        // Line from this commit's node down
+        const color = GRAPH_COLORS[conn.toCol % GRAPH_COLORS.length];
+        if (x1 === x2) {
+          lines.push(`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${ny}" stroke="${color}" stroke-width="${sw}"/>`);
+        } else {
+          lines.push(`<path d="M${x1},${cy} C${x1},${cy + GRAPH_ROW_H * 0.7} ${x2},${ny - GRAPH_ROW_H * 0.7} ${x2},${ny}" stroke="${color}" stroke-width="${sw}" fill="none"/>`);
+        }
+      } else {
+        // Pass-through: this lane has no node here, just continues straight
+        const color = GRAPH_COLORS[conn.fromCol % GRAPH_COLORS.length];
+        lines.push(`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${ny}" stroke="${color}" stroke-width="${sw}"/>`);
+      }
+    }
+
+    // Node circle
+    const r = row.isMerge ? 3.5 : 2.5;
+    nodes.push(`<circle cx="${x(row.col)}" cy="${cy}" r="${r}" fill="${row.color}" stroke="#111" stroke-width="1"/>`);
+  }
+
+  // Lines behind nodes
+  return `<svg class="git-graph-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${lines.join('')}${nodes.join('')}</svg>`;
 }
 
 function createCommitEl(c) {
@@ -212,11 +363,6 @@ function createCommitEl(c) {
 export async function refreshChanges(workDir) {
   const gen = ++_refreshGen;
   const scrollTop = changesBody.scrollTop;
-
-  // Preserve expanded commit state
-  const expandedHashes = new Set(
-    [...changesBody.querySelectorAll('.changes-commit.expanded')].map(el => el.dataset.hash)
-  );
 
   // Show loading only on first render (no existing sections)
   if (!changesBody.querySelector('[data-section]')) {
@@ -265,12 +411,6 @@ export async function refreshChanges(workDir) {
     sec => createSectionEl(sec),
     (el, sec) => updateSectionEl(el, sec),
   );
-
-  // Restore expanded commits
-  for (const hash of expandedHashes) {
-    const commitEl = changesBody.querySelector(`.changes-commit[data-hash="${hash}"]`);
-    if (commitEl) commitEl.classList.add('expanded');
-  }
 
   // Restore scroll position
   changesBody.scrollTop = scrollTop;

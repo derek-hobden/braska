@@ -167,12 +167,12 @@ function register({ ipcMain }) {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 10000 };
       const n = Math.min(Math.max(parseInt(count) || 20, 1), 100);
-      const { stdout } = await execFileAsync('git', ['log', `--format=%H%x00%s%x00%an%x00%ar`, `-${n}`], opts);
+      const { stdout } = await execFileAsync('git', ['log', `--format=%H%x00%P%x00%s%x00%an%x00%ar`, `-${n}`], opts);
       const out = stdout.trim();
       if (!out) return [];
       return out.split('\n').map(line => {
-        const [hash, message, author, date] = line.split('\0');
-        return { hash, message, author, date };
+        const [hash, parents, message, author, date] = line.split('\0');
+        return { hash, parents: parents ? parents.split(' ') : [], message, author, date };
       });
     } catch { return []; }
   });

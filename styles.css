@@ -1513,6 +1513,8 @@
       overflow-y: auto;
       overflow-x: hidden;
       padding: 2px 0;
+      display: flex;
+      flex-direction: column;
     }
     #changes-body::-webkit-scrollbar { width: 6px; }
     #changes-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
@@ -1677,26 +1679,61 @@
     .changes-toolbar-btn.active { color: #4a9eff; }
     .changes-toolbar-btn.active:hover { color: #6bb5ff; }
 
+    /* Collapsible section header */
+    .changes-section-collapsible {
+      cursor: pointer;
+    }
+    .changes-section-collapsible:hover { color: #999; }
+    .changes-section-chevron {
+      margin-right: 4px;
+      font-size: 0.65rem;
+      color: #555;
+      width: 8px;
+      display: inline-block;
+    }
+
+    /* Commits section pins to bottom when collapsed */
+    .changes-section[data-section="commits"].commits-collapsed {
+      margin-top: auto;
+    }
+
+    /* Git graph overlay */
+    .commits-graph-wrap {
+      position: relative;
+    }
+    .commits-graph-wrap > .git-graph-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
     .changes-commit {
-      padding: 6px 12px;
+      height: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 12px 0 4px;
       cursor: pointer;
       user-select: none;
+      box-sizing: border-box;
     }
-    .changes-commit:hover { background: #1a1a1a; }
+    .changes-commit:hover { background: rgba(255,255,255,0.03); }
     .changes-commit-header {
       display: flex;
       align-items: center;
       gap: 6px;
+      line-height: 1;
     }
     .changes-commit-hash {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-family: Menlo, Monaco, "Courier New", monospace;
       color: #4a9eff;
       flex-shrink: 0;
     }
     .changes-commit-msg {
-      font-size: 0.8rem;
-      color: #ccc;
+      font-size: 0.75rem;
+      color: #bbb;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1704,11 +1741,13 @@
       min-width: 0;
     }
     .changes-commit-meta {
-      font-size: 0.68rem;
-      color: #555;
-      margin-top: 2px;
+      font-size: 0.62rem;
+      color: #444;
+      margin-top: 1px;
+      line-height: 1;
     }
     .changes-commit-files { display: none; padding-top: 4px; }
+    .changes-commit.expanded { height: auto; }
     .changes-commit.expanded .changes-commit-files { display: block; }
     .changes-empty {
       color: #444;

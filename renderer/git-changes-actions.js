@@ -60,6 +60,21 @@ export function initChangesActions(deps) {
     }
   });
 
+  // Collapsible section headers (commits)
+  _changesBody.addEventListener('click', (e) => {
+    const header = e.target.closest('.changes-section-collapsible');
+    if (!header) return;
+    const section = header.closest('.changes-section');
+    if (!section) return;
+    const entries = section.querySelector('.changes-section-entries');
+    if (!entries) return;
+    const isCollapsed = header.classList.toggle('collapsed');
+    section.classList.toggle('commits-collapsed', isCollapsed);
+    header.querySelector('.changes-section-chevron').textContent = isCollapsed ? '▸' : '▾';
+    entries.style.display = isCollapsed ? 'none' : '';
+    localStorage.setItem('braska-commits-collapsed', isCollapsed);
+  });
+
   _changesBody.addEventListener('click', async (e) => {
     const activeWorkDir = tabState.activeWorkDir;
 
