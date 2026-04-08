@@ -9,10 +9,12 @@ import { initTreeToggle, renderTreeEntries } from './git-changes-tree.js';
 // ── Cross-module deps (injected via initGitChanges) ────────────
 let _refreshFileTree = null;
 let _startTask = null;
+let _loadProjects = null;
 
 export function initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir }) {
   _refreshFileTree = refreshFileTree;
   _startTask = startTask;
+  _loadProjects = loadProjects;
 
   // Forward deps to modals sub-module
   initChangesModals({
@@ -40,6 +42,8 @@ export { doPullLatestMain, openBranchModal, openDiffTab };
 gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 'true';
 
 const changesBody = document.getElementById('changes-body');
+const changesToolbar = document.getElementById('changes-toolbar');
+const changesCommitArea = document.getElementById('changes-commit-area');
 const changesCommitChangesBtn = document.getElementById('changes-commit-changes-btn');
 const changesReviewBtn = document.getElementById('changes-review-btn');
 const changesReviewLoopBtn = document.getElementById('changes-review-loop-btn');
@@ -379,13 +383,39 @@ export async function refreshChanges(workDir) {
   if (gen !== _refreshGen) return;
 
   if (!status.isGit) {
-    changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
+    changesToolbar.style.display = 'none';
+    changesCommitArea.style.display = 'none';
     changesCommitChangesBtn.disabled = true;
     changesReviewBtn.disabled = true;
     changesReviewLoopBtn.disabled = true;
     mainDivergenceEl.innerHTML = '';
+    changesBody.innerHTML = `<div class="changes-not-git">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      <div class="changes-not-git-title">Not a git repository</div>
+      <div class="changes-not-git-subtitle">Initialize a repository to track changes, create branches, and collaborate.</div>
+      <button class="changes-not-git-btn">Initialize Repository</button>
+    </div>`;
+    // innerHTML replaces entire subtree, so old listeners are GC'd with old nodes — safe to re-attach
+    changesBody.querySelector('.changes-not-git-btn').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Initializing…';
+      const result = await window.gitOps.init(workDir);
+      if (result.ok) {
+        if (_loadProjects) _loadProjects();
+        refreshChanges(workDir);
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Initialize Repository';
+        showChangesStatus(result.error, 'error');
+      }
+    });
     return;
   }
+
+  // Show toolbar/commit area (may have been hidden by non-git state)
+  changesToolbar.style.display = '';
+  changesCommitArea.style.display = '';
 
   // Update main divergence indicator
   updateMainDivergence(status.mainDivergence);

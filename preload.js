@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('gitDiff', {
 });
 
 contextBridge.exposeInMainWorld('gitOps', {
+  init: (workDir) => ipcRenderer.invoke('git:init', workDir),
   stage: (workDir, filePaths) => ipcRenderer.invoke('git:stage', workDir, filePaths),
   unstage: (workDir, filePaths) => ipcRenderer.invoke('git:unstage', workDir, filePaths),
   commit: (workDir, message) => ipcRenderer.invoke('git:commit', workDir, message),

@@ -2,6 +2,15 @@ const { errMsg, execFileAsync } = require('./utils');
 const { getGitInfo } = require('./projects');
 
 function register({ ipcMain }) {
+  ipcMain.handle('git:init', async (_event, workDir) => {
+    try {
+      await execFileAsync('git', ['init'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
   ipcMain.handle('git:stage-all', async (_event, workDir) => {
     try {
       await execFileAsync('git', ['add', '-A'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
