@@ -60,6 +60,7 @@ renderer/
   git-changes-tree.js       — Tree view rendering for git changes panel
   git-changes-actions.js    — Changes body click delegation
   git-changes-modals.js     — Pull-main flow, branch modal, diff viewer
+  post-commit-prompt.js     — Post-commit banner with push/PR actions
   github-panel.js           — GitHub auth, section routing, CI, notifications
   github-prs.js             — PR list, detail, create form
   github-issues.js          — Issue list, detail, create form
