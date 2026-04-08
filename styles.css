@@ -1957,6 +1957,65 @@
     .changes-stash-btn.pop { color: #3fb950; }
     .changes-stash-btn.drop { color: #f85149; }
 
+    /* Post-commit prompt banner */
+    .post-commit-prompt {
+      margin: 8px;
+      padding: 10px 12px;
+      background: #1a2332;
+      border-left: 3px solid #4a9eff;
+      border-radius: 4px;
+    }
+    .post-commit-prompt-msg {
+      font-size: 0.78rem;
+      color: #ccc;
+    }
+    .post-commit-prompt-info {
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 4px;
+    }
+    .post-commit-prompt-info.warning {
+      color: #d29922;
+    }
+    .post-commit-prompt-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .post-commit-prompt-btn {
+      border: none;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .post-commit-prompt-btn:focus-visible {
+      outline: 2px solid #4a9eff;
+      outline-offset: 1px;
+    }
+    .post-commit-prompt-btn.primary {
+      background: #2a4a7a;
+      color: #ccc;
+    }
+    .post-commit-prompt-btn.primary:hover { background: #345d99; }
+    .post-commit-prompt-btn.secondary {
+      background: transparent;
+      border: 1px solid #444;
+      color: #aaa;
+    }
+    .post-commit-prompt-btn.secondary:hover { border-color: #666; color: #ccc; }
+    .post-commit-prompt-btn.dismiss {
+      background: transparent;
+      color: #666;
+    }
+    .post-commit-prompt-btn.dismiss:hover { color: #999; }
+    .post-commit-prompt-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
     /* Branch management modal */
     #branch-modal {
       display: none;

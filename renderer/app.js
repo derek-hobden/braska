@@ -9,7 +9,8 @@ import { tabsForWorkDir, renderTabBar, switchTab, closeTab, addTabToOrder, remov
 import { startTask, startBrowser, openFileEditor, initTerminals } from './terminals.js';
 import { updateNotifUI, initNotifications } from './notifications.js';
 import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
-import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, initGitChanges } from './git-changes.js';
+import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, doPush, showChangesStatus, initGitChanges, initPostCommitPromptBridge } from './git-changes.js';
+import { initPostCommitPrompt, buildPostCommitSection, dismissPostCommitPrompt } from './post-commit-prompt.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
@@ -190,6 +191,8 @@ initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
+initPostCommitPromptBridge({ buildPostCommitSection, dismissPostCommitPrompt });
+initPostCommitPrompt({ doPush, showChangesStatus, refreshWorktreeMetrics, switchRightPanelTab, refreshChanges });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab });
 initHoverLink();

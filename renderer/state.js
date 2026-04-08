@@ -62,6 +62,7 @@ export const ghState = {
   cachedAuth: null,           // { authenticated, isGitHubRepo, workDir, ts }
   ciInterval: null,           // setInterval handle for CI auto-refresh
   contentAC: null,            // AbortController for #gh-content event listeners
+  pendingPRForm: false,       // set by post-commit banner, consumed by refreshGitHubPRs
 };
 
 // ── Git / pull-main state ───────────────────────────────────────
@@ -71,4 +72,5 @@ export const gitState = {
   _pullMainDirtyResolve: null,
   _stageAttentionTimeout: null,
   changesTreeView: false,
+  postCommitPrompts: new Map(),   // workDir → { timestamp } — triggers post-commit banner
 };

@@ -37,6 +37,15 @@ export function initGitChanges({ refreshFileTree, startTask, loadProjects, switc
 // Re-export for app.js
 export { doPullLatestMain, openBranchModal, openDiffTab };
 
+// ── Post-commit prompt integration ─────────────────────────────
+let _buildPostCommitSection = null;
+let _dismissPostCommitPrompt = null;
+
+export function initPostCommitPromptBridge({ buildPostCommitSection, dismissPostCommitPrompt }) {
+  _buildPostCommitSection = buildPostCommitSection;
+  _dismissPostCommitPrompt = dismissPostCommitPrompt;
+}
+
 // ── DOM refs (queried once per session) ─────────────────────────
 // Initialize tree view preference from localStorage
 gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 'true';
@@ -128,6 +137,7 @@ const SECTION_DEFS = {
 };
 
 function createSectionEl(sec) {
+  if (sec.key === 'post-commit-prompt') return _buildPostCommitSection(sec.items[0].workDir, sec.items[0].status, null);
   const el = document.createElement('div');
   el.className = 'changes-section';
   const def = SECTION_DEFS[sec.key];
@@ -167,6 +177,13 @@ function createSectionEl(sec) {
 }
 
 function updateSectionEl(el, sec) {
+  if (sec.key === 'post-commit-prompt') {
+    // Mutate in-place to keep el reference valid for the DOM reconciler
+    const newEl = _buildPostCommitSection(sec.items[0].workDir, sec.items[0].status, null);
+    el.replaceChildren(...newEl.childNodes);
+    el.className = newEl.className;
+    return;
+  }
   const def = SECTION_DEFS[sec.key];
   if (def) {
     patchText(el, '.changes-section-count', String(sec.items.length));
@@ -428,6 +445,20 @@ export async function refreshChanges(workDir) {
 
   // Build section descriptors (only include non-empty sections)
   const sections = [];
+
+  // Post-commit prompt banner (if active for this workDir)
+  if (gitState.postCommitPrompts.has(workDir) && _buildPostCommitSection) {
+    const div = status.mainDivergence;
+    // Show banner if: unpushed commits exist, or branch has no upstream yet
+    const hasPushable = div && (div.pushAhead > 0 || !div.hasUpstream);
+    if (hasPushable) {
+      sections.push({ key: 'post-commit-prompt', items: [{ status, workDir }] });
+    } else {
+      // Nothing to push (or no remote at all) — auto-clear
+      gitState.postCommitPrompts.delete(workDir);
+    }
+  }
+
   if (status.staged.length) sections.push({ key: 'staged', items: status.staged });
   if (status.unstaged.length) sections.push({ key: 'unstaged', items: status.unstaged });
   if (status.untracked.length) sections.push({ key: 'untracked', items: status.untracked });
@@ -451,6 +482,8 @@ function _initCommitChangesListener() {
   changesCommitChangesBtn.addEventListener('click', () => {
     const activeWorkDir = tabState.activeWorkDir;
     if (!activeWorkDir) return;
+    // Clear any stale post-commit banner before spawning new committer
+    if (_dismissPostCommitPrompt) _dismissPostCommitPrompt(activeWorkDir);
     // Prevent duplicate committer agents on the same worktree
     for (const tab of tabState.tabs.values()) {
       if (tab.agentName === 'committer' && tab.workDir === activeWorkDir) {
@@ -493,6 +526,41 @@ function _initPullListener() {
   });
 }
 
+// ── Shared push logic (used by toolbar + post-commit banner) ───
+function onPushSuccess(workDir, msg = 'Pushed') {
+  showChangesStatus(msg, 'success');
+  gitState.postCommitPrompts.delete(workDir);
+  refreshChanges(workDir);
+  refreshWorktreeMetrics();
+  return { ok: true };
+}
+
+export async function doPush(workDir, { autoUpstream = false } = {}) {
+  const result = await window.gitOps.push(workDir);
+  if (result.ok) return onPushSuccess(workDir);
+  if (result.noUpstream) {
+    if (autoUpstream) {
+      const branch = await window.gitDiff.currentBranch(workDir);
+      const upResult = await window.gitOps.pushSetUpstream(workDir, branch);
+      if (upResult.ok) return onPushSuccess(workDir, 'Pushed (upstream set)');
+      showChangesStatus('Push failed: ' + (upResult.error || '').split('\n')[0], 'error');
+      return { ok: false, error: upResult.error };
+    }
+    // Interactive: ask user to confirm upstream
+    const branch = await window.gitDiff.currentBranch(workDir);
+    if (branch && confirm(`No upstream branch. Push and set upstream to origin/${branch}?`)) {
+      const upResult = await window.gitOps.pushSetUpstream(workDir, branch);
+      if (upResult.ok) return onPushSuccess(workDir, 'Pushed (upstream set)');
+      showChangesStatus('Push failed: ' + (upResult.error || '').split('\n')[0], 'error');
+      return { ok: false, error: upResult.error };
+    }
+    showChangesStatus('Push cancelled', 'info');
+    return { ok: false, cancelled: true };
+  }
+  showChangesStatus('Push failed: ' + (result.error || '').split('\n')[0], 'error');
+  return { ok: false, error: result.error };
+}
+
 // ── Push button ─────────────────────────────────────────────────
 function _initPushListener() {
   document.getElementById('changes-push-btn').addEventListener('click', async () => {
@@ -500,29 +568,8 @@ function _initPushListener() {
     if (!activeWorkDir) return;
     const btn = document.getElementById('changes-push-btn');
     btn.disabled = true;
-    const result = await window.gitOps.push(activeWorkDir);
-    if (result.ok) {
-      btn.disabled = false;
-      showChangesStatus('Pushed', 'success');
-      refreshChanges(activeWorkDir);
-      refreshWorktreeMetrics();
-      return;
-    }
-    if (result.noUpstream) {
-      const branch = await window.gitDiff.currentBranch(activeWorkDir);
-      if (branch && confirm(`No upstream branch. Push and set upstream to origin/${branch}?`)) {
-        const upResult = await window.gitOps.pushSetUpstream(activeWorkDir, branch);
-        btn.disabled = false;
-        if (upResult.ok) { showChangesStatus('Pushed (upstream set)', 'success'); refreshChanges(activeWorkDir); refreshWorktreeMetrics(); }
-        else showChangesStatus('Push failed: ' + (upResult.error || '').split('\n')[0], 'error');
-      } else {
-        btn.disabled = false;
-        showChangesStatus('Push cancelled', 'info');
-      }
-      return;
-    }
-    btn.disabled = false;
-    showChangesStatus('Push failed: ' + (result.error || '').split('\n')[0], 'error');
+    try { await doPush(activeWorkDir, { autoUpstream: false }); }
+    finally { btn.disabled = false; }
   });
 }
 

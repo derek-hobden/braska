@@ -4,6 +4,7 @@ import { tabState } from './state.js';
 import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.js';
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
 import { agentDisplayName, stripAnsi } from './utils.js';
+import { onCommitterExit } from './post-commit-prompt.js';
 
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;
@@ -111,6 +112,7 @@ export async function startTask(agentName, workDir, options = {}) {
     term.write(`\r\n\x1b[90m[Process exited with code ${code}]\x1b[0m\r\n`);
     if (busyTabs.has(id)) clearTabBusy(id);
     if (tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), `Process exited with code ${code}`);
+    if (agentName === 'committer') onCommitterExit(workDir);
     if (workDir === tabState.activeWorkDir) refreshRightPanel(workDir);
   });
   term.onData(data => window.pty.write(id, data));
