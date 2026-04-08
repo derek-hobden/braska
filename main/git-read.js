@@ -86,6 +86,7 @@ function register({ ipcMain }) {
             branch: defaultBranch,
             pushAhead: 0,
             pushBehind: 0,
+            hasUpstream: false,
           };
         }
         // Push/pull sync vs origin for current branch
@@ -94,9 +95,10 @@ function register({ ipcMain }) {
           await execFileAsync('git', ['rev-parse', '--verify', remote], fast);
           const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${remote}...HEAD`], fast);
           const [behindStr, aheadStr] = stdout.trim().split('\t');
-          if (!mainDivergence) mainDivergence = { ahead: 0, behind: 0, branch: defaultBranch, pushAhead: 0, pushBehind: 0 };
+          if (!mainDivergence) mainDivergence = { ahead: 0, behind: 0, branch: defaultBranch, pushAhead: 0, pushBehind: 0, hasUpstream: false };
           mainDivergence.pushAhead = parseInt(aheadStr, 10) || 0;
           mainDivergence.pushBehind = parseInt(behindStr, 10) || 0;
+          mainDivergence.hasUpstream = true;
         } catch {}
       } catch { /* non-critical */ }
 
