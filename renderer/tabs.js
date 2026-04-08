@@ -10,6 +10,7 @@ let updateFileTreeHighlights = null;
 let showTodoClosePrompt = null;
 let refreshTodos = null;
 let updateTodoFocus = null;
+let refreshRightPanel = null;
 
 // ── Display label helper ──────────────────────────────────────
 export function getDisplayLabel(id) {
@@ -209,6 +210,7 @@ function hideTabContextMenu() {
 
 export function switchTab(id) {
   if (!tabState.tabs.has(id)) return;
+  const prevWorkDir = tabState.activeWorkDir;
   tabState.activeTabId = id;
   clearNotifForTab(id);
   if (busyTabs.has(id)) clearTabBusy(id);
@@ -229,6 +231,7 @@ export function switchTab(id) {
   }
   updateFileTreeHighlights();
   if (updateTodoFocus) updateTodoFocus();
+  if (refreshRightPanel && tabState.activeWorkDir !== prevWorkDir) refreshRightPanel(tabState.activeWorkDir);
 }
 
 // ── Tab closing ────────────────────────────────────────────────
@@ -288,12 +291,13 @@ export async function closeTab(id) {
 
 // ── Initialization ─────────────────────────────────────────────
 
-export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights, showTodoClosePrompt: _showTodoClosePrompt, refreshTodos: _refreshTodos, updateTodoFocus: _updateTodoFocus }) {
+export function initTabs({ showTabTypePicker: _showTabTypePicker, updateFileTreeHighlights: _updateFileTreeHighlights, showTodoClosePrompt: _showTodoClosePrompt, refreshTodos: _refreshTodos, updateTodoFocus: _updateTodoFocus, refreshRightPanel: _refreshRightPanel }) {
   showTabTypePicker = _showTabTypePicker;
   updateFileTreeHighlights = _updateFileTreeHighlights;
   showTodoClosePrompt = _showTodoClosePrompt;
   refreshTodos = _refreshTodos;
   updateTodoFocus = _updateTodoFocus;
+  refreshRightPanel = _refreshRightPanel;
 
   window.windowActions.onCloseActiveTab(() => {
     if (tabState.activeTabId != null) closeTab(tabState.activeTabId);

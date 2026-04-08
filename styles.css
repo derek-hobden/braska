@@ -1785,60 +1785,19 @@
       border-bottom: 1px solid #2a2a2a;
       flex-shrink: 0;
     }
-    .changes-commit-input-wrapper {
-      position: relative;
-    }
-    .changes-commit-input {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 4px;
-      color: #ccc;
-      font-size: 0.8rem;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 6px 8px 6px 28px;
-      resize: vertical;
-      min-height: 28px;
-      max-height: 120px;
-      outline: none;
+    .changes-commit-changes-btn {
       width: 100%;
-      box-sizing: border-box;
-    }
-    .changes-commit-input:focus { border-color: #4a9eff; }
-    .changes-commit-input::placeholder { color: #555; }
-    .changes-commit-btn {
-      background: #2563eb;
-      border: none;
+      background: none;
+      border: 1px solid #2563eb;
+      color: #4a9eff;
+      font-size: 11px;
+      padding: 4px 0;
       border-radius: 4px;
-      color: #fff;
-      font-size: 0.78rem;
-      padding: 5px 12px;
       cursor: pointer;
-      align-self: stretch;
     }
-    .changes-commit-btn:hover { background: #3b82f6; }
-    .changes-commit-btn:disabled { opacity: 0.4; cursor: default; }
-    .changes-commit-btn:disabled:hover { background: #2563eb; }
-    .changes-commit-actions { display: flex; gap: 6px; }
-    .changes-commit-actions .changes-commit-btn { flex: 1; }
-    .changes-generate-btn {
-      position: absolute; top: 4px; left: 4px;
-      background: none; border: none; color: #555;
-      padding: 2px; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-      border-radius: 3px;
-    }
-    .changes-generate-btn:hover { color: #ccc; background: #2a2a2a; }
-    .changes-generate-btn:disabled { opacity: 0.25; cursor: default; }
-    .changes-generate-btn:disabled:hover { background: none; color: #555; }
-    @keyframes pyrefly-pulse {
-      0%, 70%, 100% { opacity: 1; }
-      85% { opacity: 0.3; }
-    }
-    .changes-generate-btn.generating {
-      color: #6fadcf;
-      filter: drop-shadow(0 0 3px rgba(111, 173, 207, 0.4));
-    }
-    .changes-generate-btn.generating svg { animation: pyrefly-pulse 1.5s ease-in-out infinite; }
+    .changes-commit-changes-btn:hover { color: #6cb4ff; border-color: #3b82f6; }
+    .changes-commit-changes-btn:disabled { opacity: 0.35; cursor: default; }
+    .changes-commit-changes-btn:disabled:hover { color: #4a9eff; border-color: #2563eb; }
 
     /* Action buttons container — right-aligned, fixed width for column alignment */
     .changes-file-actions {

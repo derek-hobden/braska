@@ -70,6 +70,7 @@ agents/                     — Builtin agent templates (copied to ~/.claude/age
   debugger.md               — Systematic debugging agent
   github-specialist.md      — GitHub workflow agent (PRs, issues, CI)
   merger.md                 — Git merge conflict resolver
+  committer.md              — Auto-commit agent (haiku) that batches changes into logical commits
   scripts/todoist/          — Hook scripts for todoist agent (copied to ~/.claude/scripts/todoist/)
 ```
 

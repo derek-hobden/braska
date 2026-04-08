@@ -96,6 +96,7 @@ export async function openWorktreeCreateModal(projectPath) {
   const branchSelect = document.getElementById('wt-branch-select');
   branchSelect.innerHTML = '<option value="">Loading...</option>';
   wtCreateModal.classList.add('active');
+  document.getElementById('wt-branch-name').focus();
 
   const branches = await window.worktree.branches(projectPath);
   branchSelect.innerHTML = branches.length
@@ -273,6 +274,10 @@ export function initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsFo
     e.target.value = e.target.value.replace(/ /g, '-');
     e.target.setSelectionRange(selectionStart, selectionStart);
     updateWorktreePath();
+  });
+
+  document.getElementById('wt-branch-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('wt-create-btn').click();
   });
 
   document.getElementById('wt-create-cancel').addEventListener('click', () => {

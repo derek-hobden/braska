@@ -94,6 +94,8 @@ export async function startTask(agentName, workDir, options = {}) {
           const wasBusy = busyTabs.has(id);
           clearTabBusy(id);
           if (wasBusy && tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), data);
+          // Agent went idle — refresh right panel in case it ran git commands
+          if (wasBusy && workDir === tabState.activeWorkDir) refreshRightPanel(workDir);
         }, 1000));
       }
     } else if (!isClaudeTab && tabState.activeTabId !== id) {
@@ -109,6 +111,7 @@ export async function startTask(agentName, workDir, options = {}) {
     term.write(`\r\n\x1b[90m[Process exited with code ${code}]\x1b[0m\r\n`);
     if (busyTabs.has(id)) clearTabBusy(id);
     if (tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), `Process exited with code ${code}`);
+    if (workDir === tabState.activeWorkDir) refreshRightPanel(workDir);
   });
   term.onData(data => window.pty.write(id, data));
   term.onResize(({ cols, rows }) => window.pty.resize(id, cols, rows));

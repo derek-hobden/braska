@@ -148,16 +148,7 @@
             <span class="changes-toolbar-status" id="changes-toolbar-status"></span>
           </div>
           <div class="changes-commit-area" id="changes-commit-area">
-            <div class="changes-commit-input-wrapper">
-              <textarea class="changes-commit-input" id="changes-commit-input" placeholder="Commit message..." rows="1" spellcheck="false"></textarea>
-              <button class="changes-generate-btn" id="changes-generate-btn" disabled title="Auto-generate commit message with Claude">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z"/><path d="M20 4l.8 2.4L23 7.2l-2.2.8L20 10.4l-.8-2.4L17 7.2l2.2-.8L20 4z"/><path d="M4.5 16l.6 1.8 1.9.6-1.9.6-.6 1.8-.6-1.8-1.9-.6 1.9-.6.6-1.8z"/></svg>
-              </button>
-            </div>
-            <div class="changes-commit-actions">
-              <button class="changes-commit-btn" id="changes-commit-btn" disabled>Commit</button>
-              <button class="changes-commit-btn" id="changes-amend-btn" style="background:#1e3a5f;border-color:#2563eb" title="Amend last commit (adds staged files and/or updates message)">Amend</button>
-            </div>
+            <button class="changes-commit-changes-btn" id="changes-commit-changes-btn" disabled title="Auto-commit all changes in logical batches using Claude">Commit Changes</button>
             <button class="changes-review-loop-btn" id="changes-review-loop-btn" disabled title="Auto-review, fix, and stage all changes">Code Review Loop</button>
           </div>
           <div id="changes-body"></div>

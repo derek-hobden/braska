@@ -20,9 +20,7 @@ export function initGitChanges({ refreshFileTree, startTask, loadProjects, switc
     startTask, loadProjects, switchTab, addTabToOrder, renderTabBar,
   });
 
-  _initCommitListeners();
-  _initAmendListener();
-  _initGenerateListener();
+  _initCommitChangesListener();
   _initFetchListener();
   _initPullListener();
   _initPushListener();
@@ -42,9 +40,7 @@ export { doPullLatestMain, openBranchModal, openDiffTab };
 gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 'true';
 
 const changesBody = document.getElementById('changes-body');
-const changesCommitInput = document.getElementById('changes-commit-input');
-const changesCommitBtn = document.getElementById('changes-commit-btn');
-const changesGenerateBtn = document.getElementById('changes-generate-btn');
+const changesCommitChangesBtn = document.getElementById('changes-commit-changes-btn');
 const changesReviewBtn = document.getElementById('changes-review-btn');
 const changesReviewLoopBtn = document.getElementById('changes-review-loop-btn');
 const mainDivergenceEl = document.getElementById('changes-main-divergence');
@@ -242,8 +238,7 @@ export async function refreshChanges(workDir) {
 
   if (!status.isGit) {
     changesBody.innerHTML = '<div class="changes-empty">Not a git repository</div>';
-    changesCommitBtn.disabled = true;
-    changesGenerateBtn.disabled = true;
+    changesCommitChangesBtn.disabled = true;
     changesReviewBtn.disabled = true;
     changesReviewLoopBtn.disabled = true;
     mainDivergenceEl.innerHTML = '';
@@ -254,10 +249,8 @@ export async function refreshChanges(workDir) {
   updateMainDivergence(status.mainDivergence);
 
   // Update toolbar state
-  changesCommitBtn.disabled = status.staged.length === 0 || !changesCommitInput.value.trim();
-  changesGenerateBtn.disabled = status.staged.length === 0;
-  document.getElementById('changes-amend-btn').disabled = commits.length === 0;
   const hasAnyChanges = status.staged.length > 0 || status.unstaged.length > 0 || status.untracked.length > 0;
+  changesCommitChangesBtn.disabled = !hasAnyChanges;
   changesReviewBtn.disabled = !hasAnyChanges;
   changesReviewLoopBtn.disabled = !hasAnyChanges;
 
@@ -287,84 +280,21 @@ export async function refreshChanges(workDir) {
   changesBody.scrollTop = scrollTop;
 }
 
-// ── Commit message input ────────────────────────────────────────
-function _initCommitListeners() {
-  changesCommitInput.addEventListener('input', () => {
-    const hasStaged = changesBody.querySelector('[data-staged="true"]');
-    changesCommitBtn.disabled = !changesCommitInput.value.trim() || !hasStaged;
-  });
-
-  changesCommitBtn.addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    const msg = changesCommitInput.value.trim();
-    if (!msg || !activeWorkDir) return;
-    changesCommitBtn.disabled = true;
-    changesCommitBtn.textContent = 'Committing...';
-    const result = await window.gitOps.commit(activeWorkDir, msg);
-    if (result.ok) {
-      changesCommitBtn.textContent = 'Commit';
-      changesCommitInput.value = '';
-      changesCommitBtn.disabled = true;
-      showChangesStatus('Committed', 'success');
-      refreshChanges(activeWorkDir);
-      refreshWorktreeMetrics();
-    } else {
-      changesCommitBtn.textContent = 'Commit';
-      changesCommitBtn.disabled = false;
-      showChangesStatus((result.error || 'Commit failed').split('\n')[0], 'error');
-    }
-  });
-}
-
-// ── Amend last commit ───────────────────────────────────────────
-function _initAmendListener() {
-  const changesAmendBtn = document.getElementById('changes-amend-btn');
-  changesAmendBtn.addEventListener('click', async () => {
+// ── Commit Changes (spawns committer agent) ────────────────────
+function _initCommitChangesListener() {
+  changesCommitChangesBtn.addEventListener('click', () => {
     const activeWorkDir = tabState.activeWorkDir;
     if (!activeWorkDir) return;
-    const msg = changesCommitInput.value.trim();
-    const hasStaged = !!changesBody.querySelector('[data-staged="true"]');
-    if (!msg && !hasStaged) {
-      showChangesStatus('Nothing to amend: stage files or enter a new message', 'error');
-      return;
+    // Prevent duplicate committer agents on the same worktree
+    for (const tab of tabState.tabs.values()) {
+      if (tab.agentName === 'committer' && tab.workDir === activeWorkDir) {
+        showChangesStatus('Committer already running', 'error');
+        return;
+      }
     }
-    changesAmendBtn.disabled = true;
-    changesAmendBtn.textContent = 'Amending…';
-    const result = await window.gitOps.amend(activeWorkDir, msg || null);
-    if (result.ok) {
-      changesAmendBtn.textContent = 'Amend';
-      changesAmendBtn.disabled = false;
-      if (msg) changesCommitInput.value = '';
-      showChangesStatus('Last commit amended', 'success');
-      refreshChanges(activeWorkDir);
-      refreshWorktreeMetrics();
-    } else {
-      changesAmendBtn.textContent = 'Amend';
-      changesAmendBtn.disabled = false;
-      showChangesStatus((result.error || 'Amend failed').split('\n')[0], 'error');
-    }
-  });
-}
-
-// ── Auto-generate commit message ────────────────────────────────
-function _initGenerateListener() {
-  changesGenerateBtn.addEventListener('click', async () => {
-    const activeWorkDir = tabState.activeWorkDir;
-    if (!activeWorkDir) return;
-    changesGenerateBtn.disabled = true;
-    changesGenerateBtn.classList.add('generating');
-    const result = await window.gitOps.generateCommitMsg(activeWorkDir);
-    changesGenerateBtn.classList.remove('generating');
-    changesGenerateBtn.disabled = false;
-    if (result.ok) {
-      changesCommitInput.value = result.message;
-      changesCommitInput.style.height = 'auto';
-      changesCommitInput.style.height = changesCommitInput.scrollHeight + 'px';
-      changesCommitInput.dispatchEvent(new Event('input'));
-      showChangesStatus('Message generated', 'success');
-    } else {
-      showChangesStatus((result.error || 'Generation failed').split('\n')[0], 'error');
-    }
+    _startTask('committer', activeWorkDir, {
+      initialPrompt: 'Commit all current changes in this working directory. Group them into logical batches with clear commit messages.',
+    });
   });
 }
 

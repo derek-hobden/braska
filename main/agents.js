@@ -2,7 +2,7 @@ const path = require('path');
 const os = require('os');
 const { pathExists, fsp } = require('./utils');
 
-const BUILTIN_AGENTS = ['todoist', 'debugger', 'code-reviewer', 'github-specialist', 'merger'];
+const BUILTIN_AGENTS = ['todoist', 'debugger', 'code-reviewer', 'github-specialist', 'merger', 'committer'];
 const CLAUDE_AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
 
 // Only handles simple scalar YAML values (key: value). Multi-line values,

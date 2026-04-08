@@ -154,10 +154,14 @@ window.filetree.onChange((filename) => {
   clearTimeout(watchState.fsWatchDebounce);
   watchState.fsWatchDebounce = setTimeout(() => {
     if (!tabState.activeWorkDir) return;
-    // Refresh sidebar when .git appears in a non-git project (e.g. after git init)
-    if (filename && (filename === '.git' || filename.startsWith('.git/'))) {
+    const isGitChange = filename && (filename === '.git' || filename.startsWith('.git/'));
+    if (isGitChange) {
+      // Refresh sidebar when .git appears in a non-git project (e.g. after git init)
       const entry = document.querySelector(`.project-entry[data-path="${CSS.escape(tabState.activeWorkDir)}"]`);
       if (entry && !entry.classList.contains('is-git')) loadProjects();
+      // Always refresh git panel on .git changes, even when viewing todo/github
+      refreshChanges(tabState.activeWorkDir);
+      return;
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
     if (activePanel === 'todo') return;
@@ -181,7 +185,7 @@ initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
-initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos, updateTodoFocus });
+initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos, updateTodoFocus, refreshRightPanel });
 initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
