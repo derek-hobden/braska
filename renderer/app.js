@@ -13,6 +13,7 @@ import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, op
 // post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
 import { initJourneyZone, renderJourneyZone, onCommitterExit, dismissPostCommitPrompt } from './journey-zone.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
+import { initGitHubPRs } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 
@@ -198,6 +199,7 @@ initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
 initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, switchToGitHubView, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
+initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 

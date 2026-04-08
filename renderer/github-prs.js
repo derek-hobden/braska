@@ -4,6 +4,15 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo } from './utils.js';
 import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge } from './github-panel.js';
 
+let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir;
+
+export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir }) {
+  _loadProjects = loadProjects;
+  _openWorkDir = openWorkDir;
+  _closeTab = closeTab;
+  _tabsForWorkDir = tabsForWorkDir;
+}
+
 // ── PR list ────────────────────────────────────────────────────
 
 export async function refreshGitHubPRs(workDir) {
@@ -157,8 +166,15 @@ async function showGitHubPRDetail(workDir, number) {
       mergeBtn.disabled = true;
       mergeBtn.textContent = 'Merging...';
       const r = await window.github.prMerge(workDir, number, method, deleteBranch);
-      if (r.ok) { showGitHubPRDetail(workDir, number); }
-      else {
+      if (r.ok && r.worktreeCleanedUp) {
+        // Feature worktree was removed — close its tabs and switch to main
+        const tabIds = _tabsForWorkDir?.(workDir).map(([id]) => id) || [];
+        for (const tabId of tabIds) await _closeTab?.(tabId);
+        _loadProjects?.();
+        _openWorkDir?.(r.mainWorktreePath);
+      } else if (r.ok) {
+        showGitHubPRDetail(workDir, number);
+      } else {
         mergeBtn.textContent = 'Error';
         const msg = document.createElement('div');
         msg.className = 'gh-status-msg error';
