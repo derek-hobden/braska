@@ -47,6 +47,18 @@ function register({ ipcMain }) {
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
+  ipcMain.handle('gh:pr-for-branch', async (_event, workDir) => {
+    try {
+      const { stdout: branchOut } = await execFileAsync('git', ['symbolic-ref', '--short', 'HEAD'], { cwd: workDir, encoding: 'utf-8', timeout: 5000 });
+      const branch = branchOut.trim();
+      const { stdout } = await execFileAsync('gh', [
+        'pr', 'list', '--head', branch, '--json', 'number,url', '--limit', '1'
+      ], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      const prs = JSON.parse(stdout);
+      return { ok: true, pr: prs.length ? prs[0] : null };
+    } catch { return { ok: true, pr: null }; }
+  });
+
   ipcMain.handle('gh:pr-create', async (_event, workDir, title, body, base, draft) => {
     try {
       const args = ['pr', 'create', '--title', title, '--body', body];

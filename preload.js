@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('github', {
   authStatus: (workDir) => ipcRenderer.invoke('gh:auth-status', workDir),
   prList: (workDir, state) => ipcRenderer.invoke('gh:pr-list', workDir, state),
   prView: (workDir, number) => ipcRenderer.invoke('gh:pr-view', workDir, number),
+  prForBranch: (workDir) => ipcRenderer.invoke('gh:pr-for-branch', workDir),
   prCreate: (workDir, title, body, base, draft) => ipcRenderer.invoke('gh:pr-create', workDir, title, body, base, draft),
   prMerge: (workDir, number, method, deleteBranch) => ipcRenderer.invoke('gh:pr-merge', workDir, number, method, deleteBranch),
   prClose: (workDir, number) => ipcRenderer.invoke('gh:pr-close', workDir, number),
