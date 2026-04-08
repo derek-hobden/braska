@@ -289,12 +289,25 @@ async function _handleJourneyAction(action, btn) {
   } else if (action === 'push-pr' || action === 'publish-pr') {
     const origLabel = btn.textContent;
     btn.disabled = true;
-    btn.textContent = action === 'push-pr' ? 'Pushing...' : 'Publishing...';
+    btn.textContent = 'Creating PR...';
     try {
-      const result = await _doPush?.(workDir, { autoUpstream: true });
-      if (result?.ok) {
-        ghState.pendingPRForm = true;
-        _switchToGitHubView?.(true);
+      const pushResult = await _doPush?.(workDir, { autoUpstream: true });
+      if (!pushResult?.ok) {
+        _showChangesStatus?.(pushResult?.error || 'Push failed', 'error');
+        return;
+      }
+      const branch = await window.gitDiff.currentBranch(workDir);
+      if (!branch) {
+        _showChangesStatus?.('Could not determine branch name', 'error');
+        return;
+      }
+      const title = branch.split('/').pop().replace(/[-_]/g, ' ').replace(/^\w/, c => c.toUpperCase());
+      const prResult = await window.github.prCreate(workDir, title, '', 'main', false);
+      if (prResult.ok) {
+        _showChangesStatus?.('PR created', 'success');
+        _switchToGitHubView?.(true, { section: 'prs' });
+      } else {
+        _showChangesStatus?.(prResult.error || 'PR creation failed', 'error');
       }
     } finally { btn.disabled = false; btn.textContent = origLabel; }
 

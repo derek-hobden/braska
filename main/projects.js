@@ -59,7 +59,7 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
   ipcMain.handle('projects:add', async () => {
     const win = BrowserWindow.getFocusedWindow();
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-      properties: ['openDirectory'],
+      properties: ['openDirectory', 'createDirectory'],
     });
     if (canceled || filePaths.length === 0) return null;
     const folderPath = filePaths[0];
