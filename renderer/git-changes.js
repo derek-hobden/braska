@@ -1,6 +1,6 @@
 // ── Git Changes panel — status, staging, commit toolbar ─────────
 import { tabState, gitState } from './state.js';
-import { escHtml, statSpan, createChangeEntryEl } from './utils.js';
+import { escHtml, statSpan, createChangeEntryEl, divergenceBadges } from './utils.js';
 import { reconcileChildren, patchText, patchHtml } from './dom-patch.js';
 import { initChangesModals, doPullLatestMain, openBranchModal, openDiffTab } from './git-changes-modals.js';
 import { initChangesActions } from './git-changes-actions.js';
@@ -48,13 +48,9 @@ const mainDivergenceEl = document.getElementById('changes-main-divergence');
 // ── Helper: main divergence badge next to pull-main button ─────
 function updateMainDivergence(div) {
   if (!div) { mainDivergenceEl.innerHTML = ''; return; }
-  const parts = [];
-  if (div.behind > 0) parts.push(`<span class="behind">${div.behind}&#8595;</span>`);
-  if (div.ahead > 0) parts.push(`<span class="ahead">${div.ahead}&#8593;</span>`);
-  mainDivergenceEl.innerHTML = parts.length ? parts.join('') : '';
-  mainDivergenceEl.title = parts.length
-    ? `${div.behind > 0 ? div.behind + ' behind' : ''}${div.behind > 0 && div.ahead > 0 ? ', ' : ''}${div.ahead > 0 ? div.ahead + ' ahead of' : ''} ${div.branch}`
-    : '';
+  const { html, title } = divergenceBadges(div);
+  mainDivergenceEl.innerHTML = html;
+  mainDivergenceEl.title = title;
 }
 
 // ── Helper: refreshWorktreeMetrics (imported from sidebar) ──────

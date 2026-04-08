@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
-const { resolveInDir, pathExists, fsp } = require('./utils');
-const { getActiveWatcher, setActiveWatcher } = require('./state');
+const { resolveInDir, pathExists, fsp, resolveGitDir } = require('./utils');
+const { getActiveWatcher, setActiveWatcher, getActiveGitDirWatcher, setActiveGitDirWatcher } = require('./state');
 
 function register({ ipcMain, BrowserWindow, shell }) {
   ipcMain.handle('file:read', async (_event, workDir, relPath) => {
@@ -34,6 +34,8 @@ function register({ ipcMain, BrowserWindow, shell }) {
   ipcMain.on('filetree:watch', (event, dirPath) => {
     const prev = getActiveWatcher();
     if (prev) { prev.close(); setActiveWatcher(null); }
+    const prevGit = getActiveGitDirWatcher();
+    if (prevGit) { prevGit.close(); setActiveGitDirWatcher(null); }
     if (!dirPath) return;
     try {
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -42,12 +44,27 @@ function register({ ipcMain, BrowserWindow, shell }) {
       });
       watcher.on('error', () => {});
       setActiveWatcher(watcher);
+
+      // In worktrees, .git is a file pointing to the real git dir (e.g. main/.git/worktrees/<name>).
+      // Index changes happen there, outside fs.watch's reach — watch it separately.
+      resolveGitDir(dirPath).then(gitDir => {
+        if (!gitDir || gitDir === path.join(dirPath, '.git')) return;
+        try {
+          const gitWatcher = fs.watch(gitDir, { recursive: true }, () => {
+            if (!win?.isDestroyed()) win.webContents.send('filetree:changed', '.git/index');
+          });
+          gitWatcher.on('error', () => {});
+          setActiveGitDirWatcher(gitWatcher);
+        } catch {}
+      });
     } catch {}
   });
 
   ipcMain.on('filetree:unwatch', () => {
     const prev = getActiveWatcher();
     if (prev) { prev.close(); setActiveWatcher(null); }
+    const prevGit = getActiveGitDirWatcher();
+    if (prevGit) { prevGit.close(); setActiveGitDirWatcher(null); }
   });
 
   // Enhanced file explorer operations

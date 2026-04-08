@@ -17,16 +17,6 @@ async function detectDefaultBranch(cwd) {
   return 'main';
 }
 
-// Use origin/{branch} when available, fall back to local ref
-async function resolveCompareTarget(cwd, defaultBranch) {
-  try {
-    await execFileAsync('git', ['rev-parse', '--verify', `origin/${defaultBranch}`], { cwd, encoding: 'utf-8', timeout: 5000 });
-    return `origin/${defaultBranch}`;
-  } catch {
-    return defaultBranch;
-  }
-}
-
 function register({ ipcMain }) {
   ipcMain.handle('git:status', async (_event, workDir) => {
     try {
@@ -80,7 +70,7 @@ function register({ ipcMain }) {
         if (stdout.trim()) untracked = stdout.trim().split('\n');
       } catch {}
 
-      // Behind/ahead relative to origin's default branch
+      // Divergence vs local main + push/pull sync vs origin
       let mainDivergence = null;
       try {
         const fast = { ...opts, timeout: 5000 };
@@ -88,15 +78,26 @@ function register({ ipcMain }) {
         const currentBranch = branchOut.trim();
         const defaultBranch = await detectDefaultBranch(workDir);
         if (currentBranch !== defaultBranch) {
-          const compareTarget = await resolveCompareTarget(workDir, defaultBranch);
-          const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${compareTarget}...HEAD`], fast);
+          const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${defaultBranch}...HEAD`], fast);
           const [behindStr, aheadStr] = stdout.trim().split('\t');
           mainDivergence = {
             ahead: parseInt(aheadStr, 10) || 0,
             behind: parseInt(behindStr, 10) || 0,
             branch: defaultBranch,
+            pushAhead: 0,
+            pushBehind: 0,
           };
         }
+        // Push/pull sync vs origin for current branch
+        const remote = `origin/${currentBranch}`;
+        try {
+          await execFileAsync('git', ['rev-parse', '--verify', remote], fast);
+          const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${remote}...HEAD`], fast);
+          const [behindStr, aheadStr] = stdout.trim().split('\t');
+          if (!mainDivergence) mainDivergence = { ahead: 0, behind: 0, branch: defaultBranch, pushAhead: 0, pushBehind: 0 };
+          mainDivergence.pushAhead = parseInt(aheadStr, 10) || 0;
+          mainDivergence.pushBehind = parseInt(behindStr, 10) || 0;
+        } catch {}
       } catch { /* non-critical */ }
 
       return { isGit: true, unstaged, staged, untracked, mainDivergence };
@@ -113,7 +114,7 @@ function register({ ipcMain }) {
       const defaultBranch = await detectDefaultBranch(projectPath);
 
       const results = await Promise.all(info.worktrees.map(async (wt) => {
-        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0 };
+        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0, pushAhead: 0, pushBehind: 0 };
         const opts = { cwd: wt.path, encoding: 'utf-8', timeout: 10000 };
         try {
           const { stdout } = await execFileAsync('git', ['status', '--porcelain'], opts);
@@ -124,13 +125,24 @@ function register({ ipcMain }) {
             }
           }
         } catch {}
-        if (wt.branch && wt.branch !== defaultBranch && wt.branch !== '(detached)') {
-          const compareTarget = await resolveCompareTarget(wt.path, defaultBranch);
+        if (wt.branch && wt.branch !== '(detached)') {
+          // Ahead/behind vs local main (how much work is on this branch)
+          if (wt.branch !== defaultBranch) {
+            try {
+              const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${defaultBranch}...HEAD`], opts);
+              const [behindStr, aheadStr] = stdout.trim().split('\t');
+              m.ahead = parseInt(aheadStr, 10) || 0;
+              m.behind = parseInt(behindStr, 10) || 0;
+            } catch {}
+          }
+          // Ahead/behind vs origin (has this branch been pushed)
           try {
-            const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${compareTarget}...HEAD`], opts);
+            const remote = `origin/${wt.branch}`;
+            await execFileAsync('git', ['rev-parse', '--verify', remote], { ...opts, timeout: 5000 });
+            const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${remote}...HEAD`], opts);
             const [behindStr, aheadStr] = stdout.trim().split('\t');
-            m.ahead = parseInt(aheadStr, 10) || 0;
-            m.behind = parseInt(behindStr, 10) || 0;
+            m.pushAhead = parseInt(aheadStr, 10) || 0;
+            m.pushBehind = parseInt(behindStr, 10) || 0;
           } catch {}
         }
         return m;

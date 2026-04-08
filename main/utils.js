@@ -22,4 +22,20 @@ function errMsg(err) {
   return ((err.stderr || err.message || '').toString().split('\n')[0]) || 'Unknown error';
 }
 
-module.exports = { pathExists, resolveInDir, errMsg, execFileAsync, fsp };
+// Resolve the actual git dir for a working directory. In worktrees, .git is a
+// file pointing elsewhere — this follows the indirection. Returns null if not a git repo.
+async function resolveGitDir(workDir) {
+  try {
+    const dotGitPath = path.join(workDir, '.git');
+    const stat = await fsp.stat(dotGitPath);
+    if (stat.isDirectory()) return dotGitPath;
+    if (stat.isFile()) {
+      const content = (await fsp.readFile(dotGitPath, 'utf-8')).trim();
+      const match = content.match(/^gitdir:\s*(.+)$/);
+      if (match) return path.resolve(workDir, match[1]);
+    }
+  } catch {}
+  return null;
+}
+
+module.exports = { pathExists, resolveInDir, errMsg, execFileAsync, fsp, resolveGitDir };

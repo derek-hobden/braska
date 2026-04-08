@@ -275,6 +275,36 @@ export function getWorkDirLabel(workDir) {
   return workDir.split('/').pop();
 }
 
+/**
+ * Build divergence badge HTML + tooltip from a metrics object.
+ * Accepts { ahead, behind, pushAhead, pushBehind } (all optional, default 0).
+ * `cls` is an optional CSS class prefix for badge spans (e.g. "wt-metric").
+ * Returns { html, title } — both empty strings if nothing to show.
+ */
+export function divergenceBadges(m, cls = '') {
+  const pre = cls ? `${cls} ` : '';
+  const s = (n) => n > 1 ? 's' : '';
+  const badges = [];
+  const tips = [];
+  if (m.ahead > 0) {
+    badges.push(`<span class="${pre}ahead" title="${m.ahead} commit${s(m.ahead)} on this branch (not on main yet)">${m.ahead}&#8593;</span>`);
+    tips.push(`${m.ahead} commit${s(m.ahead)} on this branch`);
+  }
+  if (m.behind > 0) {
+    badges.push(`<span class="${pre}behind" title="main has ${m.behind} newer commit${s(m.behind)} \u2014 pull latest main to update">${m.behind}&#8595;</span>`);
+    tips.push(`main has ${m.behind} newer commit${s(m.behind)}`);
+  }
+  if (m.pushAhead > 0) {
+    badges.push(`<span class="${pre}unpushed" title="${m.pushAhead} commit${s(m.pushAhead)} not pushed to GitHub yet">&#8657;${m.pushAhead}</span>`);
+    tips.push(`${m.pushAhead} commit${s(m.pushAhead)} not pushed to GitHub`);
+  }
+  if (m.pushBehind > 0) {
+    badges.push(`<span class="${pre}unpulled" title="GitHub has ${m.pushBehind} commit${s(m.pushBehind)} you don\u2019t have yet \u2014 pull to update">&#8659;${m.pushBehind}</span>`);
+    tips.push(`GitHub has ${m.pushBehind} commit${s(m.pushBehind)} you don\u2019t have`);
+  }
+  return { html: badges.join(''), title: tips.join(' \u2014 ') };
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';

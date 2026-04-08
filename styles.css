@@ -180,6 +180,8 @@
     .wt-metric.untracked { color: #3fb950; }
     .wt-metric.ahead { color: #4a9eff; }
     .wt-metric.behind { color: #f85149; }
+    .wt-metric.unpushed { color: #b87fff; }
+    .wt-metric.unpulled { color: #b87fff; }
     .worktree-item:hover {
       color: #ccc;
     }
@@ -1764,6 +1766,8 @@
     }
     .changes-main-divergence .behind { color: #f85149; }
     .changes-main-divergence .ahead { color: #3fb950; }
+    .changes-main-divergence .unpushed { color: #b87fff; }
+    .changes-main-divergence .unpulled { color: #b87fff; }
     .changes-main-divergence:empty { display: none; }
     .changes-toolbar-spacer { flex: 1; }
     .changes-toolbar-status {

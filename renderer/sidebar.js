@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics
 
-import { SVG_OCTOCAT, SVG_GIT_LOGO, SVG_FOLDER, SVG_GIT_BRANCH } from './utils.js';
+import { SVG_OCTOCAT, SVG_GIT_LOGO, SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 
 // ── DOM refs (queried once at module level) ──
@@ -76,12 +76,11 @@ export async function refreshWorktreeMetrics() {
       for (const m of metrics) {
         const el = entry.querySelector(`.wt-metrics[data-wt-path="${CSS.escape(m.path)}"]`);
         if (!el) continue;
-        const badges = [];
-        if (m.changed > 0) badges.push(`<span class="wt-metric changed" title="${m.changed} changed">${m.changed}M</span>`);
-        if (m.untracked > 0) badges.push(`<span class="wt-metric untracked" title="${m.untracked} untracked">${m.untracked}U</span>`);
-        if (m.ahead > 0) badges.push(`<span class="wt-metric ahead" title="${m.ahead} ahead of main">${m.ahead}&#8593;</span>`);
-        if (m.behind > 0) badges.push(`<span class="wt-metric behind" title="${m.behind} behind main">${m.behind}&#8595;</span>`);
-        el.innerHTML = badges.join('');
+        const fileBadges = [];
+        if (m.changed > 0) fileBadges.push(`<span class="wt-metric changed" title="${m.changed} changed file${m.changed > 1 ? 's' : ''}">${m.changed}M</span>`);
+        if (m.untracked > 0) fileBadges.push(`<span class="wt-metric untracked" title="${m.untracked} new file${m.untracked > 1 ? 's' : ''}">${m.untracked}U</span>`);
+        const { html: divHtml } = divergenceBadges(m, 'wt-metric');
+        el.innerHTML = fileBadges.join('') + divHtml;
       }
     } catch {}
   }
