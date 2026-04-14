@@ -49,13 +49,8 @@ export function showWorktreeContextMenu(x, y, worktreeItem) {
     removeItem.title = '';
   }
   const pullMainItem = wtContextMenu.querySelector('[data-action="pull-main"]');
-  if (isMain) {
-    pullMainItem.classList.add('disabled');
-    pullMainItem.title = 'Already on the main branch';
-  } else {
-    pullMainItem.classList.remove('disabled');
-    pullMainItem.title = '';
-  }
+  pullMainItem.classList.remove('disabled');
+  pullMainItem.title = '';
   const mergeItem = wtContextMenu.querySelector('[data-action="merge"]');
   if (isMain) {
     mergeItem.classList.add('disabled');
