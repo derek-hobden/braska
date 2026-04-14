@@ -201,7 +201,8 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:notifications', async (_event, workDir) => {
     try {
-      const { stdout } = await execFileAsync('gh', ['api', 'notifications', '--cache', '60s'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+      const { stdout: nwo } = await execFileAsync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      const { stdout } = await execFileAsync('gh', ['api', `repos/${nwo.trim()}/notifications`, '--cache', '60s'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
       return { ok: true, data: JSON.parse(stdout) };
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
