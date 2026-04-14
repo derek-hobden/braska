@@ -76,14 +76,21 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: #888;
+      transition: color 0.2s ease;
     }
+    .project-entry:hover .project-name { color: #ccc; }
+    .project-entry.has-active .project-name { color: #eee; }
     .project-path {
       font-size: 0.7rem;
-      color: #666;
+      color: #555;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: color 0.2s ease;
     }
+    .project-entry:hover .project-path { color: #777; }
+    .project-entry.has-active .project-path { color: #777; }
     .project-info {
       flex: 1;
       min-width: 0;
