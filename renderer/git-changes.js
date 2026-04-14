@@ -44,45 +44,14 @@ export function initGitHubViewBridge({ refreshGitHub, switchRightPanelTab }) {
   _switchRightPanelTab = switchRightPanelTab;
 }
 
-const changesSubnav = document.getElementById('changes-subnav');
 const changesBody = document.getElementById('changes-body');
 const commitsBody = document.getElementById('commits-body');
-const ghInlineSection = document.getElementById('gh-inline-section');
 
 export function switchToGitHubView(activate = true, { section } = {}) {
-  const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-  if (activePanel !== 'changes' && _switchRightPanelTab) _switchRightPanelTab('changes');
-  ghState.viewActive = activate;
   if (section) ghState.section = section;
-  setActiveSubnav(activate ? 'github' : 'changes');
+  if (activate && _switchRightPanelTab) _switchRightPanelTab('github');
+  else if (!activate && _switchRightPanelTab) _switchRightPanelTab('changes');
 }
-
-function setActiveSubnav(subview) {
-  changesSubnav.querySelectorAll('.changes-subnav-btn').forEach(btn =>
-    btn.classList.toggle('active', btn.dataset.subview === subview)
-  );
-  changesBody.style.display = subview === 'changes' ? '' : 'none';
-  commitsBody.style.display = subview === 'commits' ? '' : 'none';
-  ghInlineSection.style.display = subview === 'github' ? '' : 'none';
-  if (subview === 'github' && _refreshGitHub && tabState.activeWorkDir) {
-    ghState.viewActive = true;
-    _refreshGitHub(tabState.activeWorkDir);
-  } else if (subview !== 'github') {
-    ghState.viewActive = false;
-  }
-  if (subview === 'github') {
-    ghState.hasActivity = false;
-    const dot = document.querySelector('.changes-subnav-btn[data-subview="github"] .activity-dot');
-    if (dot) dot.remove();
-  }
-}
-
-// Sub-nav click handler
-changesSubnav?.addEventListener('click', (e) => {
-  const btn = e.target.closest('.changes-subnav-btn');
-  if (!btn) return;
-  setActiveSubnav(btn.dataset.subview);
-});
 
 // ── Post-commit prompt bridge (legacy) ──
 export function initPostCommitPromptBridge() {}
@@ -294,10 +263,10 @@ async function _refreshChangesInner(workDir) {
   if (gen !== _refreshGen) return;
 
   if (!status.isGit) {
-    // Hide branch header + journey zone + subnav for non-git
+    // Hide branch header + journey zone for non-git
     document.getElementById('branch-header').style.display = 'none';
     document.getElementById('journey-zone').style.display = 'none';
-    changesSubnav.style.display = 'none';
+    commitsBody.style.display = 'none';
     changesBody.innerHTML = `<div class="changes-not-git">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
       <div class="changes-not-git-title">Not a git repository</div>
@@ -322,9 +291,9 @@ async function _refreshChangesInner(workDir) {
     return;
   }
 
-  // Show branch header + subnav (may have been hidden by non-git state)
+  // Show branch header + commits body (may have been hidden by non-git state)
   document.getElementById('branch-header').style.display = '';
-  changesSubnav.style.display = '';
+  commitsBody.style.display = '';
 
   // Update main divergence indicator + branch subtitle
   updateMainDivergence(status.mainDivergence);
@@ -335,24 +304,6 @@ async function _refreshChangesInner(workDir) {
   // Update branch header
   const branchNameBtn = document.getElementById('branch-name-btn');
   if (branchNameBtn && status.branch) branchNameBtn.textContent = status.branch;
-
-  // Show/hide GitHub sub-nav — fast check against remote URL, no auth needed
-  const ghSubnavBtn = changesSubnav.querySelector('[data-subview="github"]');
-  if (ghSubnavBtn) {
-    if (ghState._isGitHubRepo === undefined || ghState._isGitHubRepoWorkDir !== workDir) {
-      // Cache miss — hide immediately to avoid stale visibility
-      ghSubnavBtn.style.display = 'none';
-      window.worktree.isGitHubRepo(workDir).then(r => {
-        // Guard against stale callback from a prior workDir switch
-        if (tabState.activeWorkDir !== workDir) return;
-        ghState._isGitHubRepo = r.isGitHub;
-        ghState._isGitHubRepoWorkDir = workDir;
-        ghSubnavBtn.style.display = r.isGitHub ? '' : 'none';
-      });
-    } else {
-      ghSubnavBtn.style.display = ghState._isGitHubRepo ? '' : 'none';
-    }
-  }
 
   // Remove loading placeholder (unkeyed, invisible to reconciler)
   const loadingEl = changesBody.querySelector('.changes-empty');
@@ -383,13 +334,6 @@ async function _refreshChangesInner(workDir) {
     sec => createSectionEl(sec),
     (el, sec) => updateSectionEl(el, sec),
   );
-
-  // Update Commits sub-nav badge with commit count
-  const commitsNavBtn = changesSubnav.querySelector('[data-subview="commits"]');
-  if (commitsNavBtn) {
-    const count = commits.length + stashes.length;
-    commitsNavBtn.textContent = count > 0 ? `Commits (${commits.length})` : 'Commits';
-  }
 }
 
 // Toolbar listener functions removed — all actions now handled by journey-zone.js

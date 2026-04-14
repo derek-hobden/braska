@@ -13,7 +13,7 @@ const toggleFiletreeBtn = document.getElementById('toggle-filetree-btn');
 const ftContextMenu = document.getElementById('ft-context-menu');
 const changesPanelWrapper = document.getElementById('changes-panel-wrapper');
 const todoBody = document.getElementById('todo-body');
-// #gh-inline-section visibility is managed by switchToGitHubView in git-changes.js
+const ghInlineSection = document.getElementById('gh-inline-section');
 
 // ── Cross-module deps (injected via initFileExplorer to avoid circular imports) ──
 let _openFileEditor;
@@ -69,31 +69,92 @@ export function restoreExplorerState(workDir) {
   toggleFiletreeBtn.classList.toggle('active', explorerState.filetreeVisible);
 }
 
-// ── Right panel tab switching ───────────────────────────────────
+// ── Right panel mode & tab switching ────────────────────────────
 
-export function switchRightPanelTab(panel) {
-  document.querySelectorAll('.filetree-tab').forEach(t =>
-    t.classList.toggle('active', t.dataset.panel === panel)
-  );
+let _currentMode = 'worktree';
+
+function _renderHeaderTabs(mode, activePanel) {
+  const tabsContainer = document.querySelector('.filetree-tabs');
+  if (mode === 'worktree') {
+    tabsContainer.innerHTML =
+      `<button class="filetree-tab${activePanel === 'explorer' ? ' active' : ''}" data-panel="explorer">Explorer</button>` +
+      `<button class="filetree-tab${activePanel === 'changes' ? ' active' : ''}" data-panel="changes">Git</button>`;
+  } else if (mode === 'todos') {
+    tabsContainer.innerHTML =
+      '<button class="filetree-tab active" data-panel="todo">Todos</button>';
+  } else if (mode === 'github') {
+    const sec = ghState.section || 'prs';
+    tabsContainer.innerHTML =
+      `<button class="filetree-tab${sec === 'prs' ? ' active' : ''}" data-panel="github" data-gh-section="prs">PRs</button>` +
+      `<button class="filetree-tab${sec === 'issues' ? ' active' : ''}" data-panel="github" data-gh-section="issues">Issues</button>` +
+      `<button class="filetree-tab${sec === 'ci' ? ' active' : ''}" data-panel="github" data-gh-section="ci">CI</button>` +
+      `<button class="filetree-tab${sec === 'notifs' ? ' active' : ''}" data-panel="github" data-gh-section="notifs">Notifications</button>`;
+  }
+}
+
+export function setRightPanelMode(mode) {
+  _currentMode = mode;
+  const currentActive = document.querySelector('.filetree-tab.active')?.dataset.panel;
+
+  let panel;
+  if (mode === 'worktree') {
+    panel = (currentActive === 'explorer' || currentActive === 'changes') ? currentActive : 'explorer';
+  } else if (mode === 'todos') {
+    panel = 'todo';
+  } else if (mode === 'github') {
+    panel = 'github';
+  }
+
+  _renderHeaderTabs(mode, panel);
   filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
   changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
   todoBody.style.display = panel === 'todo' ? '' : 'none';
+  ghInlineSection.style.display = panel === 'github' ? '' : 'none';
+  ghState.viewActive = panel === 'github';
+}
+
+export function switchRightPanelTab(panel) {
+  // Auto-switch mode if the panel belongs to a different mode
+  const newMode = (panel === 'explorer' || panel === 'changes') ? 'worktree'
+    : panel === 'todo' ? 'todos'
+    : panel === 'github' ? 'github'
+    : 'worktree';
+
+  if (newMode !== _currentMode) {
+    _currentMode = newMode;
+    _renderHeaderTabs(newMode, panel);
+  }
+
+  // Highlight active tab (_renderHeaderTabs already handled github's per-section highlighting)
+  if (panel !== 'github') {
+    document.querySelectorAll('.filetree-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.panel === panel)
+    );
+  }
+
+  // Show/hide content areas
+  filetreeBody.style.display = panel === 'explorer' ? '' : 'none';
+  changesPanelWrapper.style.display = panel === 'changes' ? '' : 'none';
+  todoBody.style.display = panel === 'todo' ? '' : 'none';
+  ghInlineSection.style.display = panel === 'github' ? '' : 'none';
+  ghState.viewActive = panel === 'github';
+
+  // Refresh visible content
   if (panel === 'changes' && activeWorkDir()) _refreshChanges?.(activeWorkDir());
   if (panel === 'explorer' && activeWorkDir()) refreshFileTree(activeWorkDir());
   if (panel === 'todo' && activeWorkDir()) {
     window.todo.init(activeWorkDir()).then(() => refreshTodos(activeWorkDir())).catch(err => console.error('[Braska]', err));
   }
+  if (panel === 'github' && activeWorkDir()) _refreshGitHub?.(activeWorkDir());
 }
 
 // refreshRightPanel dispatches to the correct panel refresh
 function refreshRightPanel(workDir) {
   if (!explorerState.filetreeVisible || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-  if (activePanel === 'changes') {
-    _refreshChanges?.(workDir);
-    if (ghState.viewActive) refreshGitHub(workDir);
-  }
+  if (activePanel === 'changes') _refreshChanges?.(workDir);
   else if (activePanel === 'todo') refreshTodos(workDir);
+  else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }
 
@@ -310,10 +371,18 @@ export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, 
   toggleSidebarBtn.addEventListener('click', toggleSidebar);
   toggleFiletreeBtn.addEventListener('click', toggleFiletree);
 
-  // Filetree header tab buttons (Explorer, Git, Todos, GitHub)
+  // Filetree header tab buttons
   document.getElementById('filetree-header').addEventListener('click', (e) => {
     const tab = e.target.closest('.filetree-tab');
-    if (tab) switchRightPanelTab(tab.dataset.panel);
+    if (!tab) return;
+    // GitHub section tabs drive ghState.section directly
+    if (tab.dataset.ghSection) {
+      ghState.section = tab.dataset.ghSection;
+      document.querySelectorAll('.filetree-tab').forEach(t => t.classList.toggle('active', t === tab));
+      _refreshGitHub?.(activeWorkDir());
+      return;
+    }
+    switchRightPanelTab(tab.dataset.panel);
   });
 
   // Header new file/folder buttons

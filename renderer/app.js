@@ -2,13 +2,13 @@
 // Imports all modules, wires cross-module dependencies, and initializes the app.
 
 import { tabState, appState, watchState, ghState } from './state.js';
-import { loadProjects, refreshWorktreeMetrics, initSidebar } from './sidebar.js';
+import { loadProjects, refreshWorktreeMetrics, refreshProjectBadges, initSidebar } from './sidebar.js';
 import { showWorktreeContextMenu, openWorktreeCreateModal, openMergeModal, initWorktreeModals } from './worktree-modals.js';
 import { enterSettings, exitSettings, bindSettingsDeps, initSettings } from './settings.js';
 import { tabsForWorkDir, renderTabBar, switchTab, closeTab, addTabToOrder, removeTabFromOrder, initTabs } from './tabs.js';
 import { startTask, startBrowser, openFileEditor, initTerminals } from './terminals.js';
 import { updateNotifUI, initNotifications } from './notifications.js';
-import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
+import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, setRightPanelMode, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
 import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, doPush, showChangesStatus, switchToGitHubView, initGitChanges, initPostCommitPromptBridge, initGitHubViewBridge } from './git-changes.js';
 // post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
 import { initJourneyZone, renderJourneyZone, onCommitterExit, dismissPostCommitPrompt } from './journey-zone.js';
@@ -32,6 +32,7 @@ function setBreadcrumb(workDir) {
   const projectList = document.getElementById('project-list');
   document.querySelectorAll('.worktree-item.active').forEach(w => w.classList.remove('active'));
   document.querySelectorAll('.project-entry.has-active').forEach(e => e.classList.remove('has-active'));
+  document.querySelectorAll('.project-section-link.active').forEach(l => l.classList.remove('active'));
   if (!workDir) { el.textContent = ''; return; }
   let label = '';
   let found = false;
@@ -69,11 +70,9 @@ export function refreshRightPanel(workDir) {
   const filetreePanel = document.getElementById('filetree-panel');
   if (filetreePanel.classList.contains('hidden') || !workDir) return;
   const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-  if (activePanel === 'changes') {
-    refreshChanges(workDir);
-    if (ghState.viewActive) refreshGitHub(workDir);
-  }
+  if (activePanel === 'changes') refreshChanges(workDir);
   else if (activePanel === 'todo') refreshTodos(workDir);
+  else if (activePanel === 'github') refreshGitHub(workDir);
   else refreshFileTree(workDir);
 }
 
@@ -83,6 +82,12 @@ export function openWorkDir(workDir) {
   const launchpad = document.getElementById('launchpad');
   const terminalView = document.getElementById('terminal-view');
 
+  // Clear project-scope mode when switching to a worktree
+  appState.projectScopeMode = null;
+  appState.projectScopePath = null;
+  document.querySelectorAll('.project-section-link.active').forEach(l => l.classList.remove('active'));
+
+  setRightPanelMode('worktree');
   setBreadcrumb(workDir);
   restoreExplorerState(workDir);
   window.filetree.watch(workDir);
@@ -109,6 +114,60 @@ export function openWorkDir(workDir) {
     settingsPanel.classList.remove('active');
     terminalView.classList.remove('active');
     launchpad.classList.add('active');
+  }
+}
+
+// ── Project-scope navigation (sidebar section links) ──
+
+function openProjectScope(projectPath, section) {
+  const mainPanel = document.getElementById('main');
+  const settingsPanel = document.getElementById('settings-panel');
+  const launchpad = document.getElementById('launchpad');
+  const terminalView = document.getElementById('terminal-view');
+  const filetreePanel = document.getElementById('filetree-panel');
+
+  // Find the main worktree to use as workDir for IPC
+  const entry = document.querySelector(`.project-entry[data-path="${CSS.escape(projectPath)}"]`);
+  const mainWt = entry?.querySelector('.worktree-item[data-is-main="true"]');
+  const workDir = mainWt ? mainWt.dataset.path : projectPath;
+
+  // Track project-scope mode in state
+  appState.projectScopeMode = section;
+  appState.projectScopePath = projectPath;
+  tabState.activeWorkDir = workDir;
+  tabState.activeTabId = null;
+
+  // Set breadcrumb to "ProjectName / Section"
+  const projectName = entry?.querySelector('.project-name')?.textContent || projectPath.split('/').pop();
+  const sectionLabel = section === 'todos' ? 'Todos' : 'GitHub';
+  const el = document.getElementById('breadcrumb');
+  el.textContent = `${projectName} / ${sectionLabel}`;
+
+  // Highlight the active section link in the sidebar
+  document.querySelectorAll('.worktree-item.active').forEach(w => w.classList.remove('active'));
+  document.querySelectorAll('.project-entry.has-active').forEach(e => e.classList.remove('has-active'));
+  document.querySelectorAll('.project-section-link.active').forEach(l => l.classList.remove('active'));
+  if (entry) {
+    entry.classList.add('has-active');
+    if (!entry.classList.contains('expanded')) entry.classList.add('expanded');
+    const link = entry.querySelector(`.project-section-link[data-section="${section}"]`);
+    if (link) link.classList.add('active');
+  }
+
+  // Show launchpad with project-scope message; hide terminal
+  mainPanel.style.display = 'none';
+  settingsPanel.classList.remove('active');
+  terminalView.classList.remove('active');
+  launchpad.classList.add('active');
+
+  // Show the right panel and switch to the correct mode
+  filetreePanel.classList.remove('hidden');
+  document.getElementById('filetree-resize').classList.remove('hidden');
+
+  if (section === 'todos') {
+    switchRightPanelTab('todo');
+  } else if (section === 'github') {
+    switchRightPanelTab('github');
   }
 }
 
@@ -169,8 +228,7 @@ window.filetree.onChange((filename) => {
       return;
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
-    if (activePanel === 'todo') return;
-    // GitHub is now a sub-view of changes, no separate tab to guard
+    if (activePanel === 'todo' || activePanel === 'github') return;
     refreshRightPanel(tabState.activeWorkDir);
   }, 300);
 });
@@ -180,13 +238,17 @@ window.todo.onChange(() => {
   watchState.todoWatchDebounce = setTimeout(() => {
     if (!tabState.activeWorkDir) return;
     refreshTodos(tabState.activeWorkDir);
+    // Keep sidebar badge in sync when todos change
+    const entry = document.querySelector(`.worktree-item[data-path="${CSS.escape(tabState.activeWorkDir)}"]`)?.closest('.project-entry');
+    const projectPath = entry?.dataset.path;
+    if (projectPath) refreshProjectBadges(projectPath);
   }, 300);
 });
 
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references
-initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu });
+initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();

@@ -1,4 +1,4 @@
-// Sidebar — project list rendering, expand/collapse, worktree metrics
+// Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
 import { SVG_OCTOCAT, SVG_GIT_LOGO, SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
@@ -11,6 +11,11 @@ const addBtn = document.getElementById('add-project-btn');
 let _openWorkDir;
 let _openWorktreeCreateModal;
 let _showWorktreeContextMenu;
+let _openProjectScope;
+
+// ── SVG icons for section links ──
+const SVG_TODO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+const SVG_GITHUB = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
 
 // ── Functions ──────────────────────────────────────────────────
 
@@ -35,6 +40,20 @@ export function renderProjects(projects) {
       const todoNumAttr = todoMatch ? ` data-todo-num="${todoMatch[1]}"` : '';
       return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="wt-icon">${SVG_GIT_BRANCH}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
+    // Project-level section links (available without picking a worktree)
+    const sectionLinks = p.isGit ? `<div class="project-sections">
+      <div class="project-section-sep"></div>
+      <div class="project-section-link" data-project="${esc}" data-section="todos">
+        ${SVG_TODO}
+        <span>Todos</span>
+        <span class="project-section-badge" data-badge="todos"></span>
+      </div>
+      <div class="project-section-link" data-project="${esc}" data-section="github">
+        ${SVG_GITHUB}
+        <span>GitHub</span>
+        <span class="project-section-badge" data-badge="github"></span>
+      </div>
+    </div>` : '';
     return `
       <div class="project-entry${p.isGit ? ' is-git' : ''}" data-path="${esc}">
         <div class="project-item">
@@ -48,6 +67,7 @@ export function renderProjects(projects) {
           <button class="remove-btn" title="Remove project">&times;</button>
         </div>
         ${worktrees}
+        ${sectionLinks}
       </div>
     `;
   }).join('');
@@ -65,6 +85,7 @@ export async function loadProjects() {
     if (entry) entry.classList.add('expanded');
   });
   refreshWorktreeMetrics();
+  refreshAllProjectBadges();
 }
 
 export async function refreshWorktreeMetrics() {
@@ -86,12 +107,51 @@ export async function refreshWorktreeMetrics() {
   }
 }
 
+// ── Badge refresh for project-level section links ──
+
+function refreshAllProjectBadges() {
+  const entries = projectList.querySelectorAll('.project-entry.is-git');
+  for (const entry of entries) refreshProjectBadges(entry.dataset.path);
+}
+
+export async function refreshProjectBadges(projectPath) {
+  const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(projectPath)}"]`);
+  if (!entry) return;
+
+  // Find the main worktree path to use as workDir for IPC calls
+  const mainWt = entry.querySelector('.worktree-item[data-is-main="true"]');
+  const workDir = mainWt ? mainWt.dataset.path : projectPath;
+
+  // Todo count badge
+  const todoBadge = entry.querySelector('[data-badge="todos"]');
+  if (todoBadge) {
+    try {
+      const todos = await window.todo.list(workDir);
+      const openCount = todos.filter(t => t.status === 'open').length;
+      todoBadge.textContent = openCount > 0 ? String(openCount) : '';
+      todoBadge.classList.toggle('has-count', openCount > 0);
+    } catch { todoBadge.textContent = ''; }
+  }
+
+  // GitHub activity dot
+  const ghBadge = entry.querySelector('[data-badge="github"]');
+  if (ghBadge) {
+    try {
+      const notifs = await window.github.notifications(workDir);
+      const hasActivity = notifs.ok && notifs.data && notifs.data.length > 0;
+      ghBadge.classList.toggle('has-activity', hasActivity);
+      ghBadge.textContent = '';
+    } catch { ghBadge.classList.remove('has-activity'); }
+  }
+}
+
 // ── Init (wires up event listeners, avoids circular imports) ──
 
-export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu }) {
+export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope }) {
   _openWorkDir = openWorkDir;
   _openWorktreeCreateModal = openWorktreeCreateModal;
   _showWorktreeContextMenu = showWorktreeContextMenu;
+  _openProjectScope = openProjectScope;
 
   addBtn.addEventListener('click', async () => {
     const result = await window.projects.add();
@@ -105,6 +165,12 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
       const projectPath = entry.dataset.path;
       await window.projects.remove(projectPath);
       await loadProjects();
+      return;
+    }
+    // Project section link click (Todos / GitHub)
+    const sectionLink = e.target.closest('.project-section-link');
+    if (sectionLink) {
+      _openProjectScope(sectionLink.dataset.project, sectionLink.dataset.section);
       return;
     }
     // "Add worktree" button click
@@ -126,6 +192,8 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
       if (entry && entry.classList.contains('is-git')) {
         entry.classList.toggle('expanded');
         updateNotifUI();
+        // Refresh badges when expanding
+        if (entry.classList.contains('expanded')) refreshProjectBadges(entry.dataset.path);
       } else if (entry) {
         _openWorkDir(entry.dataset.path);
       }

@@ -57,16 +57,9 @@ export function ghStateBadge(state, isDraft) {
   return '<span class="gh-badge gh-badge-open">open</span>';
 }
 
-// ── Activity badge — drives the dot on the GitHub sub-nav button ─
+// ── Activity badge — sidebar GitHub link badge handles this now ──
 function updateActivityBadge() {
-  const btn = document.querySelector('.changes-subnav-btn[data-subview="github"]');
-  if (!btn) return;
-  const dot = btn.querySelector('.activity-dot');
-  if (ghState.hasActivity && !dot) {
-    btn.insertAdjacentHTML('beforeend', '<span class="activity-dot"></span>');
-  } else if (!ghState.hasActivity && dot) {
-    dot.remove();
-  }
+  // Activity is tracked via ghState.hasActivity; sidebar badges update via refreshProjectBadges
 }
 
 // ── Main entry point ────────────────────────────────────────────

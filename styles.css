@@ -230,6 +230,67 @@
     }
     .worktree-add-btn svg { flex-shrink: 0; }
 
+    /* Project-level section links (Todos, GitHub) */
+    .project-sections {
+      display: none;
+      padding-bottom: 4px;
+    }
+    .project-entry.expanded .project-sections {
+      display: block;
+    }
+    .project-section-sep {
+      height: 1px;
+      background: #2a2a2a;
+      margin: 4px 44px 4px 44px;
+    }
+    .project-section-link {
+      padding: 3px 16px 3px 44px;
+      font-size: 0.78rem;
+      color: #777;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s ease;
+    }
+    .project-section-link:hover {
+      color: #ccc;
+      background: #252525;
+    }
+    .project-section-link.active {
+      color: #eee;
+    }
+    .project-section-link svg {
+      flex-shrink: 0;
+      opacity: 0.5;
+      transition: opacity 0.15s ease;
+    }
+    .project-section-link:hover svg,
+    .project-section-link.active svg {
+      opacity: 1;
+    }
+    .project-section-badge {
+      margin-left: auto;
+      font-size: 0.6rem;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+    .project-section-badge.has-count {
+      background: #333;
+      color: #ccc;
+      padding: 0 5px;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+    .project-section-badge.has-activity::after {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #e0a050;
+    }
+
     /* Worktree context menu */
     #wt-context-menu {
       display: none;
@@ -1507,9 +1568,10 @@
     .ft-pyrefly.out { animation: ft-pyrefly-out 0.5s ease-out forwards; }
     .ft-pyrefly.in  { animation: ft-pyrefly-in  0.4s ease-out forwards; }
 
-    /* Changes panel */
+    /* Changes panel — horizontal split: changes on top, commits below */
     #changes-body {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 2px 0;
@@ -1518,6 +1580,30 @@
     }
     #changes-body::-webkit-scrollbar { width: 6px; }
     #changes-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    #commits-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2px 0;
+      border-top: 1px solid #2a2a2a;
+    }
+    #commits-body::-webkit-scrollbar { width: 6px; }
+    #commits-body::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* GitHub standalone panel */
+    #gh-inline-section {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #gh-inline-section::-webkit-scrollbar { width: 6px; }
+    #gh-inline-section::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    /* Hide inner gh-subnav when GitHub tabs are in the header */
+    #gh-inline-section > .gh-subnav { display: none; }
+    #gh-inline-section #gh-content { flex: 1; overflow-y: auto; }
     .changes-section-header {
       display: flex;
       align-items: center;
@@ -2215,39 +2301,6 @@
       cursor: pointer;
     }
     .journey-more:hover { color: #999; }
-
-    /* ── Changes sub-nav ──────────────────────────────── */
-    #changes-subnav {
-      display: flex;
-      gap: 0;
-      border-bottom: 1px solid #2a2a2a;
-      background: #161b22;
-      padding: 0 8px;
-    }
-    .changes-subnav-btn {
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: #888;
-      font-size: 0.75rem;
-      font-family: inherit;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-    .changes-subnav-btn:hover { color: #ccc; }
-    .changes-subnav-btn.active {
-      color: #ccc;
-      border-bottom-color: #4a9eff;
-    }
-    .changes-subnav-btn .activity-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #f85149;
-      margin-left: 4px;
-      vertical-align: middle;
-    }
 
     /* Branch management modal */
     #branch-modal {

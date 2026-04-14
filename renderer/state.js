@@ -11,6 +11,8 @@ export const appState = {
   pendingWorkDir: null,       // workDir waiting for agent/tab-type picker
   pendingTodoPath: null,      // todo relative path for agent picker
   pendingTodoAbsPath: null,   // todo absolute path for agent picker
+  projectScopeMode: null,     // 'todos' | 'github' | null — set when navigating via sidebar section links (no worktree)
+  projectScopePath: null,     // project root path when in project-scope mode
 };
 
 // ── Tab management state ────────────────────────────────────────
