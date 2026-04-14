@@ -203,8 +203,13 @@ async function _handleJourneyAction(action, btn) {
         _showChangesStatus?.('Could not determine branch name', 'error');
         return;
       }
-      const title = branch.split('/').pop().replace(/[-_]/g, ' ').replace(/^\w/, c => c.toUpperCase());
-      const prResult = await window.github.prCreate(workDir, title, '', 'main', false);
+      let title = branch.split('/').pop().replace(/[-_]/g, ' ').replace(/^\w/, c => c.toUpperCase());
+      let body = '';
+      btn.textContent = 'Generating PR message...';
+      const gen = await window.gitOps.generatePRMsg(workDir);
+      if (gen.ok) { title = gen.title; body = gen.body; }
+      btn.textContent = 'Creating PR...';
+      const prResult = await window.github.prCreate(workDir, title, body, 'main', false);
       if (prResult.ok) {
         _showChangesStatus?.('PR created', 'success');
         _switchToGitHubView?.(true, { section: 'prs' });
