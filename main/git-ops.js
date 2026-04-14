@@ -55,14 +55,44 @@ function register({ ipcMain }) {
       if (truncated.length > 20000) truncated = truncated.slice(0, 20000) + '\n\n[diff truncated]';
       const prompt = `Write a commit message for this diff. First line: concise summary under 72 chars. If the change is non-trivial, add a blank line then bullet points explaining what changed. Output ONLY the message, no fences or quotes.\n\n${truncated}`;
       return new Promise((resolve) => {
-        require('child_process').exec(
-          `claude -p --model claude-haiku-4-5-20251001 --max-turns 1`,
-          { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024, shell: process.env.SHELL || '/bin/zsh' },
+        const child = require('child_process').execFile(
+          'claude', ['-p', '--model', 'claude-haiku-4-5-20251001', '--max-turns', '1'],
+          { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024 },
           (error, stdout, stderr) => {
             if (error) resolve({ ok: false, error: ((stderr || error.message || '').toString().split('\n')[0]) || 'Generation failed' });
             else resolve({ ok: true, message: stdout.trim() });
           }
-        ).stdin.end(prompt);
+        );
+        child.stdin.end(prompt);
+      });
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('git:generate-pr-msg', async (_event, workDir) => {
+    try {
+      const { stdout: log } = await execFileAsync('git', ['log', 'main..HEAD', '--format=%s%n%b', '--no-merges'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      if (!log.trim()) return { ok: false, error: 'No commits ahead of main' };
+      const { stdout: stat } = await execFileAsync('git', ['diff', 'main...HEAD', '--stat'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      let truncLog = log.length > 15000 ? log.slice(0, 15000) + '\n\n[log truncated]' : log;
+      let truncStat = stat.length > 5000 ? stat.slice(0, 5000) + '\n\n[stat truncated]' : stat;
+      const prompt = `Write a pull request title and description for these changes.\n\nCOMMIT LOG:\n${truncLog}\nFILES CHANGED:\n${truncStat}\nOutput format — first line is the PR title (concise, under 72 chars), then a blank line, then the PR body in markdown. The body should have a brief summary paragraph, then a bulleted list of key changes. Output ONLY the title and body, no fences or quotes.`;
+      return new Promise((resolve) => {
+        const child = require('child_process').execFile(
+          'claude', ['-p', '--model', 'claude-haiku-4-5-20251001', '--max-turns', '1'],
+          { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024 },
+          (error, stdout, stderr) => {
+            if (error) resolve({ ok: false, error: ((stderr || error.message || '').toString().split('\n')[0]) || 'Generation failed' });
+            else {
+              const text = stdout.trim();
+              const blankIdx = text.indexOf('\n\n');
+              if (blankIdx === -1) resolve({ ok: true, title: text, body: '' });
+              else resolve({ ok: true, title: text.slice(0, blankIdx).trim(), body: text.slice(blankIdx + 2).trim() });
+            }
+          }
+        );
+        child.stdin.end(prompt);
       });
     } catch (err) {
       return { ok: false, error: errMsg(err) };
