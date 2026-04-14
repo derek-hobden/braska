@@ -36,7 +36,6 @@ function createWindow() {
     backgroundColor: '#1e1e1e',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
-      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -172,6 +171,7 @@ app.whenReady().then(async () => {
   require('./git-ops').register(deps);
   require('./git-worktree').register(deps);
   require('./github').register(deps);
+  require('./browser-view').register(deps);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -8,7 +8,7 @@ Two-process Electron app: **main** (CommonJS) ↔ **preload** (contextBridge) �
 
 - **Main (`main/`):** Each module exports `register({ ipcMain, BrowserWindow, dialog, shell, app })`. `main/index.js` calls all registers after `app.whenReady()`. Modules `require()` their own Node built-ins; only Electron objects are injected.
 - **Renderer (`renderer/`):** `app.js` imports all modules, calls `init*()` functions to inject cross-module deps (avoids circular imports). Modules store injected deps in private `let` vars, used by event listeners.
-- **Preload (`preload.js`):** Bridges main↔renderer via `contextBridge.exposeInMainWorld`. 15 namespaces: `versions`, `projects`, `skills`, `agents`, `filetree`, `fileOps`, `fileEditor`, `todo`, `worktree`, `gitDiff`, `gitOps`, `github`, `pty`, `windowActions`, `dragDrop`.
+- **Preload (`preload.js`):** Bridges main↔renderer via `contextBridge.exposeInMainWorld`. 16 namespaces: `versions`, `projects`, `skills`, `agents`, `filetree`, `fileOps`, `fileEditor`, `todo`, `worktree`, `gitDiff`, `gitOps`, `github`, `pty`, `browserView`, `windowActions`, `dragDrop`.
 - **State:** `main/state.js` uses getter/setter functions (CommonJS). `renderer/state.js` exports flat objects (`tabState`, `appState`, `modalState`, `explorerState`, `watchState`, `ghState`, `gitState`) — mutate via direct property assignment.
 - **Shell commands:** Always `execFileAsync('cmd', ['arg1', 'arg2'], { cwd, encoding: 'utf-8', timeout })` from `main/utils.js`. Never `execSync`, never shell string interpolation.
 - **IPC return shape:** `{ ok: true, ...data }` or `{ ok: false, error: errMsg(err) }`.
@@ -33,6 +33,7 @@ main/
   agents.js                 — List agents from ~/.claude/agents/, BUILTIN_AGENTS array (1 handler)
   agents-setup.js           — Copy builtin agents to ~/.claude/agents/ and scripts to ~/.claude/scripts/ on startup
   todo.js                   — Todo CRUD + fs.watch (6 handlers)
+  browser-view.js           — Browser tab WebContentsView management (replaces deprecated <webview>)
   pty.js                    — PTY spawn/write/resize/kill (4 handlers)
   files.js                  — File read/save, filetree CRUD/watch (12 handlers)
   git-read.js               — Status, diff, log, worktree-metrics (6 handlers)

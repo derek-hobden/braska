@@ -171,9 +171,53 @@ export async function startTask(agentName, workDir, options = {}) {
   switchTab(id);
 }
 
+// ── Browser view helpers ──────────────────────────────────────
+
+function sendViewportBounds(id, viewport) {
+  const rect = viewport.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    window.browserView.setBounds(id, {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    });
+  }
+}
+
+let browserViewVisibilitySetup = false;
+function setupBrowserViewVisibility() {
+  if (browserViewVisibilitySetup) return;
+  browserViewVisibilitySetup = true;
+
+  // Hide browser view when modals overlay it or during panel resize.
+  // WebContentsView is a native overlay above the renderer DOM, so renderer
+  // modals would render behind it unless we remove it temporarily.
+  const MODAL_SELECTOR = '#tab-type-picker, #agent-picker, #wt-create-modal, #wt-delete-modal, #wt-merge-modal, #todo-close-modal, #branch-modal, #notification-dropdown';
+
+  function syncVisibility() {
+    const activeTab = tabState.tabs.get(tabState.activeTabId);
+    if (!activeTab || activeTab.type !== 'browser') return;
+    const blocked = document.body.classList.contains('resizing')
+      || document.querySelector(MODAL_SELECTOR.split(', ').map(s => s + '.active').join(', '));
+    if (blocked) {
+      window.browserView.setActive(null);
+    } else {
+      window.browserView.setActive(tabState.activeTabId);
+      sendViewportBounds(tabState.activeTabId, activeTab.viewport);
+    }
+  }
+
+  const obs = new MutationObserver(syncVisibility);
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  for (const el of document.querySelectorAll(MODAL_SELECTOR)) {
+    obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
 // ── Browser tab creation ───────────────────────────────────────
 
-export function startBrowser(workDir) {
+export async function startBrowser(workDir) {
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
@@ -205,43 +249,65 @@ export function startBrowser(workDir) {
   `;
   pane.appendChild(nav);
 
-  const webview = document.createElement('webview');
-  webview.setAttribute('src', 'about:blank');
-  webview.setAttribute('allowpopups', '');
-  pane.appendChild(webview);
+  // Viewport placeholder — WebContentsView overlays this area from main process
+  const viewport = document.createElement('div');
+  viewport.className = 'browser-viewport';
+  pane.appendChild(viewport);
 
   const navInput = nav.querySelector('.browser-url');
   navInput.value = '';
+
+  // Create WebContentsView in main process
+  try {
+    await window.browserView.create(id);
+  } catch (err) {
+    pane.remove();
+    const hasTabs = [...tabState.tabs.values()].some(t => t.workDir === workDir);
+    if (!hasTabs) {
+      terminalView.classList.remove('active');
+      launchpad.classList.add('active');
+    }
+    console.error('Failed to create browser view:', err);
+    return;
+  }
+
+  // Track viewport bounds for WebContentsView positioning
+  const resizeObs = new ResizeObserver(() => {
+    if (tabState.activeTabId === id) sendViewportBounds(id, viewport);
+  });
+  resizeObs.observe(viewport);
 
   nav.addEventListener('click', (e) => {
     const btn = e.target.closest('.browser-nav-btn');
     if (!btn) return;
     const action = btn.dataset.action;
-    if (action === 'back') webview.goBack();
-    else if (action === 'forward') webview.goForward();
-    else if (action === 'reload') webview.reload();
+    if (action === 'back') window.browserView.back(id);
+    else if (action === 'forward') window.browserView.forward(id);
+    else if (action === 'reload') window.browserView.reload(id);
   });
 
   navInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       let val = navInput.value.trim();
-      if (val && !val.match(/^https?:\/\//)) val = 'https://' + val;
-      webview.loadURL(val);
+      if (!val) return;
+      if (!val.match(/^https?:\/\//)) val = 'https://' + val;
+      window.browserView.navigate(id, val);
     }
   });
 
-  webview.addEventListener('did-navigate', (e) => { navInput.value = e.url; });
-  webview.addEventListener('did-navigate-in-page', (e) => { navInput.value = e.url; });
-  webview.addEventListener('page-title-updated', (e) => {
+  // Events from main process
+  window.browserView.onNavigate(id, (url) => { navInput.value = url; });
+  window.browserView.onTitleUpdate(id, (title) => {
     const tab = tabState.tabs.get(id);
     if (tab) {
-      tab.label = e.title || 'Browser';
-      // Only re-render if no custom label (custom label takes precedence)
+      tab.label = title || 'Browser';
       if (!tab.customLabel) renderTabBar();
     }
   });
 
-  tabState.tabs.set(id, { type: 'browser', webview, navInput, pane, tabEl: null, label: 'Browser', workDir });
+  setupBrowserViewVisibility();
+
+  tabState.tabs.set(id, { type: 'browser', navInput, viewport, resizeObs, pane, tabEl: null, label: 'Browser', workDir });
   addTabToOrder(id, workDir);
   tabState.activeTabId = id;
   renderTabBar();
