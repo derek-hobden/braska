@@ -107,6 +107,10 @@ function createWindow() {
       } else if (input.key.toLowerCase() === 't') {
         event.preventDefault();
         win.webContents.send('open-tab-picker');
+      } else if (input.shift && input.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        app.relaunch();
+        app.quit();
       } else if (input.key.toLowerCase() === 'r') {
         event.preventDefault();
         win.webContents.send('rename-active-tab');
@@ -148,6 +152,8 @@ app.whenReady().then(async () => {
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },
+        { type: 'separator' },
+        { label: 'Restart Braska', accelerator: 'CmdOrCtrl+Shift+R', click: () => { app.relaunch(); app.quit(); } },
       ],
     },
     { role: 'windowMenu' },
