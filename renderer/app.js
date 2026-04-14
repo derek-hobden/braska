@@ -307,7 +307,7 @@ document.getElementById('agent-picker-list').addEventListener('click', (e) => {
     appState.pendingTodoAbsPath = null;
     const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
     startTask(name, appState.pendingWorkDir, {
-      initialPrompt: `/plan Read the todo file at ${todoAbsPath} and complete the task. When finished, ask me if I'd like to close the todo as done.`,
+      initialPrompt: `Read the todo file at ${todoAbsPath} carefully, then ask me what I'd like to do.`,
       todoNumber: todoNum,
       todoPath
     });
