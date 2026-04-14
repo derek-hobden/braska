@@ -63,6 +63,7 @@ renderer/
   git-changes-tree.js       — Tree view rendering for git changes panel
   git-changes-actions.js    — Changes body click delegation
   git-changes-modals.js     — Pull-main flow, branch modal, diff viewer
+  journey-cards.mjs         — Pure card computation for journey zone (testable, no DOM deps)
   journey-zone.js           — State-driven action cards (commit/share/merge-to-main/conflicts), branch header actions, overflow menu
   github-panel.js           — GitHub auth, section routing, CI, notifications (inline in unified panel)
   github-prs.js             — PR list, detail, create form
