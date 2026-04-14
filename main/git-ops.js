@@ -80,7 +80,17 @@ function register({ ipcMain }) {
 
   ipcMain.handle('git:pull', async (_event, workDir) => {
     try {
-      const { stdout } = await execFileAsync('git', ['pull'], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
+      // Determine current branch so we can pull explicitly from origin,
+      // avoiding "no tracking information" errors when upstream isn't configured.
+      let pullArgs = ['pull'];
+      try {
+        const { stdout: branchOut } = await execFileAsync('git', ['symbolic-ref', '--short', 'HEAD'], { ...opts, timeout: 5000 });
+        const branch = branchOut.trim();
+        if (branch) pullArgs = ['pull', 'origin', branch];
+      } catch { /* detached HEAD or error — fall back to bare pull */ }
+
+      const { stdout } = await execFileAsync('git', pullArgs, opts);
       return { ok: true, output: stdout.trim() };
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
