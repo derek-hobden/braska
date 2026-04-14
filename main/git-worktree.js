@@ -28,9 +28,6 @@ function register({ ipcMain }) {
       } catch {
         return { ok: false, error: 'Cannot determine current branch (detached HEAD?)' };
       }
-      if (currentBranch === mainBranch) {
-        return { ok: false, error: 'Already on the main branch. Use Pull instead.' };
-      }
 
       // Check for uncommitted changes
       const { stdout: statusOut } = await execFileAsync('git', ['status', '--porcelain'], opts);
