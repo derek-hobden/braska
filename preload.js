@@ -148,6 +148,28 @@ contextBridge.exposeInMainWorld('pty', {
   removeListeners: (id) => { dataCallbacks.delete(id); exitCallbacks.delete(id); },
 });
 
+// Browser view bridge — IPC to main-process WebContentsView (replaces deprecated <webview>)
+const navCallbacks = new Map();
+const titleCallbacks = new Map();
+
+ipcRenderer.on('browser:did-navigate', (_ev, id, url) => { const cb = navCallbacks.get(id); if (cb) cb(url); });
+ipcRenderer.on('browser:page-title-updated', (_ev, id, title) => { const cb = titleCallbacks.get(id); if (cb) cb(title); });
+
+contextBridge.exposeInMainWorld('browserView', {
+  create: (id) => ipcRenderer.invoke('browser:create', id),
+  navigate: (id, url) => ipcRenderer.send('browser:navigate', id, url),
+  back: (id) => ipcRenderer.send('browser:back', id),
+  forward: (id) => ipcRenderer.send('browser:forward', id),
+  reload: (id) => ipcRenderer.send('browser:reload', id),
+  setBounds: (id, bounds) => ipcRenderer.send('browser:setBounds', id, bounds),
+  setActive: (id, bounds) => ipcRenderer.send('browser:setActive', id, bounds),
+  destroy: (id) => ipcRenderer.invoke('browser:destroy', id),
+  focus: (id) => ipcRenderer.send('browser:focus', id),
+  onNavigate: (id, cb) => { navCallbacks.set(id, cb); },
+  onTitleUpdate: (id, cb) => { titleCallbacks.set(id, cb); },
+  removeListeners: (id) => { navCallbacks.delete(id); titleCallbacks.delete(id); },
+});
+
 // Close-active-tab bridge (Cmd+W interception from main process)
 // Open-tab-picker bridge (Cmd+T interception from main process)
 contextBridge.exposeInMainWorld('windowActions', {

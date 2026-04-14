@@ -1337,7 +1337,7 @@
     }
     body.resizing { cursor: col-resize !important; user-select: none !important; }
     body.resizing * { cursor: col-resize !important; user-select: none !important; }
-    body.resizing iframe, body.resizing webview { pointer-events: none !important; }
+    body.resizing iframe { pointer-events: none !important; }
 
     /* Sidebar collapse */
     #sidebar.collapsed {
@@ -2799,7 +2799,7 @@
       outline: none;
     }
     .browser-url:focus { border-color: #555; }
-    .browser-pane webview { flex: 1; }
+    .browser-viewport { flex: 1; }
 
     /* Editor pane */
     .editor-pane.active {

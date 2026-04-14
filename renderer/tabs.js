@@ -146,7 +146,7 @@ export function startTabRename(id) {
 
   let cancelled = false;
   const focusTabContent = () => {
-    if (tab.type === 'browser') tab.webview.focus();
+    if (tab.type === 'browser') window.browserView.focus(id);
     else if (tab.type === 'editor') tab.textarea.focus();
     else if (tab.type === 'terminal') tab.term.focus();
   };
@@ -222,12 +222,23 @@ export function switchTab(id) {
   }
   const tab = tabState.tabs.get(id);
   if (tab.type === 'browser') {
-    tab.webview.focus();
-  } else if (tab.type === 'editor') {
-    tab.textarea.focus();
-  } else if (tab.type === 'terminal') {
-    tab.fitAddon.fit();
-    tab.term.focus();
+    const rect = tab.viewport.getBoundingClientRect();
+    const bounds = (rect.width > 0 && rect.height > 0) ? {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    } : null;
+    window.browserView.setActive(id, bounds);
+    window.browserView.focus(id);
+  } else {
+    window.browserView.setActive(null);
+    if (tab.type === 'editor') {
+      tab.textarea.focus();
+    } else if (tab.type === 'terminal') {
+      tab.fitAddon.fit();
+      tab.term.focus();
+    }
   }
   updateFileTreeHighlights();
   if (updateTodoFocus) updateTodoFocus();
@@ -257,7 +268,11 @@ export async function closeTab(id) {
   clearNotifForTab(id);
   if (busyTabs.has(id)) clearTabBusy(id);
   const closedWorkDir = tab.workDir;
-  if (tab.type === 'browser' || tab.type === 'editor' || tab.type === 'diff') {
+  if (tab.type === 'browser') {
+    tab.resizeObs.disconnect();
+    window.browserView.removeListeners(id);
+    await window.browserView.destroy(id);
+  } else if (tab.type === 'editor' || tab.type === 'diff') {
     // Nothing extra to clean up — just remove the pane
   } else {
     tab.term.dispose();
