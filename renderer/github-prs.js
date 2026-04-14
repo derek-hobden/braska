@@ -167,11 +167,18 @@ async function showGitHubPRDetail(workDir, number) {
       mergeBtn.textContent = 'Merging...';
       const r = await window.github.prMerge(workDir, number, method, deleteBranch);
       if (r.ok && r.worktreeCleanedUp) {
-        // Feature worktree was removed — close its tabs and switch to main
-        const tabIds = _tabsForWorkDir?.(workDir).map(([id]) => id) || [];
+        // Worktree was removed — close its tabs
+        const cleanDir = r.cleanedWorktreePath || workDir;
+        const tabIds = _tabsForWorkDir?.(cleanDir).map(([id]) => id) || [];
         for (const tabId of tabIds) await _closeTab?.(tabId);
         _loadProjects?.();
-        _openWorkDir?.(r.mainWorktreePath);
+        if (cleanDir === workDir) {
+          // We were inside the removed worktree — switch to main
+          _openWorkDir?.(r.mainWorktreePath);
+        } else {
+          // We're in a different worktree (e.g. main) — refresh the PR view
+          showGitHubPRDetail(workDir, number);
+        }
       } else if (r.ok) {
         showGitHubPRDetail(workDir, number);
       } else {

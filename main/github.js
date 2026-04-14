@@ -73,41 +73,49 @@ function register({ ipcMain }) {
   ipcMain.handle('gh:pr-merge', async (_event, workDir, number, method, deleteBranch) => {
     try {
       const info = await getGitInfo(workDir);
-      const currentWt = info.worktrees.find(w => w.path === workDir);
       const mainWt = info.worktrees.find(w => w.isMain);
-      const isFeatureWorktree = currentWt && !currentWt.isMain && mainWt;
 
       const flag = method === 'squash' ? '--squash' : method === 'rebase' ? '--rebase' : '--merge';
-      const args = ['pr', 'merge', String(number), flag];
-      // In a feature worktree, don't use --delete-branch (it fails trying to update local main).
-      // We'll clean up the branch and worktree ourselves.
-      if (deleteBranch && !isFeatureWorktree) args.push('--delete-branch');
-      await execFileAsync('gh', args, { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
+      // Never pass --delete-branch to gh — it fails when the branch is used by a worktree.
+      // We handle all branch/worktree cleanup ourselves below.
+      await execFileAsync('gh', ['pr', 'merge', String(number), flag], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
 
-      if (!isFeatureWorktree) return { ok: true };
+      if (!deleteBranch) return { ok: true };
 
-      // Feature worktree: clean up locally — remove worktree, delete local+remote branch
-      const featureBranch = currentWt.branch;
-      const opts = { encoding: 'utf-8', timeout: 60000 };
-
-      // Delete remote branch if requested (may already be deleted by GitHub)
-      if (deleteBranch && featureBranch && featureBranch !== '(detached)') {
-        try { await execFileAsync('git', ['push', 'origin', '--delete', featureBranch], { ...opts, cwd: workDir }); } catch {}
-      }
-
-      // Remove the worktree (from main worktree cwd so we're not inside it)
-      let worktreeCleanedUp = false;
+      // Look up the PR's branch so we can check for worktrees
+      let prBranch;
       try {
-        await execFileAsync('git', ['worktree', 'remove', '--force', workDir], { ...opts, cwd: mainWt.path });
-        worktreeCleanedUp = true;
-      } catch {}
+        const { stdout } = await execFileAsync('gh', ['pr', 'view', String(number), '--json', 'headRefName', '-q', '.headRefName'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+        prBranch = stdout.trim();
+      } catch { return { ok: true }; }
 
-      // Delete local branch only if worktree was removed
-      if (worktreeCleanedUp && featureBranch && featureBranch !== '(detached)') {
-        try { await execFileAsync('git', ['branch', '-D', featureBranch], { ...opts, cwd: mainWt.path }); } catch {}
+      const opts = { encoding: 'utf-8', timeout: 60000 };
+      const cleanupCwd = mainWt ? mainWt.path : workDir;
+      const branchWt = prBranch ? info.worktrees.find(w => w.branch === prBranch && !w.isMain) : null;
+
+      // Delete remote branch (may already be deleted by GitHub auto-delete)
+      if (prBranch) {
+        try { await execFileAsync('git', ['push', 'origin', '--delete', prBranch], { ...opts, cwd: cleanupCwd }); } catch {}
       }
 
-      return { ok: true, worktreeCleanedUp, mainWorktreePath: mainWt.path };
+      // If a worktree uses the branch, remove it first
+      let worktreeCleanedUp = false;
+      if (branchWt) {
+        try {
+          await execFileAsync('git', ['worktree', 'remove', '--force', branchWt.path], { ...opts, cwd: cleanupCwd });
+          worktreeCleanedUp = true;
+        } catch {}
+      }
+
+      // Delete local branch (skip if worktree removal failed — branch is still in use)
+      if (!branchWt || worktreeCleanedUp) {
+        try { await execFileAsync('git', ['branch', '-D', prBranch], { ...opts, cwd: cleanupCwd }); } catch {}
+      }
+
+      if (worktreeCleanedUp) {
+        return { ok: true, worktreeCleanedUp, cleanedWorktreePath: branchWt.path, mainWorktreePath: cleanupCwd };
+      }
+      return { ok: true };
     } catch (err) { return { ok: false, error: errMsg(err) }; }
   });
 
