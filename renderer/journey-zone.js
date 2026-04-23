@@ -176,7 +176,13 @@ async function _handleJourneyAction(action, btn) {
     });
 
   } else if (action === 'review') {
-    _startTask?.('__CLAUDE__', workDir, { initialPrompt: REVIEW_LOOP_PROMPT });
+    for (const tab of tabState.tabs.values()) {
+      if (tab.agentName === 'reviewer' && tab.workDir === workDir) {
+        _showChangesStatus?.('Reviewer already running', 'error');
+        return;
+      }
+    }
+    _startTask?.('reviewer', workDir, { initialPrompt: REVIEW_LOOP_PROMPT });
 
   } else if (action === 'pull') {
     btn.disabled = true;
