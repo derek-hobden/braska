@@ -5,6 +5,8 @@ import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
 import { agentDisplayName, stripAnsi } from './utils.js';
 import { onCommitterExit } from './journey-zone.js';
+import { renderMarkdown } from './markdown.js';
+import { languageForPath, renderHighlighted } from './code-highlight.js';
 
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;
@@ -345,11 +347,19 @@ export async function openFileEditor(relPath, fileName) {
   pane.className = 'terminal-pane editor-pane';
   terminalContainers.appendChild(pane);
 
+  const isMarkdown = /\.(md|markdown)$/i.test(relPath);
+  const codeLang = isMarkdown ? null : languageForPath(relPath);
+  const previewMode = isMarkdown ? 'markdown' : (codeLang ? 'code' : null);
+
   const toolbar = document.createElement('div');
   toolbar.className = 'editor-toolbar';
+  const viewToggle = previewMode
+    ? `<button class="editor-view-btn" title="Toggle source/preview">Source</button>`
+    : '';
   toolbar.innerHTML = `
     <span class="editor-filepath">${fileName}</span>
     <div class="toolbar-spacer"></div>
+    ${viewToggle}
     <button class="editor-save-btn" title="Save (\u2318S)">Save</button>
   `;
   pane.appendChild(toolbar);
@@ -359,6 +369,53 @@ export async function openFileEditor(relPath, fileName) {
   textarea.value = content;
   textarea.spellcheck = false;
   pane.appendChild(textarea);
+
+  const renderPreview = (text) => {
+    if (previewMode === 'markdown') return renderMarkdown(text);
+    if (previewMode === 'code') return renderHighlighted(text, codeLang, relPath);
+    return '';
+  };
+
+  let preview = null;
+  if (previewMode) {
+    preview = document.createElement('div');
+    preview.className = previewMode === 'markdown'
+      ? 'editor-preview markdown-body'
+      : 'editor-preview code-preview';
+    preview.innerHTML = renderPreview(content);
+    pane.appendChild(preview);
+    textarea.style.display = 'none';
+
+    if (previewMode === 'markdown') {
+      // Anchors otherwise navigate the whole renderer; route external URLs to the system browser.
+      preview.addEventListener('click', (e) => {
+        const a = e.target.closest('a');
+        if (!a) return;
+        const href = a.getAttribute('href');
+        e.preventDefault();
+        if (href && /^(https?:|mailto:)/i.test(href)) {
+          window.windowActions.openExternal(href);
+        }
+      });
+    }
+
+    let showingPreview = true;
+    const viewBtn = toolbar.querySelector('.editor-view-btn');
+    viewBtn.addEventListener('click', () => {
+      showingPreview = !showingPreview;
+      if (showingPreview) {
+        preview.innerHTML = renderPreview(textarea.value);
+        textarea.style.display = 'none';
+        preview.style.display = '';
+        viewBtn.textContent = 'Source';
+      } else {
+        textarea.style.display = '';
+        preview.style.display = 'none';
+        viewBtn.textContent = 'Preview';
+        textarea.focus();
+      }
+    });
+  }
 
   let savedContent = content;
 

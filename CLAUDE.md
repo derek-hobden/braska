@@ -68,6 +68,10 @@ renderer/
   github-panel.js           — GitHub auth, section routing, CI, notifications (inline in unified panel)
   github-prs.js             — PR list, detail, create form
   github-issues.js          — Issue list, detail, create form
+  markdown.js               — Renders .md to sanitized HTML via vendored marked
+  code-highlight.js         — Maps file extensions to languages, renders highlighted HTML via hljs
+  vendor/marked.esm.min.js  — Vendored marked library (CommonMark + GFM)
+  vendor/highlight.esm.min.js — Vendored highlight.js (common languages bundle, ~150KB)
 
 agents/                     — Builtin agent templates (copied to ~/.claude/agents/ on first run)
   todoist.md                — Todo creation agent with hook-based sandboxing
