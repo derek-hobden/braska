@@ -193,7 +193,7 @@ function setupBrowserViewVisibility() {
   // Hide browser view when modals overlay it or during panel resize.
   // WebContentsView is a native overlay above the renderer DOM, so renderer
   // modals would render behind it unless we remove it temporarily.
-  const MODAL_SELECTOR = '#tab-type-picker, #agent-picker, #wt-create-modal, #wt-delete-modal, #wt-merge-modal, #todo-close-modal, #branch-modal, #notification-dropdown';
+  const MODAL_SELECTOR = '#tab-type-picker, #wt-create-modal, #wt-delete-modal, #wt-merge-modal, #todo-close-modal, #branch-modal, #notification-dropdown';
 
   function syncVisibility() {
     const activeTab = tabState.tabs.get(tabState.activeTabId);

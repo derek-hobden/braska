@@ -12,16 +12,14 @@ const todoBody = document.getElementById('todo-body');
 let _loadProjects = null;
 let _openWorkDir = null;
 let _startTask = null;
-let _showAgentPickerForTodo = null;
 let _showGitHubIssueDetail = null;
 let _switchRightPanelTab = null;
 let _switchToGitHubView = null;
 
-export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView }) {
+export function initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _startTask = startTask;
-  _showAgentPickerForTodo = showAgentPickerForTodo;
   _showGitHubIssueDetail = showGitHubIssueDetail;
   _switchRightPanelTab = switchRightPanelTab;
   _switchToGitHubView = switchToGitHubView;
@@ -43,7 +41,12 @@ export function initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentP
     if (workBtn) {
       const todoPath = workBtn.dataset.todoPath;
       const todoAbsPath = workBtn.dataset.absPath;
-      _showAgentPickerForTodo(tabState.activeWorkDir, todoPath, todoAbsPath);
+      const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
+      _startTask('__CLAUDE__', tabState.activeWorkDir, {
+        initialPrompt: `Read the todo file at ${todoAbsPath} carefully, then ask me what I'd like to do.`,
+        todoNumber: todoNum,
+        todoPath,
+      });
       return;
     }
 
@@ -285,5 +288,10 @@ export async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {
   if (entry) entry.classList.add('expanded');
   await _loadProjects();
   _openWorkDir(wtPath);
-  _showAgentPickerForTodo(wtPath, todoPath, todoAbsPath);
+  const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
+  _startTask('__CLAUDE__', wtPath, {
+    initialPrompt: `Read the todo file at ${todoAbsPath} carefully, then ask me what I'd like to do.`,
+    todoNumber: todoNum,
+    todoPath,
+  });
 }

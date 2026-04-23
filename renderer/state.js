@@ -8,9 +8,7 @@ export const appState = {
   activeSection: null,        // current settings section ('skills' | 'agents' | 'mcp-servers' | null)
   savedActiveTabId: null,     // preserved tab id when entering settings
   savedActiveWorkDir: null,   // preserved workDir when entering settings
-  pendingWorkDir: null,       // workDir waiting for agent/tab-type picker
-  pendingTodoPath: null,      // todo relative path for agent picker
-  pendingTodoAbsPath: null,   // todo absolute path for agent picker
+  pendingWorkDir: null,       // workDir waiting for tab-type picker
   projectScopeMode: null,     // 'todos' | 'github' | null — set when navigating via sidebar section links (no worktree)
   projectScopePath: null,     // project root path when in project-scope mode
 };

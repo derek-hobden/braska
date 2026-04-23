@@ -171,45 +171,11 @@ function openProjectScope(projectPath, section) {
   }
 }
 
-// ── Agent/tab picker functions ──
-
-import { agentDisplayName, escHtml } from './utils.js';
+// ── Tab picker function ──
 
 function showTabTypePicker(workDir) {
   appState.pendingWorkDir = workDir;
   document.getElementById('tab-type-picker').classList.add('active');
-}
-
-function renderAgentPickerItems(agents) {
-  const builtinAgents = agents.filter(ex => ex.builtin);
-  const customAgents = agents.filter(ex => !ex.builtin);
-  let n = 1;
-  const hint = () => n <= 9 ? `<span class="agent-picker-hint">⌘${n++}</span>` : (n++, '');
-  const claudeItem = `<div class="agent-picker-item" data-name="__CLAUDE__" style="color:#e0a050;font-weight:600">${escHtml(agentDisplayName('__CLAUDE__'))}${hint()}</div>`;
-  const builtinItems = builtinAgents.map(ex => {
-    return `<div class="agent-picker-item builtin" data-name="${escHtml(ex.name)}">${escHtml(agentDisplayName(ex.name))}${hint()}</div>`;
-  }).join('');
-  const customItems = customAgents.map(ex => {
-    return `<div class="agent-picker-item" data-name="${escHtml(ex.name)}">${escHtml(agentDisplayName(ex.name))}${hint()}</div>`;
-  }).join('');
-  let html = '<div class="agent-picker-label">System</div>' + claudeItem + builtinItems;
-  if (customAgents.length > 0) {
-    html += '<div class="agent-picker-separator"></div><div class="agent-picker-label">Custom</div>' + customItems;
-  }
-  return html;
-}
-
-async function showAgentPicker(workDir) {
-  appState.pendingWorkDir = workDir;
-  const agents = await window.agents.list();
-  document.getElementById('agent-picker-list').innerHTML = renderAgentPickerItems(agents);
-  document.getElementById('agent-picker').classList.add('active');
-}
-
-export function showAgentPickerForTodo(workDir, todoPath, todoAbsPath) {
-  appState.pendingTodoPath = todoPath;
-  appState.pendingTodoAbsPath = todoAbsPath;
-  showAgentPicker(workDir);
 }
 
 // ── File watcher callbacks ──
@@ -262,10 +228,10 @@ initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
 initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, switchToGitHubView, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
-initTodoPanel({ loadProjects, openWorkDir, startTask, showAgentPickerForTodo, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
+initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 
-// ── Tab type picker & agent picker modal handlers ──
+// ── Tab type picker modal handlers ──
 
 document.getElementById('tab-type-picker-cancel').addEventListener('click', () => {
   document.getElementById('tab-type-picker').classList.remove('active');
@@ -288,36 +254,6 @@ document.getElementById('tab-type-picker-list').addEventListener('click', (e) =>
   }
 });
 
-document.getElementById('agent-picker-cancel').addEventListener('click', () => {
-  document.getElementById('agent-picker').classList.remove('active');
-  appState.pendingWorkDir = null;
-  appState.pendingTodoPath = null;
-  appState.pendingTodoAbsPath = null;
-});
-
-document.getElementById('agent-picker-list').addEventListener('click', (e) => {
-  const item = e.target.closest('.agent-picker-item');
-  if (!item || !appState.pendingWorkDir) return;
-  const name = item.dataset.name;
-  document.getElementById('agent-picker').classList.remove('active');
-
-  if (appState.pendingTodoPath) {
-    const todoPath = appState.pendingTodoPath;
-    const todoAbsPath = appState.pendingTodoAbsPath;
-    appState.pendingTodoPath = null;
-    appState.pendingTodoAbsPath = null;
-    const todoNum = todoPath.split('/').pop().match(/^(\d+)/)?.[1] || '';
-    startTask(name, appState.pendingWorkDir, {
-      initialPrompt: `Read the todo file at ${todoAbsPath} carefully, then ask me what I'd like to do.`,
-      todoNumber: todoNum,
-      todoPath
-    });
-  } else {
-    startTask(name, appState.pendingWorkDir);
-  }
-  appState.pendingWorkDir = null;
-});
-
 // ── Launchpad buttons ──
 
 document.getElementById('launchpad-agent').addEventListener('click', () => {
@@ -336,9 +272,7 @@ document.getElementById('launchpad-browser').addEventListener('click', () => {
 
 document.addEventListener('keydown', (e) => {
   const tabTypePicker = document.getElementById('tab-type-picker');
-  const agentPicker = document.getElementById('agent-picker');
   const tabTypeActive = tabTypePicker.classList.contains('active');
-  const agentActive = agentPicker.classList.contains('active');
 
   // Cmd+T to open tab-type picker
   if ((e.metaKey || e.ctrlKey) && e.key === 't') {
@@ -347,32 +281,18 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Escape closes any open picker
-  if (e.key === 'Escape') {
-    if (agentActive) {
-      e.preventDefault();
-      document.getElementById('agent-picker-cancel').click();
-      return;
-    }
-    if (tabTypeActive) {
-      e.preventDefault();
-      document.getElementById('tab-type-picker-cancel').click();
-      return;
-    }
+  // Escape closes the picker
+  if (e.key === 'Escape' && tabTypeActive) {
+    e.preventDefault();
+    document.getElementById('tab-type-picker-cancel').click();
+    return;
   }
 
-  // Number keys (bare or Cmd+) select items in open pickers
+  // Number keys select items in the open picker
   if (tabTypeActive && e.key >= '1' && e.key <= '9') {
     e.preventDefault();
     const item = tabTypePicker.querySelector(`.tab-type-picker-item[data-hotkey="${e.key}"]`);
     if (item) item.click();
-    return;
-  }
-  if (agentActive && e.key >= '1' && e.key <= '9') {
-    e.preventDefault();
-    const items = agentPicker.querySelectorAll('.agent-picker-item');
-    const idx = parseInt(e.key) - 1;
-    if (idx < items.length) items[idx].click();
     return;
   }
 
@@ -382,5 +302,15 @@ document.addEventListener('keydown', (e) => {
     const idx = parseInt(e.key) - 1;
     const wdTabs = tabsForWorkDir(tabState.activeWorkDir);
     if (idx < wdTabs.length) switchTab(wdTabs[idx][0]);
+    return;
+  }
+
+  // Cmd+S to save the active editor tab
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    const activeTab = tabState.tabs.get(tabState.activeTabId);
+    if (activeTab && activeTab.type === 'editor' && activeTab.saveFile) {
+      e.preventDefault();
+      activeTab.saveFile();
+    }
   }
 });
