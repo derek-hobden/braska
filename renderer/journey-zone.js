@@ -17,6 +17,52 @@ let _startTask = null;
 let _refreshWorktreeMetrics = null;
 let _loadProjects = null;
 let _openWorkDir = null;
+let _switchToGitHubView = null;
+let _showGitHubPRDetail = null;
+
+// ── PR-for-branch cache ────────────────────────────────────────
+// Keyed by `${workDir}::${branch}`. Value: { pr: { number, url } | null, ts }.
+// TTL 60s. Invalidated on github-specialist exit.
+const _prCache = new Map();
+const _prCacheInflight = new Set();
+const PR_CACHE_TTL_MS = 60 * 1000;
+const _prCacheKey = (workDir, branch) => `${workDir}::${branch}`;
+
+export function getCachedPRPillHtml(workDir, branch) {
+  if (!workDir || !branch) return '';
+  const entry = _prCache.get(_prCacheKey(workDir, branch));
+  if (!entry || !entry.pr) return '';
+  return `<a class="branch-pr-link" data-journey-action="open-pr" title="Open PR #${entry.pr.number} in GitHub panel">PR #${entry.pr.number}</a>`;
+}
+
+async function ensurePRForBranch(workDir, branch) {
+  if (!workDir || !branch) return;
+  const key = _prCacheKey(workDir, branch);
+  const entry = _prCache.get(key);
+  const fresh = entry && (Date.now() - entry.ts) < PR_CACHE_TTL_MS;
+  if (fresh || _prCacheInflight.has(key)) return;
+  _prCacheInflight.add(key);
+  try {
+    const result = await window.github.prForBranch(workDir);
+    const pr = (result && result.ok) ? (result.pr || null) : null;
+    _prCache.set(key, { pr, ts: Date.now() });
+    // If this is still the active worktree + branch, nudge a subtitle re-render
+    // so the new pill appears. refreshChanges is the simplest path.
+    if (tabState.activeWorkDir === workDir && _refreshChanges) _refreshChanges(workDir);
+  } catch {
+    _prCache.set(key, { pr: null, ts: Date.now() });
+  } finally {
+    _prCacheInflight.delete(key);
+  }
+}
+
+export function onGithubSpecialistExit(workDir) {
+  // Invalidate all cached PR entries for this workDir regardless of branch.
+  for (const key of _prCache.keys()) {
+    if (key.startsWith(`${workDir}::`)) _prCache.delete(key);
+  }
+  if (tabState.activeWorkDir === workDir && _refreshChanges) _refreshChanges(workDir);
+}
 
 export function initJourneyZone(deps) {
   _doPush = deps.doPush;
@@ -28,6 +74,16 @@ export function initJourneyZone(deps) {
   _refreshWorktreeMetrics = deps.refreshWorktreeMetrics;
   _loadProjects = deps.loadProjects;
   _openWorkDir = deps.openWorkDir;
+  _switchToGitHubView = deps.switchToGitHubView;
+  _showGitHubPRDetail = deps.showGitHubPRDetail;
+
+  // Delegated click for the PR pill rendered inside #branch-subtitle
+  document.getElementById('branch-subtitle')?.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-journey-action="open-pr"]');
+    if (!link) return;
+    e.preventDefault();
+    _handleJourneyAction('open-pr', link);
+  });
 
   // Branch name click → open branch modal
   document.getElementById('branch-name-btn')?.addEventListener('click', () => {
@@ -78,6 +134,9 @@ export function renderJourneyZone(status) {
   const mergeInfo = gitState.mergedToMain.get(workDir) || null;
   const cards = computeJourneyCards(status, { mergeInfo });
   _renderCards(zone, cards);
+  // Kick off a background check for an open PR on the current branch.
+  // Cache-backed + idempotent; safe to call on every refresh.
+  if (status?.branch) ensurePRForBranch(workDir, status.branch);
 }
 
 // ── Render helper — reconcile cards into the zone DOM ──────────
@@ -264,6 +323,14 @@ async function _handleJourneyAction(action, btn) {
         _showChangesStatus?.('Cleanup failed: ' + (result.error || '').split('\n')[0], 'error');
       }
     } finally { btn.disabled = false; btn.textContent = 'Clean up branch'; }
+
+  } else if (action === 'open-pr') {
+    const branch = document.getElementById('branch-name-btn')?.textContent || '';
+    const cached = _prCache.get(_prCacheKey(workDir, branch));
+    const number = cached?.pr?.number;
+    if (!number || !_switchToGitHubView || !_showGitHubPRDetail) return;
+    _switchToGitHubView(true, { section: 'prs' });
+    setTimeout(() => _showGitHubPRDetail(workDir, number), 100);
 
   } else if (action === 'open-merger') {
     _startTask?.('merger', workDir, {

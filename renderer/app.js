@@ -11,9 +11,9 @@ import { updateNotifUI, initNotifications } from './notifications.js';
 import { refreshFileTree, updateFileTreeHighlights, restoreExplorerState, setRightPanelMode, switchRightPanelTab, toggleSidebar, toggleFiletree, initFileExplorer } from './file-explorer.js';
 import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, openBranchModal, doPush, showChangesStatus, switchToGitHubView, initGitChanges, initPostCommitPromptBridge, initGitHubViewBridge } from './git-changes.js';
 // post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
-import { initJourneyZone, renderJourneyZone, onCommitterExit, dismissPostCommitPrompt } from './journey-zone.js';
+import { initJourneyZone, renderJourneyZone, onCommitterExit, onGithubSpecialistExit, dismissPostCommitPrompt } from './journey-zone.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
-import { initGitHubPRs } from './github-prs.js';
+import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
@@ -237,7 +237,7 @@ initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refre
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
-initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
