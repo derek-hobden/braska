@@ -40,11 +40,23 @@ function register({ ipcMain }) {
 
   ipcMain.handle('gh:list-repos', async () => {
     try {
+      // REST /user/repos with explicit affiliations so the picker shows org + collaborator repos,
+      // not just the user's own. `gh repo list` alone can't do this in one call.
       const { stdout } = await execFileAsync('gh', [
-        'repo', 'list', '--limit', '100',
-        '--json', 'nameWithOwner,description,visibility,updatedAt,isPrivate,isFork,sshUrl,url',
+        'api', '/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100',
       ], { encoding: 'utf-8', timeout: 20000 });
-      return { ok: true, repos: JSON.parse(stdout) };
+      const raw = JSON.parse(stdout);
+      const repos = raw.map(r => ({
+        nameWithOwner: r.full_name,
+        description: r.description,
+        visibility: r.visibility,
+        updatedAt: r.updated_at,
+        isPrivate: r.private,
+        isFork: r.fork,
+        sshUrl: r.ssh_url,
+        url: r.html_url,
+      }));
+      return { ok: true, repos };
     } catch (err) {
       if (isAuthError(err)) {
         return { ok: false, error: 'Not authenticated with GitHub. Run `gh auth login` in a terminal.', needsAuth: true };
