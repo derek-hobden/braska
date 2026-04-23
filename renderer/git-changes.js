@@ -62,14 +62,22 @@ gitState.changesTreeView = localStorage.getItem('braska-changes-tree-view') === 
 const branchSubtitleEl = document.getElementById('branch-subtitle');
 
 // ── Helper: update branch subtitle with divergence info ─────────
-function updateMainDivergence(div) {
+function updateMainDivergence(status) {
   if (!branchSubtitleEl) return;
-  if (!div) { branchSubtitleEl.innerHTML = ''; return; }
+  const div = status?.mainDivergence;
+  const stale = status?.mainStale;
+  const onMain = stale && status?.branch === stale.branch;
   const parts = [];
-  if (div.ahead > 0) parts.push(`<span class="branch-ahead">${div.ahead} ahead</span>`);
-  if (div.behind > 0) parts.push(`<span class="branch-behind">${div.behind} behind main</span>`);
-  if (div.pushAhead > 0) parts.push(`<span class="branch-unpushed">${div.pushAhead} unpushed</span>`);
-  if (div.pushBehind > 0) parts.push(`<span class="branch-unpulled">${div.pushBehind} unpulled</span>`);
+  if (div?.ahead > 0) parts.push(`<span class="branch-ahead">${div.ahead} ahead</span>`);
+  if (div?.behind > 0) parts.push(`<span class="branch-behind">${div.behind} behind main</span>`);
+  if (div?.pushAhead > 0) parts.push(`<span class="branch-unpushed">${div.pushAhead} unpushed</span>`);
+  if (div?.pushBehind > 0) parts.push(`<span class="branch-unpulled">${div.pushBehind} unpulled</span>`);
+  // Local main is stale vs origin/main. On main itself this duplicates pushBehind,
+  // so only surface it when on a feature branch.
+  if (!onMain && stale?.originAhead > 0) {
+    const n = stale.originAhead;
+    parts.push(`<span class="branch-stale" title="Local ${stale.branch} is ${n} commit${n !== 1 ? 's' : ''} behind origin/${stale.branch}. Pull latest main to refresh.">main is ${n} behind origin</span>`);
+  }
   branchSubtitleEl.innerHTML = parts.join(' · ');
 }
 
@@ -296,7 +304,7 @@ async function _refreshChangesInner(workDir) {
   commitsBody.style.display = '';
 
   // Update main divergence indicator + branch subtitle
-  updateMainDivergence(status.mainDivergence);
+  updateMainDivergence(status);
 
   // Render journey zone cards based on current state
   renderJourneyZone(status);
