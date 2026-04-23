@@ -2094,6 +2094,18 @@
       border-radius: 8px;
       cursor: help;
     }
+    .branch-pr-link {
+      color: #79c0ff;
+      background: #142238;
+      padding: 1px 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .branch-pr-link:hover {
+      background: #1f3b64;
+      color: #cce7ff;
+    }
 
     /* Overflow menu */
     .overflow-menu {

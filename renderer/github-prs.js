@@ -72,7 +72,7 @@ export async function refreshGitHubPRs(workDir) {
 
 // ── PR detail ──────────────────────────────────────────────────
 
-async function showGitHubPRDetail(workDir, number) {
+export async function showGitHubPRDetail(workDir, number) {
   const content = document.getElementById('gh-content');
   content.innerHTML = '<div class="gh-empty">Loading PR details...</div>';
 

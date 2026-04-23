@@ -4,7 +4,7 @@ import { tabState } from './state.js';
 import { addTabToOrder, renderTabBar, switchTab, getDisplayLabel } from './tabs.js';
 import { markTabBusy, clearTabBusy, markTabActivity, busyTabs, busyDebounceTimers, notifDebounceTimers } from './notifications.js';
 import { agentDisplayName, stripAnsi } from './utils.js';
-import { onCommitterExit } from './journey-zone.js';
+import { onCommitterExit, onGithubSpecialistExit } from './journey-zone.js';
 import { renderMarkdown } from './markdown.js';
 import { languageForPath, renderHighlighted } from './code-highlight.js';
 
@@ -120,6 +120,7 @@ export async function startTask(agentName, workDir, options = {}) {
     if (busyTabs.has(id)) clearTabBusy(id);
     if (tabState.activeTabId !== id) markTabActivity(workDir, id, getDisplayLabel(id), `Process exited with code ${code}`);
     if (agentName === 'committer') onCommitterExit(workDir);
+    if (agentName === 'github-specialist') onGithubSpecialistExit(workDir);
     if (workDir === tabState.activeWorkDir) refreshRightPanel(workDir);
   });
   term.onData(data => window.pty.write(id, data));

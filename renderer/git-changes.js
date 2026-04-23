@@ -7,7 +7,7 @@ import { initChangesActions } from './git-changes-actions.js';
 import { initTreeToggle, renderTreeEntries } from './git-changes-tree.js';
 import { computeGraph, renderFullGraphSvg, createCommitEl, createStashEl, GRAPH_ROW_H, GRAPH_COL_W } from './git-changes-graph.js';
 import { showChangesStatus } from './git-changes-status.js';
-import { renderJourneyZone } from './journey-zone.js';
+import { renderJourneyZone, getCachedPRPillHtml } from './journey-zone.js';
 
 // ── Cross-module deps (injected via initGitChanges) ────────────
 let _refreshFileTree = null;
@@ -78,6 +78,8 @@ function updateMainDivergence(status) {
     const n = stale.originAhead;
     parts.push(`<span class="branch-stale" title="Local ${stale.branch} is ${n} commit${n !== 1 ? 's' : ''} behind origin/${stale.branch}. Pull latest main to refresh.">main is ${n} behind origin</span>`);
   }
+  const prPill = getCachedPRPillHtml(tabState.activeWorkDir, status?.branch);
+  if (prPill) parts.push(prPill);
   branchSubtitleEl.innerHTML = parts.join(' · ');
 }
 
