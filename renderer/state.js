@@ -36,6 +36,10 @@ export const modalState = {
   wtMergeAlreadyMerged: false,
   wtMergeDone: false,
   wtMergeFeatureBranch: null,
+  cloneSource: 'url',         // 'url' | 'list' — current tab in clone modal
+  cloneRepoRef: '',           // parsed/selected owner/repo
+  cloneDestParent: '',        // chosen parent directory (absolute)
+  cloneBusy: false,           // true while a clone is in-flight
 };
 
 // ── File explorer state ─────────────────────────────────────────

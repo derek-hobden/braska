@@ -50,6 +50,16 @@ async function getGitInfo(projectPath) {
   }
 }
 
+async function addProjectByPath(app, folderPath) {
+  const projects = await loadProjects(app);
+  const existing = projects.find((p) => p.path === folderPath);
+  if (existing) return existing;
+  const project = { path: folderPath, name: path.basename(folderPath) };
+  projects.push(project);
+  await saveProjects(app, projects);
+  return project;
+}
+
 function register({ ipcMain, app, dialog, BrowserWindow }) {
   ipcMain.handle('projects:list', async () => {
     const projects = await loadProjects(app);
@@ -62,13 +72,25 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
       properties: ['openDirectory', 'createDirectory'],
     });
     if (canceled || filePaths.length === 0) return null;
-    const folderPath = filePaths[0];
-    const projects = await loadProjects(app);
-    if (projects.some((p) => p.path === folderPath)) return null;
-    const project = { path: folderPath, name: path.basename(folderPath) };
-    projects.push(project);
-    await saveProjects(app, projects);
-    return project;
+    return addProjectByPath(app, filePaths[0]);
+  });
+
+  ipcMain.handle('projects:pick-clone-dir', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Choose where to clone',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (canceled || filePaths.length === 0) return { ok: false };
+    return { ok: true, path: filePaths[0] };
+  });
+
+  ipcMain.handle('projects:add-cloned', async (_event, clonedPath) => {
+    if (!await pathExists(path.join(clonedPath, '.git'))) {
+      return { ok: false, error: 'Cloned folder is not a git repository.' };
+    }
+    const project = await addProjectByPath(app, clonedPath);
+    return { ok: true, project };
   });
 
   ipcMain.handle('projects:remove', async (_event, projectPath) => {

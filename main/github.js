@@ -1,7 +1,18 @@
 const path = require('path');
-const { resolveInDir, execFileAsync, fsp, errMsg } = require('./utils');
+const { resolveInDir, execFileAsync, fsp, errMsg, pathExists } = require('./utils');
 const { getTodoDir } = require('./todo');
 const { getGitInfo } = require('./projects');
+
+// gh prints various phrasings on missing/expired credentials; match the common ones.
+function isAuthError(err) {
+  const combined = ((err.stderr || '') + (err.message || '')).toLowerCase();
+  return combined.includes('not logged') || combined.includes('authentication') || combined.includes('gh auth');
+}
+
+// owner/repo per GitHub's allowed characters; rejects leading dashes so `gh` can't
+// interpret repoRef as a flag (execFileAsync prevents shell injection, but `gh`
+// itself still parses leading-dash tokens as options).
+const REPO_REF_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]+$/;
 
 function register({ ipcMain }) {
   ipcMain.handle('gh:auth-status', async (_event, workDir) => {
@@ -25,6 +36,43 @@ function register({ ipcMain }) {
       } catch {}
     }
     return { authenticated, user, isGitHubRepo, repo };
+  });
+
+  ipcMain.handle('gh:list-repos', async () => {
+    try {
+      const { stdout } = await execFileAsync('gh', [
+        'repo', 'list', '--limit', '100',
+        '--json', 'nameWithOwner,description,visibility,updatedAt,isPrivate,isFork,sshUrl,url',
+      ], { encoding: 'utf-8', timeout: 20000 });
+      return { ok: true, repos: JSON.parse(stdout) };
+    } catch (err) {
+      if (isAuthError(err)) {
+        return { ok: false, error: 'Not authenticated with GitHub. Run `gh auth login` in a terminal.', needsAuth: true };
+      }
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('gh:clone', async (_event, repoRef, targetDir) => {
+    try {
+      if (!repoRef || !targetDir) return { ok: false, error: 'Missing repo or target directory.' };
+      if (typeof repoRef !== 'string' || !REPO_REF_RE.test(repoRef)) {
+        return { ok: false, error: 'Invalid repo reference.' };
+      }
+      if (typeof targetDir !== 'string' || !path.isAbsolute(targetDir)) {
+        return { ok: false, error: 'Target must be an absolute path.' };
+      }
+      if (await pathExists(targetDir)) {
+        return { ok: false, error: `Target directory already exists: ${targetDir}` };
+      }
+      await execFileAsync('gh', ['repo', 'clone', repoRef, targetDir], { encoding: 'utf-8', timeout: 300000 });
+      return { ok: true, path: targetDir };
+    } catch (err) {
+      if (isAuthError(err)) {
+        return { ok: false, error: 'Not authenticated with GitHub. Run `gh auth login` in a terminal.', needsAuth: true };
+      }
+      return { ok: false, error: errMsg(err) };
+    }
   });
 
   ipcMain.handle('gh:pr-list', async (_event, workDir, state) => {

@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('projects', {
   list: () => ipcRenderer.invoke('projects:list'),
   add: () => ipcRenderer.invoke('projects:add'),
   remove: (projectPath) => ipcRenderer.invoke('projects:remove', projectPath),
+  pickCloneDir: () => ipcRenderer.invoke('projects:pick-clone-dir'),
+  addCloned: (clonedPath) => ipcRenderer.invoke('projects:add-cloned', clonedPath),
 });
 
 contextBridge.exposeInMainWorld('skills', {
@@ -107,6 +109,8 @@ contextBridge.exposeInMainWorld('gitOps', {
 
 contextBridge.exposeInMainWorld('github', {
   authStatus: (workDir) => ipcRenderer.invoke('gh:auth-status', workDir),
+  listRepos: () => ipcRenderer.invoke('gh:list-repos'),
+  clone: (repoRef, targetDir) => ipcRenderer.invoke('gh:clone', repoRef, targetDir),
   prList: (workDir, state) => ipcRenderer.invoke('gh:pr-list', workDir, state),
   prView: (workDir, number) => ipcRenderer.invoke('gh:pr-view', workDir, number),
   prForBranch: (workDir) => ipcRenderer.invoke('gh:pr-for-branch', workDir),

@@ -57,6 +57,7 @@ renderer/
   file-explorer.js          — File tree rendering, panel switching, resize
   file-explorer-ops.js      — Rename, create, context menu, keyboard nav
   worktree-modals.js        — Worktree create/delete/merge modals
+  clone-modal.js            — "Clone from GitHub" modal (URL / My repos tabs, destination picker)
   git-changes.js            — Status panel, staging, sub-nav, GitHub view mode (incremental DOM)
   git-changes-graph.js      — Git graph computation, commit/stash element rendering
   git-changes-status.js     — Status toast for changes panel
