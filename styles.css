@@ -1089,6 +1089,16 @@
       flex-shrink: 0;
       user-select: none;
     }
+    .term-tab:has(.term-tab-label) {
+      width: 180px;
+      box-sizing: border-box;
+    }
+    .term-tab-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .term-tab:hover {
       background: #252525;
       color: #ccc;

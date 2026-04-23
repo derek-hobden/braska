@@ -39,9 +39,10 @@ export async function startTask(agentName, workDir, options = {}) {
   terminalContainers.appendChild(pane);
 
   // Load xterm via ESM dynamic import
-  const [{ Terminal }, { FitAddon }] = await Promise.all([
+  const [{ Terminal }, { FitAddon }, { WebLinksAddon }] = await Promise.all([
     import('../node_modules/@xterm/xterm/lib/xterm.mjs'),
     import('../node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
+    import('../node_modules/@xterm/addon-web-links/lib/addon-web-links.mjs'),
   ]);
 
   const term = new Terminal({
@@ -52,6 +53,10 @@ export async function startTask(agentName, workDir, options = {}) {
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
+  term.loadAddon(new WebLinksAddon((event, url) => {
+    if (event.metaKey) window.windowActions.openExternal(url);
+    else startBrowser(workDir, url);
+  }));
   term.open(pane);
 
   // Spawn pty — returns tab id
@@ -234,7 +239,7 @@ function normalizeUrl(input) {
   return (isLocal ? 'http://' : 'https://') + input;
 }
 
-export async function startBrowser(workDir) {
+export async function startBrowser(workDir, initialUrl = null) {
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
@@ -272,11 +277,12 @@ export async function startBrowser(workDir) {
   pane.appendChild(viewport);
 
   const navInput = nav.querySelector('.browser-url');
-  navInput.value = '';
+  navInput.value = initialUrl || '';
 
   // Create WebContentsView in main process
   try {
     await window.browserView.create(id);
+    if (initialUrl) window.browserView.navigate(id, initialUrl);
   } catch (err) {
     pane.remove();
     const hasTabs = [...tabState.tabs.values()].some(t => t.workDir === workDir);
