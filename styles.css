@@ -3548,3 +3548,209 @@
     .gh-file-dels { color: #f85149; }
     .gh-file-name { color: #ccc; overflow: hidden; text-overflow: ellipsis; }
 
+    /* Add-project popover (anchored off the sidebar + button) */
+    #add-project-menu {
+      display: none;
+      position: fixed;
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      padding: 4px;
+      min-width: 200px;
+      z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    #add-project-menu.active { display: block; }
+    .add-project-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: none;
+      border: none;
+      color: #ccc;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .add-project-menu-item:hover { background: #333; color: #fff; }
+
+    /* Clone from GitHub modal */
+    #clone-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #clone-modal.active { display: flex; }
+    .clone-modal-content {
+      background: #252525;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 24px;
+      min-width: 480px;
+      max-width: 560px;
+      width: 560px;
+    }
+    .clone-modal-content h3 {
+      margin: 0 0 14px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+    .clone-tabs {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid #3a3a3a;
+      margin-bottom: 14px;
+    }
+    .clone-tab {
+      background: none;
+      border: none;
+      color: #888;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .clone-tab:hover { color: #ccc; }
+    .clone-tab.active { color: #4a9eff; border-bottom-color: #4a9eff; }
+    .clone-tab-body.hidden { display: none; }
+    #clone-url-input,
+    #clone-repo-filter,
+    #clone-dest-text {
+      width: 100%;
+      background: #1e1e1e;
+      border: 1px solid #3a3a3a;
+      color: #ddd;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+      box-sizing: border-box;
+    }
+    #clone-url-input:focus,
+    #clone-repo-filter:focus { border-color: #4a9eff; }
+    .clone-url-preview {
+      font-size: 0.78rem;
+      color: #8bbd8b;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+    .clone-url-preview.error { color: #e55; }
+    #clone-repo-list {
+      margin-top: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #1e1e1e;
+    }
+    .clone-repo-loading,
+    .clone-repo-empty {
+      padding: 14px;
+      font-size: 0.82rem;
+      color: #888;
+      text-align: center;
+    }
+    .clone-repo-error {
+      padding: 14px;
+      font-size: 0.82rem;
+      color: #e55;
+    }
+    .clone-repo-hint {
+      padding: 0 14px 14px;
+      font-size: 0.78rem;
+      color: #888;
+    }
+    .clone-repo-hint code {
+      background: #2a2a2a;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #ddd;
+    }
+    .clone-repo-row {
+      padding: 8px 10px;
+      border-bottom: 1px solid #2a2a2a;
+      cursor: pointer;
+    }
+    .clone-repo-row:last-child { border-bottom: none; }
+    .clone-repo-row:hover { background: #262626; }
+    .clone-repo-row.selected { background: #2a3a52; }
+    .clone-repo-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .clone-repo-name {
+      font-size: 0.85rem;
+      color: #ddd;
+      font-weight: 500;
+    }
+    .clone-repo-chip {
+      font-size: 0.68rem;
+      padding: 1px 7px;
+      border-radius: 10px;
+      text-transform: lowercase;
+      letter-spacing: 0.02em;
+      border: 1px solid;
+    }
+    .clone-repo-chip.public { color: #8bbd8b; border-color: #3a5a3a; }
+    .clone-repo-chip.private { color: #d29922; border-color: #6a5a2a; }
+    .clone-repo-chip.fork { color: #8ba0d2; border-color: #3a4a6a; }
+    .clone-repo-desc {
+      font-size: 0.76rem;
+      color: #aaa;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .clone-repo-meta {
+      font-size: 0.72rem;
+      color: #777;
+      margin-top: 2px;
+    }
+    .clone-dest-row { margin-top: 14px; }
+    .clone-dest-inner {
+      display: flex;
+      gap: 6px;
+    }
+    .clone-dest-inner #clone-dest-text { flex: 1; cursor: default; }
+    #clone-pick-dest-btn {
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      color: #ccc;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #clone-pick-dest-btn:hover { background: #333; color: #fff; }
+    .clone-target-preview {
+      font-size: 0.76rem;
+      color: #888;
+      margin-top: 6px;
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      display: none;
+    }
+    .clone-target-preview.visible { display: block; }
+    #clone-btn {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+    #clone-btn:hover:not(:disabled) { background: #3a8eef; }
+    #clone-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #clone-cancel {
+      background: none;
+      color: #888;
+    }
+    #clone-cancel:hover { background: #2a2a2a; color: #ccc; }
+

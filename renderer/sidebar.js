@@ -2,6 +2,7 @@
 
 import { SVG_OCTOCAT, SVG_GIT_LOGO, SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
+import { openCloneModal } from './clone-modal.js';
 
 // ── DOM refs (queried once at module level) ──
 const projectList = document.getElementById('project-list');
@@ -153,9 +154,32 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
   _showWorktreeContextMenu = showWorktreeContextMenu;
   _openProjectScope = openProjectScope;
 
-  addBtn.addEventListener('click', async () => {
-    const result = await window.projects.add();
-    if (result) loadProjects();
+  const addMenu = document.getElementById('add-project-menu');
+  function closeAddMenu() { addMenu.classList.remove('active'); }
+
+  addBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (addMenu.classList.contains('active')) { closeAddMenu(); return; }
+    const rect = addBtn.getBoundingClientRect();
+    addMenu.style.top = `${rect.bottom + 4}px`;
+    addMenu.style.left = `${rect.left}px`;
+    addMenu.classList.add('active');
+  });
+
+  addMenu.addEventListener('click', async (e) => {
+    const item = e.target.closest('.add-project-menu-item');
+    if (!item) return;
+    closeAddMenu();
+    if (item.dataset.action === 'open-folder') {
+      const result = await window.projects.add();
+      if (result) loadProjects();
+    } else if (item.dataset.action === 'clone-github') {
+      openCloneModal();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#add-project-menu') && !e.target.closest('#add-project-btn')) closeAddMenu();
   });
 
   projectList.addEventListener('click', async (e) => {
