@@ -230,7 +230,12 @@ export function switchTab(id) {
       height: Math.round(rect.height),
     } : null;
     window.browserView.setActive(id, bounds);
-    window.browserView.focus(id);
+    if (tab.navInput && !tab.navInput.value) {
+      tab.navInput.focus();
+      tab.navInput.select();
+    } else {
+      window.browserView.focus(id);
+    }
   } else {
     window.browserView.setActive(null);
     if (tab.type === 'editor') {

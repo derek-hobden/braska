@@ -12,7 +12,6 @@ let _doPush = null;
 let _doPullLatestMain = null;
 let _openBranchModal = null;
 let _refreshChanges = null;
-let _switchToGitHubView = null;
 let _showChangesStatus = null;
 let _startTask = null;
 let _refreshWorktreeMetrics = null;
@@ -24,7 +23,6 @@ export function initJourneyZone(deps) {
   _doPullLatestMain = deps.doPullLatestMain;
   _openBranchModal = deps.openBranchModal;
   _refreshChanges = deps.refreshChanges;
-  _switchToGitHubView = deps.switchToGitHubView;
   _showChangesStatus = deps.showChangesStatus;
   _startTask = deps.startTask;
   _refreshWorktreeMetrics = deps.refreshWorktreeMetrics;
@@ -150,6 +148,17 @@ const REVIEW_LOOP_PROMPT = `Run an automated review loop on unstaged git changes
 4. Loop back to step 1. Repeat until all files pass and are staged, or 5 cycles complete.
 5. When git diff returns empty, report summary. Skip files that fail 3 times. Run git diff --stat before each cycle.`;
 
+const PUBLISH_PR_PROMPT = `Push this branch to origin and open a pull request.
+
+1. Inspect the branch: run \`git status\`, \`git log --oneline main..HEAD\` (or the appropriate base), and \`git diff main...HEAD --stat\` so you understand what has changed and why.
+2. Push the current branch to origin. If it has no upstream yet, use \`git push -u origin HEAD\`.
+3. Create the PR with \`gh pr create --base main\`, passing \`--title\` and \`--body\`. Craft them carefully:
+   - Title: concise, imperative, under 70 characters, summarizing the overall change.
+   - Body: a short "## Summary" (2–4 bullets on WHAT changed) followed by a "## Why" section (the motivation — the problem being solved or the behavior being improved). If relevant, add a "## Notes" section for caveats, follow-ups, or anything a reviewer should know. Pass the body via a heredoc so newlines and markdown are preserved.
+4. When the PR is created, print the PR URL so the user can open it.
+
+Do not amend commits, force-push, or change branch history — just push what is there and open the PR.`;
+
 async function _handleJourneyAction(action, btn) {
   const workDir = tabState.activeWorkDir;
   if (!workDir) return;
@@ -189,34 +198,7 @@ async function _handleJourneyAction(action, btn) {
     finally { btn.disabled = false; btn.textContent = 'Push'; }
 
   } else if (action === 'push-pr' || action === 'publish-pr') {
-    const origLabel = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Creating PR...';
-    try {
-      const pushResult = await _doPush?.(workDir, { autoUpstream: true });
-      if (!pushResult?.ok) {
-        _showChangesStatus?.(pushResult?.error || 'Push failed', 'error');
-        return;
-      }
-      const branch = await window.gitDiff.currentBranch(workDir);
-      if (!branch) {
-        _showChangesStatus?.('Could not determine branch name', 'error');
-        return;
-      }
-      let title = branch.split('/').pop().replace(/[-_]/g, ' ').replace(/^\w/, c => c.toUpperCase());
-      let body = '';
-      btn.textContent = 'Generating PR message...';
-      const gen = await window.gitOps.generatePRMsg(workDir);
-      if (gen.ok) { title = gen.title; body = gen.body; }
-      btn.textContent = 'Creating PR...';
-      const prResult = await window.github.prCreate(workDir, title, body, 'main', false);
-      if (prResult.ok) {
-        _showChangesStatus?.('PR created', 'success');
-        _switchToGitHubView?.(true, { section: 'prs' });
-      } else {
-        _showChangesStatus?.(prResult.error || 'PR creation failed', 'error');
-      }
-    } finally { btn.disabled = false; btn.textContent = origLabel; }
+    _startTask?.('github-specialist', workDir, { initialPrompt: PUBLISH_PR_PROMPT });
 
   } else if (action === 'merge-to-main') {
     btn.disabled = true;

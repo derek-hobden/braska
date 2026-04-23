@@ -225,7 +225,7 @@ initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refre
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
-initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, switchToGitHubView, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir });
 initGitHubPanel({ startTask, switchRightPanelTab });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
