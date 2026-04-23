@@ -39,6 +39,7 @@ main/
   git-read.js               — Status, diff, log, worktree-metrics (6 handlers)
   git-ops.js                — Stage/commit/push, branch, stash, amend/revert (21 handlers)
   git-worktree.js           — Pull-latest-main, worktree CRUD, merge ops (10 handlers)
+  git-fetcher.js            — Background fetch scheduler (startup + focus + 5-min interval, 60s per-project debounce)
   github.js                 — All gh:* CLI wrappers (18 handlers)
   migration.js              — One-time data migration from legacy app names
 

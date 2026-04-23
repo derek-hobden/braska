@@ -56,6 +56,7 @@ export const explorerState = {
 export const watchState = {
   fsWatchDebounce: null,
   todoWatchDebounce: null,
+  fetchRefreshDebounce: null,
 };
 
 // ── GitHub panel state ──────────────────────────────────────────

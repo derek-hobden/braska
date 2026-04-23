@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('gitOps', {
   discard: (workDir, filePaths) => ipcRenderer.invoke('git:discard', workDir, filePaths),
   amend: (workDir, message) => ipcRenderer.invoke('git:amend', workDir, message),
   revertCommit: (workDir, hash) => ipcRenderer.invoke('git:revert-commit', workDir, hash),
+  onFetched: (cb) => ipcRenderer.on('git:fetched', (_ev, projectPath) => cb(projectPath)),
 });
 
 contextBridge.exposeInMainWorld('github', {

@@ -214,6 +214,15 @@ window.todo.onChange(() => {
   }, 300);
 });
 
+// Background fetch completed — update stale-main indicators.
+window.gitOps.onFetched(() => {
+  clearTimeout(watchState.fetchRefreshDebounce);
+  watchState.fetchRefreshDebounce = setTimeout(() => {
+    refreshWorktreeMetrics();
+    if (tabState.activeWorkDir) refreshChanges(tabState.activeWorkDir);
+  }, 300);
+});
+
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references
