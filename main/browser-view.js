@@ -122,6 +122,19 @@ function register({ ipcMain, app, BrowserWindow, shell }) {
     }
     browserViews.clear();
   });
+
+  ipcMain.handle('window:open-external', async (_event, url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+        return { ok: false, error: 'unsupported protocol' };
+      }
+      await shell.openExternal(url);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 }
 
 module.exports = { register };

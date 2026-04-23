@@ -177,6 +177,7 @@ contextBridge.exposeInMainWorld('windowActions', {
   onCloseActiveTab: (cb) => ipcRenderer.on('close-active-tab', () => cb()),
   onOpenTabPicker: (cb) => ipcRenderer.on('open-tab-picker', () => cb()),
   onRenameActiveTab: (cb) => ipcRenderer.on('rename-active-tab', () => cb()),
+  openExternal: (url) => ipcRenderer.invoke('window:open-external', url),
 });
 
 // Drag-drop file path resolution.
