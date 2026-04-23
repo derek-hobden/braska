@@ -110,6 +110,7 @@ export function openWorkDir(workDir) {
     tabState.activeWorkDir = workDir;
     tabState.activeTabId = null;
     refreshRightPanel(workDir);
+    window.browserView.setActive(null);
     mainPanel.style.display = 'none';
     settingsPanel.classList.remove('active');
     terminalView.classList.remove('active');
@@ -155,6 +156,7 @@ function openProjectScope(projectPath, section) {
   }
 
   // Show launchpad with project-scope message; hide terminal
+  window.browserView.setActive(null);
   mainPanel.style.display = 'none';
   settingsPanel.classList.remove('active');
   terminalView.classList.remove('active');

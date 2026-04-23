@@ -48,6 +48,7 @@ export function enterSettings() {
   savedActiveTabId = tabState.activeTabId;
   savedActiveWorkDir = tabState.activeWorkDir;
   tabState.activeTabId = null;
+  window.browserView.setActive(null);
   sidebarHeader.style.display = 'none';
   projectList.style.display = 'none';
   sidebarFooter.style.display = 'none';
