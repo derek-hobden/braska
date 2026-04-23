@@ -282,8 +282,9 @@ document.getElementById('tab-type-picker-list').addEventListener('click', (e) =>
   } else if (item.dataset.type === 'browser') {
     startBrowser(appState.pendingWorkDir);
     appState.pendingWorkDir = null;
-  } else if (item.dataset.type === 'agent') {
-    showAgentPicker(appState.pendingWorkDir);
+  } else if (item.dataset.type === 'claude') {
+    startTask('__CLAUDE__', appState.pendingWorkDir);
+    appState.pendingWorkDir = null;
   }
 });
 
@@ -320,7 +321,7 @@ document.getElementById('agent-picker-list').addEventListener('click', (e) => {
 // ── Launchpad buttons ──
 
 document.getElementById('launchpad-agent').addEventListener('click', () => {
-  if (tabState.activeWorkDir) showAgentPicker(tabState.activeWorkDir);
+  if (tabState.activeWorkDir) startTask('__CLAUDE__', tabState.activeWorkDir);
 });
 
 document.getElementById('launchpad-terminal').addEventListener('click', () => {

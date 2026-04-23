@@ -32,9 +32,9 @@ function register({ ipcMain, BrowserWindow }) {
     } else if (agentName === '__CLAUDE__') {
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag} -- '${safePrompt}'`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude${todoDirFlag} -- '${safePrompt}'`];
       } else {
-        args = ['-l', '-c', `cd '${safeWorkDir}' && claude --dangerously-skip-permissions${todoDirFlag}`];
+        args = ['-l', '-c', `cd '${safeWorkDir}' && claude${todoDirFlag}`];
       }
     } else {
       // Native Claude Code agent: CWD is the project dir, agent config loaded from ~/.claude/agents/.
