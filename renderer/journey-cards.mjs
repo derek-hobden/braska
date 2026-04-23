@@ -72,6 +72,20 @@ export function computeJourneyCards(status, opts = {}) {
     });
   }
 
+  // ── Priority 4b: Local main is stale vs origin/main ──
+  // Only meaningful on a feature branch — `div.pushBehind` covers the on-main case.
+  const stale = status?.mainStale;
+  const onMain = stale && status?.branch === stale.branch;
+  if (!onMain && stale?.originAhead > 0) {
+    const n = stale.originAhead;
+    cards.push({
+      key: 'stale-main', accent: 'warning',
+      title: `Your main is ${n} behind origin`,
+      tooltip: `Local ${stale.branch} hasn't been updated with ${n} new commit${n !== 1 ? 's' : ''} from GitHub`,
+      buttons: [{ label: 'Update main', action: 'pull-main' }],
+    });
+  }
+
   // ── Priority 5: Ready to share ──
   if (div?.pushAhead > 0 && div.hasUpstream) {
     const btns = [{ label: 'Push', action: 'push', primary: true }];

@@ -86,6 +86,22 @@ function register({ ipcMain }) {
 
       // Divergence vs local main + push/pull sync vs origin
       let mainDivergence = null;
+      let mainStale = null;
+      // Stale-main check runs independently of current-branch state so it
+      // works on detached HEAD too.
+      try {
+        const fast = { ...opts, timeout: 5000 };
+        const defaultBranch = await detectDefaultBranch(workDir);
+        const remoteMain = `origin/${defaultBranch}`;
+        await execFileAsync('git', ['rev-parse', '--verify', remoteMain], fast);
+        const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${defaultBranch}...${remoteMain}`], fast);
+        const [localAheadStr, originAheadStr] = stdout.trim().split('\t');
+        mainStale = {
+          originAhead: parseInt(originAheadStr, 10) || 0,
+          localAhead: parseInt(localAheadStr, 10) || 0,
+          branch: defaultBranch,
+        };
+      } catch {}
       try {
         const fast = { ...opts, timeout: 5000 };
         const currentBranch = branch;
@@ -116,7 +132,7 @@ function register({ ipcMain }) {
         } catch {}
       } catch { /* non-critical */ }
 
-      return { isGit: true, branch, unstaged, staged, untracked, conflicted, mainDivergence };
+      return { isGit: true, branch, unstaged, staged, untracked, conflicted, mainDivergence, mainStale };
     } catch {
       return { isGit: false, unstaged: [], staged: [], untracked: [] };
     }
@@ -129,8 +145,23 @@ function register({ ipcMain }) {
 
       const defaultBranch = await detectDefaultBranch(projectPath);
 
+      // Project-wide: is local default-branch behind origin/default-branch?
+      let mainStale = null;
+      try {
+        const remoteMain = `origin/${defaultBranch}`;
+        const optsRoot = { cwd: projectPath, encoding: 'utf-8', timeout: 5000 };
+        await execFileAsync('git', ['rev-parse', '--verify', remoteMain], optsRoot);
+        const { stdout } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `${defaultBranch}...${remoteMain}`], optsRoot);
+        const [localAheadStr, originAheadStr] = stdout.trim().split('\t');
+        mainStale = {
+          originAhead: parseInt(originAheadStr, 10) || 0,
+          localAhead: parseInt(localAheadStr, 10) || 0,
+          branch: defaultBranch,
+        };
+      } catch {}
+
       const results = await Promise.all(info.worktrees.map(async (wt) => {
-        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0, pushAhead: 0, pushBehind: 0 };
+        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0, pushAhead: 0, pushBehind: 0, mainStale, isMain: !!wt.isMain };
         const opts = { cwd: wt.path, encoding: 'utf-8', timeout: 10000 };
         try {
           const { stdout } = await execFileAsync('git', ['status', '--porcelain'], opts);

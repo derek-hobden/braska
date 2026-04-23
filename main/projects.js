@@ -100,4 +100,4 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
   });
 }
 
-module.exports = { register, getGitInfo };
+module.exports = { register, getGitInfo, loadProjects };

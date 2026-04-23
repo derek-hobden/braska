@@ -189,6 +189,7 @@
     .wt-metric.behind { color: #f85149; }
     .wt-metric.unpushed { color: #b87fff; }
     .wt-metric.unpulled { color: #b87fff; }
+    .wt-metric.stale { color: #f0883e; background: #3a2414; }
     .worktree-item:hover {
       color: #ccc;
     }
@@ -2086,6 +2087,13 @@
     .branch-behind { color: #f85149; }
     .branch-unpushed { color: #b87fff; }
     .branch-unpulled { color: #b87fff; }
+    .branch-stale {
+      color: #f0883e;
+      background: #3a2414;
+      padding: 1px 6px;
+      border-radius: 8px;
+      cursor: help;
+    }
 
     /* Overflow menu */
     .overflow-menu {

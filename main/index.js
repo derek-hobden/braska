@@ -170,6 +170,7 @@ app.whenReady().then(async () => {
   require('./git-read').register(deps);
   require('./git-ops').register(deps);
   require('./git-worktree').register(deps);
+  require('./git-fetcher').register(deps);
   require('./github').register(deps);
   require('./browser-view').register(deps);
 
