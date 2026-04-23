@@ -219,6 +219,21 @@ function setupBrowserViewVisibility() {
 
 // ── Browser tab creation ───────────────────────────────────────
 
+// Local/loopback/private addresses default to http; public hosts to https.
+function normalizeUrl(input) {
+  if (/^https?:\/\//i.test(input)) return input;
+  const host = input.split('/')[0].split(':')[0].toLowerCase();
+  const isLocal =
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    /^127\./.test(host) ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+    host === '::1';
+  return (isLocal ? 'http://' : 'https://') + input;
+}
+
 export async function startBrowser(workDir) {
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
@@ -290,10 +305,9 @@ export async function startBrowser(workDir) {
 
   navInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      let val = navInput.value.trim();
+      const val = navInput.value.trim();
       if (!val) return;
-      if (!val.match(/^https?:\/\//)) val = 'https://' + val;
-      window.browserView.navigate(id, val);
+      window.browserView.navigate(id, normalizeUrl(val));
     }
   });
 
