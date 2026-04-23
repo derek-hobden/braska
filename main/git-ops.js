@@ -56,7 +56,7 @@ function register({ ipcMain }) {
       const prompt = `Write a commit message for this diff. First line: concise summary under 72 chars. If the change is non-trivial, add a blank line then bullet points explaining what changed. Output ONLY the message, no fences or quotes.\n\n${truncated}`;
       return new Promise((resolve) => {
         const child = require('child_process').execFile(
-          'claude', ['-p', '--model', 'claude-haiku-4-5-20251001', '--max-turns', '1'],
+          'claude', ['-p'],
           { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024 },
           (error, stdout, stderr) => {
             if (error) resolve({ ok: false, error: ((stderr || error.message || '').toString().split('\n')[0]) || 'Generation failed' });
@@ -80,7 +80,7 @@ function register({ ipcMain }) {
       const prompt = `Write a pull request title and description for these changes.\n\nCOMMIT LOG:\n${truncLog}\nFILES CHANGED:\n${truncStat}\nOutput format — first line is the PR title (concise, under 72 chars), then a blank line, then the PR body in markdown. The body should have a brief summary paragraph, then a bulleted list of key changes. Output ONLY the title and body, no fences or quotes.`;
       return new Promise((resolve) => {
         const child = require('child_process').execFile(
-          'claude', ['-p', '--model', 'claude-haiku-4-5-20251001', '--max-turns', '1'],
+          'claude', ['-p'],
           { cwd: workDir, encoding: 'utf-8', timeout: 30000, maxBuffer: 1024 * 1024 },
           (error, stdout, stderr) => {
             if (error) resolve({ ok: false, error: ((stderr || error.message || '').toString().split('\n')[0]) || 'Generation failed' });
