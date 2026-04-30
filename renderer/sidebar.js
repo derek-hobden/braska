@@ -38,33 +38,25 @@ export function renderProjects(projects) {
       return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="wt-icon">${SVG_GIT_BRANCH}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     // Project-level section links (available without picking a worktree)
-    const sectionLinks = p.isGit ? `<div class="project-sections">
-      <div class="project-section-sep"></div>
-      <div class="project-section-link" data-project="${esc}" data-section="todos">
+    const sectionLinks = p.isGit ? `<div class="project-actions">
+      <div class="project-section-link" data-project="${esc}" data-section="todos" title="Todos">
         ${SVG_TODO}
-        <span>Todos</span>
         <span class="project-section-badge" data-badge="todos"></span>
       </div>
-      <div class="project-section-link" data-project="${esc}" data-section="github">
+      <div class="project-section-link" data-project="${esc}" data-section="github" title="GitHub">
         ${SVG_GITHUB}
-        <span>GitHub</span>
         <span class="project-section-badge" data-badge="github"></span>
       </div>
     </div>` : '';
     return `
       <div class="project-entry${p.isGit ? ' is-git' : ''}" data-path="${esc}">
-        <div class="project-item">
+        <div class="project-item" title="${esc}">
           ${projectIcon}
-          <div class="project-info">
-            <div class="project-name-row">
-              <div class="project-name">${p.name}</div>
-            </div>
-            <div class="project-path">${p.path}</div>
-          </div>
+          <div class="project-name">${p.name}</div>
+          ${sectionLinks}
           <button class="remove-btn" title="Remove project">&times;</button>
         </div>
         ${worktrees}
-        ${sectionLinks}
       </div>
     `;
   }).join('');
@@ -115,6 +107,20 @@ export async function refreshWorktreeMetrics() {
 function refreshAllProjectBadges() {
   const entries = projectList.querySelectorAll('.project-entry.is-git');
   for (const entry of entries) refreshProjectBadges(entry.dataset.path);
+}
+
+// Optimistically clear the GitHub activity dot for the project that contains workDir.
+// Used after marking notifications read, since the gh CLI's --cache 60s would
+// otherwise serve stale data on the next badge refresh.
+export function clearGitHubBadgeForWorkDir(workDir) {
+  if (!workDir) return;
+  const escaped = CSS.escape(workDir);
+  const entry =
+    projectList.querySelector(`.project-entry[data-path="${escaped}"]`) ||
+    projectList.querySelector(`.worktree-item[data-path="${escaped}"]`)?.closest('.project-entry');
+  if (!entry) return;
+  const badge = entry.querySelector('[data-badge="github"]');
+  if (badge) badge.classList.remove('has-activity');
 }
 
 export async function refreshProjectBadges(projectPath) {

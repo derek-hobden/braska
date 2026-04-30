@@ -6,6 +6,7 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo } from './utils.js';
 import { refreshGitHubPRs } from './github-prs.js';
 import { refreshGitHubIssues, showGitHubIssueDetail, initGitHubIssues } from './github-issues.js';
+import { clearGitHubBadgeForWorkDir } from './sidebar.js';
 
 // ── Cross-module deps injected via init ─────────────────────────
 let _startTask = null;
@@ -244,7 +245,9 @@ async function refreshGitHubNotifs(workDir) {
     return;
   }
 
-  let html = `<div class="gh-toolbar"><span style="color:#888;font-size:0.75rem">GitHub Notifications</span><button class="gh-action-btn" id="gh-notif-refresh-btn">Refresh</button></div>`;
+  const hasNotifs = result.data && result.data.length > 0;
+  const markReadBtn = hasNotifs ? `<button class="gh-action-btn" id="gh-notif-mark-read-btn">Mark all read</button>` : '';
+  let html = `<div class="gh-toolbar"><span style="color:#888;font-size:0.75rem">GitHub Notifications</span>${markReadBtn}<button class="gh-action-btn" id="gh-notif-refresh-btn">Refresh</button></div>`;
 
   // Set activity badge if there are notifications (only when not currently viewing GitHub)
   if (result.data?.length && !ghState.viewActive) {
@@ -271,9 +274,42 @@ async function refreshGitHubNotifs(workDir) {
   const signal = ghResetListeners();
   content.innerHTML = html;
 
-  content.addEventListener('click', (e) => {
+  content.addEventListener('click', async (e) => {
     if (e.target.closest('#gh-notif-refresh-btn')) {
       refreshGitHubNotifs(tabState.activeWorkDir);
+      return;
+    }
+    const markBtn = e.target.closest('#gh-notif-mark-read-btn');
+    if (markBtn) {
+      markBtn.disabled = true;
+      markBtn.textContent = 'Marking...';
+      const workDir = tabState.activeWorkDir;
+      const res = await window.github.notificationsMarkRead(workDir);
+      if (res.ok) {
+        ghState.hasActivity = false;
+        updateActivityBadge();
+        clearGitHubBadgeForWorkDir(workDir);
+        // Optimistic UI: gh CLI's --cache 60s on the GET means a refetch
+        // would return the same stale unread list. Replace with empty state.
+        content.querySelectorAll('.gh-notif-item').forEach(el => el.remove());
+        markBtn.remove();
+        if (!content.querySelector('.gh-empty')) {
+          const empty = document.createElement('div');
+          empty.className = 'gh-empty';
+          empty.textContent = 'No notifications';
+          content.appendChild(empty);
+        }
+      } else {
+        markBtn.disabled = false;
+        markBtn.textContent = 'Mark all read';
+        const toolbar = content.querySelector('.gh-toolbar');
+        if (toolbar) {
+          const errEl = document.createElement('span');
+          errEl.style.cssText = 'color:#f85149;font-size:0.7rem;margin-left:0.5rem';
+          errEl.textContent = res.error || 'Failed';
+          toolbar.appendChild(errEl);
+        }
+      }
     }
   }, { signal });
 }
