@@ -69,7 +69,8 @@ renderer/
   journey-zone.js           — State-driven action cards (commit/share/merge-to-main/conflicts), branch header actions, overflow menu
   github-panel.js           — GitHub auth, section routing, CI, notifications (inline in unified panel)
   github-prs.js             — PR list, detail, create form
-  github-issues.js          — Issue list, detail, create form
+  github-issues.js          — Issue list, detail (incl. inline edit mode), reopen
+  github-issues-create.js   — Issue create form
   markdown.js               — Renders .md to sanitized HTML via vendored marked
   code-highlight.js         — Maps file extensions to languages, renders highlighted HTML via hljs
   vendor/marked.esm.min.js  — Vendored marked library (CommonMark + GFM)
