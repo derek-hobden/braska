@@ -1,11 +1,16 @@
-// ── GitHub Issues — list, detail, create form ──
+// ── GitHub Issues — list, detail, create + edit forms ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo } from './utils.js';
+import { escHtml, timeAgo, ghSafeColor } from './utils.js';
 import { ghResetListeners, ghLabelHtml, ghStateBadge } from './github-panel.js';
+import { showGitHubIssueForm } from './github-issues-create.js';
 
 // ── Injected dep ───────────────────────────────────────────────
 let _switchRightPanelTab = null;
+
+// In-progress edit for a single issue. Keyed by issueNumber so refreshes
+// targeting the same issue re-enter edit mode rather than dropping the draft.
+let editDraft = null;
 
 export function initGitHubIssues({ switchRightPanelTab }) {
   _switchRightPanelTab = switchRightPanelTab;
@@ -57,7 +62,7 @@ export async function refreshGitHubIssues(workDir) {
       return;
     }
     if (e.target.closest('#gh-issue-new-btn')) {
-      showGitHubIssueForm(tabState.activeWorkDir);
+      showGitHubIssueForm(tabState.activeWorkDir, refreshGitHubIssues);
       return;
     }
     const item = e.target.closest('.gh-item[data-gh-issue-number]');
@@ -82,9 +87,13 @@ export async function showGitHubIssueDetail(workDir, number) {
   }
 
   const issue = result.data;
-  let labels = '';
-  if (issue.labels && issue.labels.length) {
-    for (const l of issue.labels) labels += ghLabelHtml(l);
+  const isEditing = editDraft && editDraft.issueNumber === issue.number;
+  if (isEditing) {
+    // Refresh draft's "originalLabels" reference to current server state so
+    // diff-on-save uses up-to-date data. Local edits are preserved.
+    editDraft.originalLabels = (issue.labels || []).map(l => l.name);
+    editDraft.originalTitle = issue.title;
+    editDraft.originalBody = issue.body || '';
   }
 
   let assignees = '';
@@ -96,12 +105,19 @@ export async function showGitHubIssueDetail(workDir, number) {
     <div class="gh-detail-header">
       <button class="gh-detail-back">&larr; Issues</button>
       ${ghStateBadge(issue.state)}
-      ${labels}
-    </div>
-    <div class="gh-detail-title">#${issue.number} ${escHtml(issue.title)}</div>
-    <div class="gh-detail-meta">${escHtml((issue.author || {}).login || 'unknown')}${assignees ? ' &middot; assigned: ' + assignees : ''} &middot; ${timeAgo(issue.createdAt)}</div>`;
+      <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, isEditing)}</div>
+    </div>`;
 
-  if (issue.body) {
+  if (isEditing) {
+    html += `<input class="gh-edit-title-input" id="gh-issue-edit-title" value="${escHtml(editDraft.title)}" />`;
+  } else {
+    html += `<div class="gh-detail-title">#${issue.number} ${escHtml(issue.title)}</div>`;
+  }
+  html += `<div class="gh-detail-meta">${escHtml((issue.author || {}).login || 'unknown')}${assignees ? ' &middot; assigned: ' + assignees : ''} &middot; ${timeAgo(issue.createdAt)}</div>`;
+
+  if (isEditing) {
+    html += `<textarea class="gh-edit-body-input" id="gh-issue-edit-body" placeholder="Issue description...">${escHtml(editDraft.body)}</textarea>`;
+  } else if (issue.body) {
     html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
   }
 
@@ -135,14 +151,28 @@ export async function showGitHubIssueDetail(workDir, number) {
 
   html += `<div class="gh-comment-form"><textarea placeholder="Add a comment..." id="gh-issue-comment-input"></textarea><button id="gh-issue-comment-submit">Comment</button></div>`;
 
-  if (issue.state === 'OPEN') {
-    html += `<div style="margin-top:12px"><button class="gh-btn-danger" id="gh-issue-close-btn">Close Issue</button></div>`;
+  html += '<div class="gh-issue-actions" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+  if (isEditing) {
+    html += `<button class="gh-btn-primary" id="gh-issue-save-btn">Save</button>
+             <button class="gh-btn-cancel" id="gh-issue-cancel-edit-btn">Cancel</button>
+             <span id="gh-issue-edit-status"></span>`;
+  } else {
+    html += `<button class="gh-action-btn" id="gh-issue-edit-btn">Edit</button>`;
+    if (issue.state === 'OPEN') {
+      html += `<button class="gh-btn-danger" id="gh-issue-close-btn">Close Issue</button>`;
+    } else {
+      html += `<button class="gh-btn-primary" id="gh-issue-reopen-btn">Reopen Issue</button>`;
+    }
   }
+  html += '</div>';
 
   html += '</div>';
   content.innerHTML = html;
 
-  content.querySelector('.gh-detail-back').addEventListener('click', () => refreshGitHubIssues(workDir));
+  content.querySelector('.gh-detail-back').addEventListener('click', () => {
+    editDraft = null;
+    refreshGitHubIssues(workDir);
+  });
 
   // Link/unlink handlers
   const linkBtn = document.getElementById('gh-link-todo-btn');
@@ -195,70 +225,152 @@ export async function showGitHubIssueDetail(workDir, number) {
       else { closeBtn.textContent = 'Error'; }
     });
   }
-}
 
-// ── Issue create form ──────────────────────────────────────────
-
-function ghSafeColor(raw) {
-  if (/^[0-9a-fA-F]{3}$/.test(raw)) return raw[0]+raw[0]+raw[1]+raw[1]+raw[2]+raw[2];
-  return /^[0-9a-fA-F]{6}$/.test(raw) ? raw : '666666';
-}
-
-async function showGitHubIssueForm(workDir) {
-  const content = document.getElementById('gh-content');
-  content.innerHTML = '<div class="gh-empty">Loading labels...</div>';
-
-  const labelsResult = await window.github.issueLabels(workDir);
-  const labels = labelsResult.ok ? labelsResult.data : [];
-
-  let labelsHtml = '';
-  if (labels.length) {
-    labelsHtml = '<label>Labels</label><div class="gh-labels-picker">';
-    for (const l of labels) {
-      const color = ghSafeColor(l.color);
-      labelsHtml += `<label style="color:#${color}"><input type="checkbox" value="${escHtml(l.name)}" /> ${escHtml(l.name)}</label>`;
-    }
-    labelsHtml += '</div>';
+  const reopenBtn = document.getElementById('gh-issue-reopen-btn');
+  if (reopenBtn) {
+    reopenBtn.addEventListener('click', async () => {
+      reopenBtn.disabled = true;
+      reopenBtn.textContent = 'Reopening...';
+      const r = await window.github.issueReopen(workDir, number);
+      if (r.ok) showGitHubIssueDetail(workDir, number);
+      else { reopenBtn.textContent = 'Error'; }
+    });
   }
 
-  content.innerHTML = `<div class="gh-form">
-    <button class="gh-detail-back" id="gh-issue-form-cancel-top">&larr; Back to Issues</button>
-    <label>Title</label>
-    <input id="gh-issue-title" placeholder="Issue title..." />
-    <label>Description</label>
-    <textarea id="gh-issue-body" placeholder="Describe the issue..."></textarea>
-    ${labelsHtml}
-    <div class="gh-form-buttons">
-      <button class="gh-btn-cancel" id="gh-issue-form-cancel">Cancel</button>
-      <button class="gh-btn-primary" id="gh-issue-form-submit">Create Issue</button>
-    </div>
-    <div id="gh-issue-form-status"></div>
-  </div>`;
+  const editBtn = document.getElementById('gh-issue-edit-btn');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      editDraft = {
+        issueNumber: issue.number,
+        title: issue.title,
+        body: issue.body || '',
+        labels: (issue.labels || []).map(l => l.name),
+        labelObjects: (issue.labels || []).slice(),
+        originalTitle: issue.title,
+        originalBody: issue.body || '',
+        originalLabels: (issue.labels || []).map(l => l.name),
+      };
+      showGitHubIssueDetail(workDir, number);
+    });
+  }
 
-  const cancel = () => refreshGitHubIssues(workDir);
-  document.getElementById('gh-issue-form-cancel').addEventListener('click', cancel);
-  document.getElementById('gh-issue-form-cancel-top').addEventListener('click', cancel);
+  if (isEditing) {
+    const titleInput = document.getElementById('gh-issue-edit-title');
+    if (titleInput) titleInput.addEventListener('input', () => { editDraft.title = titleInput.value; });
+    const bodyInput = document.getElementById('gh-issue-edit-body');
+    if (bodyInput) bodyInput.addEventListener('input', () => { editDraft.body = bodyInput.value; });
 
-  document.getElementById('gh-issue-form-submit').addEventListener('click', async () => {
-    const title = document.getElementById('gh-issue-title').value.trim();
-    const body = document.getElementById('gh-issue-body').value.trim();
-    const checked = content.querySelectorAll('.gh-labels-picker input:checked');
-    const selectedLabels = Array.from(checked).map(c => c.value);
-    const status = document.getElementById('gh-issue-form-status');
-    const submitBtn = document.getElementById('gh-issue-form-submit');
-    if (!title) { status.className = 'gh-status-msg error'; status.textContent = 'Title is required'; return; }
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating...';
-    const r = await window.github.issueCreate(workDir, title, body, selectedLabels);
-    if (r.ok) {
-      status.className = 'gh-status-msg success';
-      status.textContent = 'Issue created: ' + r.url;
-      setTimeout(() => { ghState.issueFilter = 'open'; refreshGitHubIssues(workDir); }, 1500);
-    } else {
-      status.className = 'gh-status-msg error';
-      status.textContent = r.error;
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Create Issue';
+    wireEditLabelHandlers(workDir, issue);
+
+    const cancelBtn = document.getElementById('gh-issue-cancel-edit-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
+      editDraft = null;
+      showGitHubIssueDetail(workDir, number);
+    });
+
+    const saveBtn = document.getElementById('gh-issue-save-btn');
+    if (saveBtn) saveBtn.addEventListener('click', () => saveIssueEdit(workDir, issue));
+  }
+}
+
+// ── Labels region (read + edit modes) ──────────────────────────
+
+function renderLabelsRegion(issue, isEditing) {
+  let html = '';
+  if (isEditing) {
+    // Render each draft label as a chip with an × remove control. Use the
+    // colour from the original issue label list when available; fall back
+    // to a neutral colour for labels just added from the picker.
+    for (const name of editDraft.labels) {
+      const found = (editDraft.labelObjects || []).find(l => l.name === name);
+      const color = ghSafeColor((found && found.color) || '666666');
+      html += `<span class="gh-label-chip-edit" style="border-color:#${color};color:#${color}">${escHtml(name)}<button class="gh-label-chip-remove" data-gh-label-remove="${escHtml(name)}" title="Remove label">&times;</button></span>`;
+    }
+    html += `<button class="gh-action-btn gh-add-label-btn" id="gh-issue-add-label-btn">+ Add label</button>`;
+    html += `<span class="gh-label-picker-anchor" id="gh-issue-label-picker"></span>`;
+  } else if (issue.labels && issue.labels.length) {
+    for (const l of issue.labels) html += ghLabelHtml(l);
+  }
+  return html;
+}
+
+function wireEditLabelHandlers(workDir, issue) {
+  const region = document.querySelector('.gh-edit-labels-region');
+  if (!region) return;
+
+  region.addEventListener('click', async (e) => {
+    const removeBtn = e.target.closest('[data-gh-label-remove]');
+    if (removeBtn) {
+      const name = removeBtn.dataset.ghLabelRemove;
+      editDraft.labels = editDraft.labels.filter(l => l !== name);
+      region.innerHTML = renderLabelsRegion(issue, true);
+      return;
+    }
+    if (e.target.closest('#gh-issue-add-label-btn')) {
+      await openLabelPicker(workDir, issue);
+      return;
+    }
+    const pickItem = e.target.closest('[data-gh-label-pick]');
+    if (pickItem) {
+      const name = pickItem.dataset.ghLabelPick;
+      if (!editDraft.labels.includes(name)) editDraft.labels.push(name);
+      // Track colour for chips of newly-added labels.
+      const color = pickItem.dataset.ghLabelColor || '666666';
+      if (!(editDraft.labelObjects || []).find(l => l.name === name)) {
+        editDraft.labelObjects = (editDraft.labelObjects || []).concat([{ name, color }]);
+      }
+      region.innerHTML = renderLabelsRegion(issue, true);
+      return;
     }
   });
 }
+
+async function openLabelPicker(workDir, issue) {
+  const anchor = document.getElementById('gh-issue-label-picker');
+  if (!anchor) return;
+  if (anchor.querySelector('.gh-label-picker')) { anchor.innerHTML = ''; return; }
+  anchor.innerHTML = '<span class="gh-label-picker"><span style="color:#777">Loading...</span></span>';
+  const r = await window.github.issueLabels(workDir);
+  if (!r.ok) { anchor.innerHTML = `<span class="gh-status-msg error">${escHtml(r.error)}</span>`; return; }
+  const available = r.data.filter(l => !editDraft.labels.includes(l.name));
+  if (!available.length) { anchor.innerHTML = '<span style="color:#777;font-size:0.7rem">All labels added</span>'; return; }
+  let html = '<span class="gh-label-picker">';
+  for (const l of available) {
+    const color = ghSafeColor(l.color);
+    html += `<button class="gh-label-pick-item" data-gh-label-pick="${escHtml(l.name)}" data-gh-label-color="${color}" style="border-color:#${color};color:#${color}">${escHtml(l.name)}</button>`;
+  }
+  html += '</span>';
+  anchor.innerHTML = html;
+}
+
+async function saveIssueEdit(workDir, originalIssue) {
+  const status = document.getElementById('gh-issue-edit-status');
+  const saveBtn = document.getElementById('gh-issue-save-btn');
+  const draft = editDraft;
+  const title = draft.title.trim();
+  if (!title) {
+    if (status) { status.className = 'gh-status-msg error'; status.textContent = 'Title is required'; }
+    return;
+  }
+  const changes = {};
+  if (title !== draft.originalTitle) changes.title = title;
+  if (draft.body !== draft.originalBody) changes.body = draft.body;
+  const orig = draft.originalLabels;
+  const cur = draft.labels;
+  const addLabels = cur.filter(l => !orig.includes(l));
+  const removeLabels = orig.filter(l => !cur.includes(l));
+  if (addLabels.length) changes.addLabels = addLabels;
+  if (removeLabels.length) changes.removeLabels = removeLabels;
+
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+  if (status) { status.className = ''; status.textContent = ''; }
+  const r = await window.github.issueEdit(workDir, originalIssue.number, changes);
+  if (r.ok) {
+    editDraft = null;
+    showGitHubIssueDetail(workDir, originalIssue.number);
+  } else {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+    if (status) { status.className = 'gh-status-msg error'; status.textContent = r.error; }
+  }
+}
+

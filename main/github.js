@@ -236,6 +236,32 @@ function register({ ipcMain }) {
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
+  // Partial edit: only fields present in `changes` get sent to gh.
+  // Labels are diffed at the call site (renderer) so we never pass overlapping --add/--remove.
+  ipcMain.handle('gh:issue-edit', async (_event, workDir, number, changes) => {
+    try {
+      const args = ['issue', 'edit', String(number)];
+      if (changes && typeof changes.title === 'string') args.push('--title', changes.title);
+      if (changes && typeof changes.body === 'string') args.push('--body', changes.body);
+      if (changes && Array.isArray(changes.addLabels)) {
+        for (const l of changes.addLabels) args.push('--add-label', l);
+      }
+      if (changes && Array.isArray(changes.removeLabels)) {
+        for (const l of changes.removeLabels) args.push('--remove-label', l);
+      }
+      if (args.length === 3) return { ok: true, noop: true };
+      await execFileAsync('gh', args, { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
+      return { ok: true };
+    } catch (err) { return { ok: false, error: err.stderr || err.message }; }
+  });
+
+  ipcMain.handle('gh:issue-reopen', async (_event, workDir, number) => {
+    try {
+      await execFileAsync('gh', ['issue', 'reopen', String(number)], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+      return { ok: true };
+    } catch (err) { return { ok: false, error: err.stderr || err.message }; }
+  });
+
   ipcMain.handle('gh:issue-labels', async (_event, workDir) => {
     try {
       const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name,color', '--limit', '100'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
@@ -264,6 +290,14 @@ function register({ ipcMain }) {
       const { stdout: nwo } = await execFileAsync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
       const { stdout } = await execFileAsync('gh', ['api', `repos/${nwo.trim()}/notifications`, '--cache', '60s'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
       return { ok: true, data: JSON.parse(stdout) };
+    } catch (err) { return { ok: false, error: err.stderr || err.message }; }
+  });
+
+  ipcMain.handle('gh:notifications-mark-read', async (_event, workDir) => {
+    try {
+      const { stdout: nwo } = await execFileAsync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      await execFileAsync('gh', ['api', '-X', 'PUT', `repos/${nwo.trim()}/notifications`], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+      return { ok: true };
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
