@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
-import { SVG_OCTOCAT, SVG_GIT_LOGO, SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
+import { SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 
@@ -27,11 +27,7 @@ export function renderProjects(projects) {
   }
   projectList.innerHTML = projects.map(p => {
     const esc = p.path.replace(/"/g, '&quot;');
-    const projectIcon = p.isGitHub
-      ? `<span class="expand-icon">${SVG_OCTOCAT}</span>`
-      : p.isGit
-        ? `<span class="expand-icon" style="color:#f05033">${SVG_GIT_LOGO}</span>`
-        : `<span class="expand-icon" style="color:#e8c882">${SVG_FOLDER}</span>`;
+    const projectIcon = `<span class="expand-icon" style="color:#e8c882">${SVG_FOLDER}</span>`;
     const worktrees = p.isGit && p.worktrees.length ? '<div class="worktree-list">' + p.worktrees.map(w => {
       const wtPath = (w.path || '').replace(/"/g, '&quot;');
       const lockIcon = w.isLocked ? '<span class="wt-lock-icon" title="Locked">&#128274;</span>' : '';
