@@ -2,7 +2,7 @@
 
 import { tabState } from './state.js';
 import { clearNotifForTab, clearTabBusy, busyTabs, notifLog } from './notifications.js';
-import { escHtml } from './utils.js';
+import { escHtml, tabTypeIcon } from './utils.js';
 
 // ── Cross-module deps (set via initTabs) ───────────────────────
 let showTabTypePicker = null;
@@ -59,7 +59,9 @@ export function renderTabBar() {
     el.draggable = true;
     const baseLabel = tab.customLabel || tab.label;
     const displayLabel = escHtml((tab.dirty ? '\u25CF ' : '') + baseLabel);
-    el.innerHTML = `<span class="term-tab-label">${displayLabel}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
+    const iconSvg = tabTypeIcon(tab);
+    const iconHtml = iconSvg ? `<span class="term-tab-icon">${iconSvg}</span>` : '';
+    el.innerHTML = `${iconHtml}<span class="term-tab-label">${displayLabel}</span><button class="term-tab-close" data-id="${id}" title="Close tab">&times;</button>`;
     el.addEventListener('click', (e) => {
       if (!e.target.closest('.term-tab-close')) switchTab(id);
     });

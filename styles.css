@@ -81,20 +81,6 @@
     }
     .project-entry:hover .project-name { color: #ccc; }
     .project-entry.has-active .project-name { color: #eee; }
-    .project-path {
-      font-size: 0.7rem;
-      color: #555;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: color 0.2s ease;
-    }
-    .project-entry:hover .project-path { color: #777; }
-    .project-entry.has-active .project-path { color: #777; }
-    .project-info {
-      flex: 1;
-      min-width: 0;
-    }
     .remove-btn {
       background: none;
       border: none;
@@ -115,12 +101,6 @@
       font-size: 0.85rem;
       text-align: center;
       margin-top: 24px;
-    }
-    .project-name-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-width: 0;
     }
     .expand-icon {
       display: inline-flex;
@@ -238,61 +218,59 @@
     }
     .worktree-add-btn svg { flex-shrink: 0; }
 
-    /* Project-level section links (Todos, GitHub) */
-    .project-sections {
-      display: none;
-      padding-bottom: 4px;
-    }
-    .project-entry.expanded .project-sections {
-      display: block;
-    }
-    .project-section-sep {
-      height: 1px;
-      background: #2a2a2a;
-      margin: 4px 44px 4px 44px;
-    }
-    .project-section-link {
-      padding: 3px 16px 3px 44px;
-      font-size: 0.78rem;
-      color: #777;
-      cursor: pointer;
+    /* Project-level section links (Todos, GitHub) — inline icons in project row */
+    .project-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
-      transition: color 0.15s ease;
+      gap: 2px;
+      flex-shrink: 0;
     }
+    .project-section-link {
+      position: relative;
+      padding: 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.5;
+      transition: color 0.15s ease, background 0.15s ease, opacity 0.2s ease;
+    }
+    .project-item:hover .project-section-link { opacity: 1; }
     .project-section-link:hover {
       color: #ccc;
-      background: #252525;
+      background: #2a2a2a;
     }
     .project-section-link.active {
       color: #eee;
-    }
-    .project-section-link svg {
-      flex-shrink: 0;
-      opacity: 0.5;
-      transition: opacity 0.15s ease;
-    }
-    .project-section-link:hover svg,
-    .project-section-link.active svg {
+      background: #2a2a2a;
       opacity: 1;
     }
+    .project-section-link svg {
+      display: block;
+      width: 14px;
+      height: 14px;
+    }
     .project-section-badge {
-      margin-left: auto;
-      font-size: 0.6rem;
-      min-width: 0;
-      flex-shrink: 0;
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      font-size: 0.55rem;
+      line-height: 1;
+      pointer-events: none;
     }
     .project-section-badge.has-count {
-      background: #333;
-      color: #ccc;
-      padding: 0 5px;
+      background: #3a3a3a;
+      color: #ddd;
+      padding: 1px 4px;
       border-radius: 8px;
-      line-height: 1.5;
+      min-width: 12px;
+      text-align: center;
     }
     .project-section-badge.has-activity::after {
       content: '';
-      display: inline-block;
+      display: block;
       width: 6px;
       height: 6px;
       border-radius: 50%;
@@ -1100,6 +1078,19 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .term-tab-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #888;
+    }
+    .term-tab-icon svg {
+      width: 13px;
+      height: 13px;
+    }
+    .term-tab.active .term-tab-icon { color: #ccc; }
+    .term-tab:hover .term-tab-icon { color: #bbb; }
     .term-tab:hover {
       background: #252525;
       color: #ccc;
@@ -3313,6 +3304,78 @@
       border-top: 1px solid #2a2a2a;
       border-bottom: 1px solid #2a2a2a;
     }
+    .gh-edit-title-input {
+      width: 100%;
+      font-size: 1rem;
+      color: #fff;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 4px 8px;
+      margin: 0 0 4px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    .gh-edit-title-input:focus { outline: none; border-color: #555; }
+    .gh-edit-body-input {
+      width: 100%;
+      font-size: 0.82rem;
+      color: #ddd;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+      font-family: inherit;
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 100px;
+    }
+    .gh-edit-body-input:focus { outline: none; border-color: #555; }
+    .gh-label-chip-edit {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 1px 4px 1px 6px;
+      border-radius: 8px;
+      border: 1px solid;
+      background: rgba(255,255,255,0.04);
+      line-height: 1.5;
+    }
+    .gh-label-chip-remove {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 0 2px;
+      font-size: 0.85rem;
+      line-height: 1;
+      opacity: 0.7;
+    }
+    .gh-label-chip-remove:hover { opacity: 1; }
+    .gh-label-picker {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px 6px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+    }
+    .gh-label-pick-item {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+      border: 1px solid;
+      background: transparent;
+      cursor: pointer;
+      line-height: 1.5;
+    }
+    .gh-label-pick-item:hover { background: rgba(255,255,255,0.08); }
     .gh-section-title {
       font-size: 0.72rem;
       text-transform: uppercase;
