@@ -174,7 +174,9 @@
       color: #ccc;
     }
     .worktree-item.active {
-      color: #eee;
+      color: #fff;
+      background: rgba(74, 158, 255, 0.08);
+      box-shadow: inset 2px 0 0 #4a9eff;
     }
     .wt-icon {
       width: 14px;
