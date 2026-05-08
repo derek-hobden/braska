@@ -27,7 +27,14 @@ function watchProjects(projects, BrowserWindow) {
     try {
       const w = fs.watch(gitDir, { recursive: true }, (_evt, filename) => {
         if (!filename) return;
-        if (filename === 'HEAD' || filename.startsWith('worktrees/') || filename.startsWith('worktrees\\')) {
+        // HEAD = branch switch on main worktree.
+        // worktrees/<name>/HEAD or worktrees/<name>/gitdir = worktree added/removed.
+        // Deliberately excludes worktrees/<name>/index.lock and similar noise.
+        const parts = filename.split(/[/\\]/);
+        const isHeadChange = filename === 'HEAD';
+        const isWorktreeStructure = parts.length === 3 && parts[0] === 'worktrees'
+          && (parts[2] === 'HEAD' || parts[2] === 'gitdir');
+        if (isHeadChange || isWorktreeStructure) {
           broadcastProjectsChanged(BrowserWindow);
         }
       });

@@ -10,6 +10,7 @@ const { loadProjects } = require('./projects');
 const { watchProjects } = require('./git-watcher');
 
 const DEBOUNCE_MS = 60 * 1000;
+let watchedPathsKey = null;
 const INTERVAL_MS = 5 * 60 * 1000;
 const STARTUP_DELAY_MS = 2000;
 
@@ -47,7 +48,12 @@ async function fetchProject(BrowserWindow, projectPath) {
 async function fetchAllKnownProjects(app, BrowserWindow) {
   try {
     const projects = await loadProjects(app);
-    watchProjects(projects, BrowserWindow);
+    // Only rebuild watchers when the project list actually changes.
+    const key = projects.map(p => p.path).sort().join('\0');
+    if (key !== watchedPathsKey) {
+      watchedPathsKey = key;
+      watchProjects(projects, BrowserWindow);
+    }
     for (const p of projects) fetchProject(BrowserWindow, p.path);
   } catch (err) {
     console.error('[Braska git-fetcher] fetchAllKnownProjects failed:', err);
@@ -61,12 +67,7 @@ function register({ app, BrowserWindow }) {
     if (BrowserWindow.getFocusedWindow()) fetchAllKnownProjects(app, BrowserWindow);
   }, INTERVAL_MS);
 
-  app.on('browser-window-focus', () => {
-    fetchAllKnownProjects(app, BrowserWindow);
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) win.webContents.send('git:projects-changed');
-    }
-  });
+  app.on('browser-window-focus', () => fetchAllKnownProjects(app, BrowserWindow));
 }
 
 module.exports = { register, fetchProject, fetchAllKnownProjects };
