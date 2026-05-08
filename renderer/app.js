@@ -270,6 +270,9 @@ document.getElementById('tab-type-picker-list').addEventListener('click', (e) =>
   } else if (item.dataset.type === 'claude') {
     startTask('__CLAUDE__', appState.pendingWorkDir);
     appState.pendingWorkDir = null;
+  } else if (item.dataset.type === 'claude-yolo') {
+    startTask('__CLAUDE__', appState.pendingWorkDir, { skipPermissions: true });
+    appState.pendingWorkDir = null;
   }
 });
 
@@ -285,6 +288,10 @@ document.getElementById('launchpad-terminal').addEventListener('click', () => {
 
 document.getElementById('launchpad-browser').addEventListener('click', () => {
   if (tabState.activeWorkDir) startBrowser(tabState.activeWorkDir);
+});
+
+document.getElementById('launchpad-agent-yolo').addEventListener('click', () => {
+  if (tabState.activeWorkDir) startTask('__CLAUDE__', tabState.activeWorkDir, { skipPermissions: true });
 });
 
 // ── Keyboard shortcuts ──

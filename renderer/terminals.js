@@ -63,7 +63,7 @@ export async function startTask(agentName, workDir, options = {}) {
   const dims = fitAddon.proposeDimensions();
   let id;
   try {
-    id = await window.pty.spawn(agentName, options.cwd || workDir, dims, options.initialPrompt || null);
+    id = await window.pty.spawn(agentName, options.cwd || workDir, dims, options.initialPrompt || null, options.skipPermissions || false);
   } catch (err) {
     term.dispose();
     pane.remove();

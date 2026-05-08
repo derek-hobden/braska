@@ -149,7 +149,7 @@ ipcRenderer.on('pty:exit', (_ev, id, code) => {
 });
 
 contextBridge.exposeInMainWorld('pty', {
-  spawn: (agentName, workDir, dims, initialPrompt) => ipcRenderer.invoke('pty:spawn', agentName, workDir, dims, initialPrompt),
+  spawn: (agentName, workDir, dims, initialPrompt, skipPermissions) => ipcRenderer.invoke('pty:spawn', agentName, workDir, dims, initialPrompt, skipPermissions),
   write: (id, data) => ipcRenderer.send('pty:write', id, data),
   resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
   kill: (id) => ipcRenderer.invoke('pty:kill', id),

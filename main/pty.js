@@ -4,7 +4,7 @@ const { ptyProcesses, getNextPtyId } = require('./state');
 const { getTodoDir } = require('./todo');
 
 function register({ ipcMain, BrowserWindow }) {
-  ipcMain.handle('pty:spawn', async (event, agentName, workDir, dims, initialPrompt) => {
+  ipcMain.handle('pty:spawn', async (event, agentName, workDir, dims, initialPrompt, skipPermissions) => {
     const id = getNextPtyId();
     const shell = process.env.SHELL || '/bin/zsh';
     let cwd = workDir;
@@ -32,7 +32,8 @@ function register({ ipcMain, BrowserWindow }) {
       // for tab labels and the committer-exit hook, but Braska does not pass
       // --agent, --model, or --dangerously-skip-permissions — model, permission
       // prompts, and agent routing follow the user's own Claude config.
-      const baseCmd = `cd '${safeWorkDir}' && claude${todoDirFlag}`;
+      const yoloFlag = skipPermissions ? ' --dangerously-skip-permissions' : '';
+      const baseCmd = `cd '${safeWorkDir}' && claude${todoDirFlag}${yoloFlag}`;
       if (initialPrompt) {
         const safePrompt = initialPrompt.replace(/'/g, "'\"'\"'");
         args = ['-l', '-c', `${baseCmd} -- '${safePrompt}'`];
