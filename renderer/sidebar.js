@@ -3,10 +3,12 @@
 import { SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
+import { tabState } from './state.js';
 
 // ── DOM refs (queried once at module level) ──
 const projectList = document.getElementById('project-list');
 const addBtn = document.getElementById('add-project-btn');
+const refreshBtn = document.getElementById('refresh-projects-btn');
 
 // ── Cross-module deps (injected via initSidebar to avoid circular imports) ──
 let _openWorkDir;
@@ -63,9 +65,10 @@ export function renderProjects(projects) {
 }
 
 export async function loadProjects() {
-  // Preserve expanded state across re-renders
+  // Preserve visual state across re-renders
   const expandedPaths = new Set();
   projectList.querySelectorAll('.project-entry.expanded').forEach(el => expandedPaths.add(el.dataset.path));
+  const activeWorkDir = tabState.activeWorkDir;
   const projects = await window.projects.list();
   renderProjects(projects);
   // Restore expanded state
@@ -73,6 +76,14 @@ export async function loadProjects() {
     const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(p)}"]`);
     if (entry) entry.classList.add('expanded');
   });
+  // Restore active worktree highlight
+  if (activeWorkDir) {
+    const activeItem = projectList.querySelector(`.worktree-item[data-path="${CSS.escape(activeWorkDir)}"]`);
+    if (activeItem) {
+      activeItem.classList.add('active');
+      activeItem.closest('.project-entry')?.classList.add('has-active');
+    }
+  }
   refreshWorktreeMetrics();
   refreshAllProjectBadges();
 }
@@ -164,6 +175,12 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
 
   const addMenu = document.getElementById('add-project-menu');
   function closeAddMenu() { addMenu.classList.remove('active'); }
+
+  refreshBtn.addEventListener('click', () => {
+    refreshBtn.classList.add('spinning');
+    refreshBtn.addEventListener('animationend', () => refreshBtn.classList.remove('spinning'), { once: true });
+    loadProjects();
+  });
 
   addBtn.addEventListener('click', (e) => {
     e.stopPropagation();

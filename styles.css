@@ -35,11 +35,15 @@
       letter-spacing: 0.05em;
       color: #888;
     }
-    #add-project-btn {
+    #sidebar-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    #add-project-btn, #refresh-projects-btn {
       background: none;
       border: 1px solid #444;
       color: #ccc;
-      font-size: 1.1rem;
       width: 28px;
       height: 28px;
       border-radius: 6px;
@@ -49,10 +53,18 @@
       justify-content: center;
       line-height: 1;
     }
-    #add-project-btn:hover {
+    #add-project-btn { font-size: 1.1rem; }
+    #add-project-btn:hover, #refresh-projects-btn:hover {
       background: #2a2a2a;
       color: #fff;
       border-color: #666;
+    }
+    @keyframes spin-once {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    #refresh-projects-btn.spinning svg {
+      animation: spin-once 0.5s linear;
     }
     #project-list {
       flex: 1;
