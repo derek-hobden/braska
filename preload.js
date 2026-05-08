@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('gitOps', {
   abortMerge: (workDir) => ipcRenderer.invoke('git:abort-merge', workDir),
   restoreWorkingTree: (workDir) => ipcRenderer.invoke('git:restore-working-tree', workDir),
   discard: (workDir, filePaths) => ipcRenderer.invoke('git:discard', workDir, filePaths),
+  deleteUntracked: (workDir, filePaths) => ipcRenderer.invoke('git:delete-untracked', workDir, filePaths),
   amend: (workDir, message) => ipcRenderer.invoke('git:amend', workDir, message),
   revertCommit: (workDir, hash) => ipcRenderer.invoke('git:revert-commit', workDir, hash),
   onFetched: (cb) => ipcRenderer.on('git:fetched', (_ev, projectPath) => cb(projectPath)),

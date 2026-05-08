@@ -193,6 +193,33 @@ export function initChangesActions(deps) {
       return;
     }
 
+    // Delete single untracked file
+    if (e.target.closest('.changes-delete-untracked')) {
+      e.stopPropagation();
+      const fileEl = e.target.closest('.changes-file');
+      const file = fileEl?.dataset.file;
+      if (file && activeWorkDir && confirm(`Permanently delete ${file}? This cannot be undone.`)) {
+        const result = await window.gitOps.deleteUntracked(activeWorkDir, [file]);
+        if (result.ok) { _showChangesStatus('File deleted', 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+        else _showChangesStatus('Delete failed: ' + (result.error || '').split('\n')[0], 'error');
+      }
+      return;
+    }
+
+    // Delete all untracked files
+    if (e.target.closest('.delete-all-untracked')) {
+      e.stopPropagation();
+      if (activeWorkDir) {
+        const files = [..._changesBody.querySelectorAll('[data-untracked="true"]')].map(el => el.dataset.file);
+        if (files.length && confirm(`Permanently delete all ${files.length} untracked file${files.length === 1 ? '' : 's'}? This cannot be undone.`)) {
+          const result = await window.gitOps.deleteUntracked(activeWorkDir, files);
+          if (result.ok) { _showChangesStatus('Untracked files deleted', 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+          else _showChangesStatus('Delete failed: ' + (result.error || '').split('\n')[0], 'error');
+        }
+      }
+      return;
+    }
+
     // File click — open diff or editor
     const fileEl = e.target.closest('.changes-file');
     if (fileEl) {

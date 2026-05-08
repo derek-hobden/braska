@@ -296,6 +296,15 @@ function register({ ipcMain }) {
     }
   });
 
+  ipcMain.handle('git:delete-untracked', async (_event, workDir, filePaths) => {
+    try {
+      await execFileAsync('git', ['clean', '-f', '-d', '--', ...filePaths], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
   ipcMain.handle('git:amend', async (_event, workDir, message) => {
     try {
       const args = message ? ['commit', '--amend', '-m', message] : ['commit', '--amend', '--no-edit'];

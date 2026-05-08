@@ -119,6 +119,7 @@ let _refreshGen = 0;
 const UNSTAGE_BTN = '<button class="changes-file-action changes-unstage" title="Unstage">&minus;</button>';
 const STAGE_BTN = '<button class="changes-file-action changes-stage" title="Stage">+</button>';
 const DISCARD_BTN = '<button class="changes-file-action changes-discard" title="Discard changes">↺</button>';
+const DELETE_BTN = '<button class="changes-file-action changes-delete-untracked" title="Delete file">✕</button>';
 const ACTION_PLACEHOLDER = '<span class="changes-action-placeholder"></span>';
 
 // ── Badge class lookup ──────────────────────────────────────────
@@ -141,8 +142,8 @@ const SECTION_DEFS = {
   },
   untracked: {
     label: 'Untracked',
-    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-untracked" title="Stage all untracked">+</button><span class="changes-action-placeholder"></span></span>',
-    entryFn: (f) => createChangeEntryEl(f, '?', 'changes-badge-q', { file: f, untracked: 'true' }, '<span class="changes-added">new</span>', STAGE_BTN, ACTION_PLACEHOLDER),
+    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-untracked" title="Stage all untracked">+</button><button class="changes-section-action-icon delete-all-untracked" title="Delete all untracked">✕</button></span>',
+    entryFn: (f) => createChangeEntryEl(f, '?', 'changes-badge-q', { file: f, untracked: 'true' }, '<span class="changes-added">new</span>', STAGE_BTN, DELETE_BTN),
     getPath: (f) => f,
   },
 };

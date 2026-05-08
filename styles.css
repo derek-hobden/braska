@@ -1615,6 +1615,8 @@
     .changes-section-action-icon.unstage-all:hover { color: #ff6e67; }
     .changes-section-action-icon.discard-all-unstaged { color: #888; }
     .changes-section-action-icon.discard-all-unstaged:hover { color: #f85149; }
+    .changes-section-action-icon.delete-all-untracked { color: #888; }
+    .changes-section-action-icon.delete-all-untracked:hover { color: #f85149; }
     .changes-action-placeholder { width: 18px; flex-shrink: 0; }
     .changes-file {
       display: flex;
@@ -1929,6 +1931,8 @@
     .changes-file-action.changes-unstage { color: #f85149; }
     .changes-file-action.changes-discard { color: #888; font-size: 13px; }
     .changes-file-action.changes-discard:hover { color: #f85149; }
+    .changes-file-action.changes-delete-untracked { color: #888; font-size: 11px; }
+    .changes-file-action.changes-delete-untracked:hover { color: #f85149; }
     .changes-commit-revert {
       margin-left: auto;
       padding: 1px 6px;
