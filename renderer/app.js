@@ -223,6 +223,12 @@ window.gitOps.onFetched(() => {
   }, 300);
 });
 
+// Git HEAD or worktree structure changed externally — reload sidebar.
+window.gitOps.onProjectsChanged(() => {
+  clearTimeout(watchState.projectsChangedDebounce);
+  watchState.projectsChangedDebounce = setTimeout(() => loadProjects(), 400);
+});
+
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references

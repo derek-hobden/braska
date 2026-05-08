@@ -57,6 +57,7 @@ export const watchState = {
   fsWatchDebounce: null,
   todoWatchDebounce: null,
   fetchRefreshDebounce: null,
+  projectsChangedDebounce: null,
 };
 
 // ── GitHub panel state ──────────────────────────────────────────
