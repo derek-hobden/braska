@@ -190,6 +190,10 @@ contextBridge.exposeInMainWorld('windowActions', {
   openExternal: (url) => ipcRenderer.invoke('window:open-external', url),
 });
 
+contextBridge.exposeInMainWorld('shellOps', {
+  openPath: (absPath) => ipcRenderer.invoke('shell:open-path', absPath),
+});
+
 // Drag-drop file path resolution.
 // File.path is deprecated in Electron 29+; webUtils.getPathForFile is the replacement.
 // File objects can't cross the context bridge, so we extract paths here in the preload

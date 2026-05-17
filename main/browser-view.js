@@ -57,7 +57,7 @@ function register({ ipcMain, app, BrowserWindow, shell }) {
     if (!view) return;
     try {
       const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) return;
+      if (!['http:', 'https:', 'file:'].includes(parsed.protocol)) return;
       view.webContents.loadURL(url);
     } catch { /* invalid URL, ignore */ }
   });
@@ -134,6 +134,15 @@ function register({ ipcMain, app, BrowserWindow, shell }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
+  });
+
+  ipcMain.handle('shell:open-path', async (_event, absPath) => {
+    if (typeof absPath !== 'string' || !absPath.startsWith('/')) {
+      return { ok: false, error: 'absolute path required' };
+    }
+    const err = await shell.openPath(absPath);
+    if (err) return { ok: false, error: err };
+    return { ok: true };
   });
 }
 
