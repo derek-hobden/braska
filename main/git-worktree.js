@@ -1,5 +1,5 @@
 const { pathExists, errMsg, execFileAsync } = require('./utils');
-const { getGitInfo } = require('./projects');
+const { getGitInfo, loadWorktreeIssues, saveWorktreeIssues } = require('./projects');
 
 function register({ ipcMain }) {
   ipcMain.handle('git:pull-latest-main', async (_event, workDir, options = {}) => {
@@ -177,13 +177,14 @@ function register({ ipcMain }) {
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 60000 };
 
-      // Resolve the branch for this worktree before removing it
-      let wtBranch = null;
-      if (deleteBranch) {
-        const info = await getGitInfo(workDir);
-        const wt = info.worktrees.find(w => w.path === worktreePath);
-        if (wt && wt.branch && !wt.isMain) wtBranch = wt.branch;
-      }
+      // Resolve the branch for this worktree before removing it. We always need
+      // it so we can also clean up the issue-link JSON entry (regardless of
+      // whether the user asked to delete the branch).
+      const info = await getGitInfo(workDir);
+      const wt = info.worktrees.find(w => w.path === worktreePath);
+      const removedBranch = wt && wt.branch && !wt.isMain && wt.branch !== '(detached)' ? wt.branch : null;
+      const wtBranch = deleteBranch ? removedBranch : null;
+      const mainWt = info.worktrees.find(w => w.isMain);
 
       const removeArgs = force
         ? ['worktree', 'remove', '--force', worktreePath]
@@ -198,12 +199,57 @@ function register({ ipcMain }) {
         }
       }
 
+      // Clean up the worktree↔issue link so the JSON file doesn't accumulate
+      // stale entries pointing at branches that no longer exist as worktrees.
+      if (removedBranch && mainWt) {
+        try {
+          const map = await loadWorktreeIssues(mainWt.path);
+          if (map[removedBranch]) {
+            delete map[removedBranch];
+            await saveWorktreeIssues(mainWt.path, map);
+          }
+        } catch { /* ignore — best-effort cleanup */ }
+      }
+
       return { ok: true };
     } catch (err) {
       const msg = (err.stderr || err.message || '').toString();
       const isDirty = msg.includes('modified') || msg.includes('untracked') || msg.includes('changes');
       const isLocked = msg.includes('locked');
       return { ok: false, error: msg.split('\n')[0], isDirty, isLocked };
+    }
+  });
+
+  ipcMain.handle('worktree:link-issue', async (_event, workDir, branch, issueNumber) => {
+    try {
+      if (typeof branch !== 'string' || !branch) return { ok: false, error: 'Missing branch' };
+      if (!Number.isInteger(issueNumber) || issueNumber <= 0) return { ok: false, error: 'Invalid issue number' };
+      const info = await getGitInfo(workDir);
+      const mainWt = info.worktrees.find(w => w.isMain);
+      if (!mainWt) return { ok: false, error: 'Main worktree not found' };
+      const map = await loadWorktreeIssues(mainWt.path);
+      map[branch] = { issue: issueNumber, createdAt: new Date().toISOString() };
+      await saveWorktreeIssues(mainWt.path, map);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('worktree:unlink-issue', async (_event, workDir, branch) => {
+    try {
+      if (typeof branch !== 'string' || !branch) return { ok: false, error: 'Missing branch' };
+      const info = await getGitInfo(workDir);
+      const mainWt = info.worktrees.find(w => w.isMain);
+      if (!mainWt) return { ok: false, error: 'Main worktree not found' };
+      const map = await loadWorktreeIssues(mainWt.path);
+      if (map[branch]) {
+        delete map[branch];
+        await saveWorktreeIssues(mainWt.path, map);
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
     }
   });
 

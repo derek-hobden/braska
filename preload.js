@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld('worktree', {
   pushMain: (workDir) => ipcRenderer.invoke('git:push-main', workDir),
   isGitHubRepo: (workDir) => ipcRenderer.invoke('git:is-github-repo', workDir),
   metrics: (projectPath) => ipcRenderer.invoke('git:worktree-metrics', projectPath),
+  linkIssue: (workDir, branch, issueNumber) => ipcRenderer.invoke('worktree:link-issue', workDir, branch, issueNumber),
+  unlinkIssue: (workDir, branch) => ipcRenderer.invoke('worktree:unlink-issue', workDir, branch),
 });
 
 contextBridge.exposeInMainWorld('gitDiff', {

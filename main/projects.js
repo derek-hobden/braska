@@ -15,6 +15,31 @@ async function saveProjects(app, projects) {
   await fsp.writeFile(getProjectsFile(app), JSON.stringify(projects, null, 2));
 }
 
+// Per-repo file linking worktree branches to GitHub issue numbers.
+// Lives in the main worktree's `.the-agency/`; keyed by branch name (paths differ per machine).
+function getWorktreeIssuesFile(mainWtPath) {
+  return path.join(mainWtPath, '.the-agency', 'worktree-issues.json');
+}
+
+// Pure read — never mkdir here. getGitInfo() is called on every projects.list()
+// and the main-process fs.watch is recursive; any mkdir in the hot path can trigger
+// a refresh loop (same class of bug as the 2026-03-29 tickets-panel incident).
+async function loadWorktreeIssues(mainWtPath) {
+  try {
+    const raw = await fsp.readFile(getWorktreeIssuesFile(mainWtPath), 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+async function saveWorktreeIssues(mainWtPath, map) {
+  const file = getWorktreeIssuesFile(mainWtPath);
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  await fsp.writeFile(file, JSON.stringify(map, null, 2));
+}
+
+const ISSUE_BRANCH_RE = /^gh-issue-(\d+)$/;
+
 async function getGitInfo(projectPath) {
   try {
     if (!await pathExists(path.join(projectPath, '.git'))) return { isGit: false, worktrees: [] };
@@ -44,6 +69,23 @@ async function getGitInfo(projectPath) {
       });
       isGitHub = /github\.com/i.test(remoteUrl);
     } catch { /* no origin remote */ }
+
+    // Merge GitHub issue links into each worktree. Explicit JSON entries win;
+    // otherwise fall back to a regex on the branch name so CLI-created worktrees
+    // (e.g. `git worktree add … gh-issue-99`) still get the icon.
+    const mainWt = worktrees.find(w => w.isMain);
+    const linkMap = mainWt ? await loadWorktreeIssues(mainWt.path) : {};
+    for (const wt of worktrees) {
+      if (!wt.branch) continue;
+      const explicit = linkMap[wt.branch];
+      if (explicit && Number.isInteger(explicit.issue)) {
+        wt.githubIssue = explicit.issue;
+        continue;
+      }
+      const m = wt.branch.match(ISSUE_BRANCH_RE);
+      if (m) wt.githubIssue = parseInt(m[1], 10);
+    }
+
     return { isGit: true, isGitHub, worktrees };
   } catch {
     return { isGit: false, isGitHub: false, worktrees: [] };
@@ -100,4 +142,4 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
   });
 }
 
-module.exports = { register, getGitInfo, loadProjects };
+module.exports = { register, getGitInfo, loadProjects, loadWorktreeIssues, saveWorktreeIssues };
