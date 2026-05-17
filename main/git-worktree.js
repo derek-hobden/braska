@@ -150,12 +150,14 @@ function register({ ipcMain }) {
   });
 
   ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, createNew) => {
+    const t0 = Date.now();
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
       const addArgs = createNew
         ? ['worktree', 'add', '-b', branch, worktreePath]
         : ['worktree', 'add', worktreePath, branch];
       await execFileAsync('git', addArgs, opts);
+      console.log(`[diag] git:worktree-add ${branch} took ${Date.now() - t0}ms`);
       return { ok: true };
     } catch (err) {
       if (err.stderr && err.stderr.includes('already exists')) {
@@ -164,6 +166,7 @@ function register({ ipcMain }) {
             await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: workDir, encoding: 'utf-8', timeout: 60000 });
           }
           await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
+          console.log(`[diag] git:worktree-add ${branch} (retry) took ${Date.now() - t0}ms`);
           return { ok: true };
         } catch (retryErr) {
           return { ok: false, error: errMsg(retryErr) };

@@ -17,6 +17,7 @@ import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
+import { initDiagnosticsPanel } from './diagnostics-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -249,6 +250,7 @@ initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });
+initDiagnosticsPanel();
 
 // ── Tab type picker modal handlers ──
 

@@ -44,4 +44,6 @@ function watchProjects(projects, BrowserWindow) {
   }
 }
 
-module.exports = { watchProjects };
+function getWatcherCount() { return watchers.length; }
+
+module.exports = { watchProjects, getWatcherCount };

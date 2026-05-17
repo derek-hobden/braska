@@ -218,6 +218,11 @@ document.addEventListener('drop', (e) => {
   if (paths.length > 0) lastDroppedPaths = paths;
 }, true); // capture phase — runs before renderer bubble-phase handlers
 
+// Diagnostics — read-only counters for gh issue #30 (CPU/RAM investigation).
+contextBridge.exposeInMainWorld('diagnostics', {
+  snapshot: () => ipcRenderer.invoke('diagnostics:snapshot'),
+});
+
 contextBridge.exposeInMainWorld('dragDrop', {
   getLastDroppedPaths: () => {
     const paths = [...lastDroppedPaths];

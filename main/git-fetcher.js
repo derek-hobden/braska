@@ -70,4 +70,6 @@ function register({ app, BrowserWindow }) {
   app.on('browser-window-focus', () => fetchAllKnownProjects(app, BrowserWindow));
 }
 
-module.exports = { register, fetchProject, fetchAllKnownProjects };
+function getFetcherStateSize() { return state.size; }
+
+module.exports = { register, fetchProject, fetchAllKnownProjects, getFetcherStateSize };
