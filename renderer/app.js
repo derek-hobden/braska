@@ -23,6 +23,19 @@ import { initDiagnosticsPanel } from './diagnostics-panel.js';
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => e.preventDefault());
 
+// ── Pause always-on UI work when the window is hidden (gh issue #30) ──
+// Toggles body.app-hidden (CSS pauses animations) and freezes xterm cursor blink
+// on every live terminal tab. Restored on visibility.
+document.addEventListener('visibilitychange', () => {
+  const hidden = document.hidden;
+  document.body.classList.toggle('app-hidden', hidden);
+  for (const tab of tabState.tabs.values()) {
+    if (tab.type === 'terminal' && tab.term) {
+      try { tab.term.options.cursorBlink = !hidden; } catch { /* old xterm shape */ }
+    }
+  }
+});
+
 // ── Version info ──
 const info = document.getElementById('info');
 info.innerText = `Electron ${window.versions.electron()} | Chrome ${window.versions.chrome()} | Node ${window.versions.node()}`;
