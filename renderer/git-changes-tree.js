@@ -19,10 +19,13 @@ export function initTreeToggle(gitState, getActiveWorkDir, refreshChanges) {
   });
 }
 
-/** Render file items as a folder tree into the container. */
-export function renderTreeEntries(container, items, entryFn, getPath) {
+/** Render file items as a folder tree into the container.
+ *  opts.folderActionsHtml — HTML markup inserted into each folder header (right side).
+ *  Folder action buttons read the descendant file list from data-folder-files
+ *  (JSON-encoded) on the .changes-tree-folder element. */
+export function renderTreeEntries(container, items, entryFn, getPath, opts = {}) {
   const tree = buildTree(items, getPath);
-  renderNode(container, tree, entryFn, getPath, 0);
+  renderNode(container, tree, entryFn, getPath, 0, opts);
 }
 
 function buildTree(items, getPath) {
@@ -45,7 +48,14 @@ function countFiles(node) {
   return n;
 }
 
-function renderNode(container, node, entryFn, getPath, depth) {
+function collectFiles(node, getPath) {
+  const out = [];
+  for (const item of node.items) out.push(getPath(item));
+  for (const child of node.dirs.values()) out.push(...collectFiles(child, getPath));
+  return out;
+}
+
+function renderNode(container, node, entryFn, getPath, depth, opts) {
   const sortedDirs = [...node.dirs.entries()].sort(([a], [b]) => a.localeCompare(b));
 
   for (const [name, child] of sortedDirs) {
@@ -64,12 +74,23 @@ function renderNode(container, node, entryFn, getPath, depth) {
     const headerEl = document.createElement('div');
     headerEl.className = 'changes-tree-folder';
     headerEl.style.paddingLeft = (12 + depth * 16) + 'px';
-    headerEl.innerHTML = `<span class="ft-icon" style="color:#e8c882">${SVG_FOLDER}</span><span class="changes-tree-folder-name">${escHtml(label)}</span><span class="changes-tree-folder-count">${countFiles(current)}</span>`;
+    const actionsHtml = opts.folderActionsHtml
+      ? `<span class="changes-tree-folder-actions">${opts.folderActionsHtml}</span>`
+      : '';
+    headerEl.innerHTML = `<span class="ft-icon" style="color:#e8c882">${SVG_FOLDER}</span><span class="changes-tree-folder-name">${escHtml(label)}</span><span class="changes-tree-folder-count">${countFiles(current)}</span>${actionsHtml}`;
+
+    // Attach descendant file list via dataset (auto-escaped, safe for any filename)
+    if (opts.folderActionsHtml) {
+      headerEl.dataset.folderFiles = JSON.stringify(collectFiles(current, getPath));
+      headerEl.dataset.folderLabel = label;
+    }
 
     const childrenEl = document.createElement('div');
     childrenEl.className = 'changes-tree-children';
 
     headerEl.addEventListener('click', (e) => {
+      // Don't toggle expand/collapse when the user clicked a folder action button.
+      if (e.target.closest('.changes-tree-folder-actions')) return;
       e.stopPropagation();
       groupEl.classList.toggle('expanded');
     });
@@ -78,7 +99,7 @@ function renderNode(container, node, entryFn, getPath, depth) {
     groupEl.appendChild(childrenEl);
     container.appendChild(groupEl);
 
-    renderNode(childrenEl, current, entryFn, getPath, depth + 1);
+    renderNode(childrenEl, current, entryFn, getPath, depth + 1, opts);
   }
 
   // Files at this level

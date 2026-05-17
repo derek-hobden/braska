@@ -96,6 +96,50 @@ export function initChangesActions(deps) {
       return;
     }
 
+    // Folder-level actions (tree view). Each folder header carries the descendant
+    // file list as JSON on data-folder-files; the action button class identifies the op.
+    const folderActionBtn = e.target.closest('.changes-folder-action');
+    if (folderActionBtn) {
+      e.stopPropagation();
+      if (!activeWorkDir) return;
+      const folderEl = folderActionBtn.closest('.changes-tree-folder');
+      if (!folderEl) return;
+      let files = [];
+      try { files = JSON.parse(folderEl.dataset.folderFiles || '[]'); } catch { files = []; }
+      if (!files.length) return;
+      const label = folderEl.dataset.folderLabel || '';
+      const count = files.length;
+      const noun = count === 1 ? 'file' : 'files';
+
+      if (folderActionBtn.classList.contains('changes-folder-stage')) {
+        const result = await window.gitOps.stage(activeWorkDir, files);
+        if (result.ok) { _showChangesStatus(`Staged ${count} ${noun} in ${label}`, 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+        else _showChangesStatus('Stage failed', 'error');
+        return;
+      }
+      if (folderActionBtn.classList.contains('changes-folder-unstage')) {
+        const result = await window.gitOps.unstage(activeWorkDir, files);
+        if (result.ok) { _showChangesStatus(`Unstaged ${count} ${noun} in ${label}`, 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+        else _showChangesStatus('Unstage failed', 'error');
+        return;
+      }
+      if (folderActionBtn.classList.contains('changes-folder-discard')) {
+        if (!confirm(`Discard unstaged changes to ${count} ${noun} in ${label}? This cannot be undone.`)) return;
+        const result = await window.gitOps.discard(activeWorkDir, files);
+        if (result.ok) { _showChangesStatus(`Discarded ${count} ${noun} in ${label}`, 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+        else _showChangesStatus('Discard failed: ' + (result.error || '').split('\n')[0], 'error');
+        return;
+      }
+      if (folderActionBtn.classList.contains('changes-folder-delete')) {
+        if (!confirm(`Permanently delete all ${count} ${noun} in ${label}? This cannot be undone.`)) return;
+        const result = await window.gitOps.deleteUntracked(activeWorkDir, files);
+        if (result.ok) { _showChangesStatus(`Deleted ${count} ${noun} in ${label}`, 'success'); _refreshChanges(activeWorkDir); _refreshWorktreeMetrics(); }
+        else _showChangesStatus('Delete failed: ' + (result.error || '').split('\n')[0], 'error');
+        return;
+      }
+      return;
+    }
+
     // Unstage all
     if (e.target.closest('.unstage-all')) {
       if (activeWorkDir) {

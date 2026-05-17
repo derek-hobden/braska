@@ -122,6 +122,12 @@ const DISCARD_BTN = '<button class="changes-file-action changes-discard" title="
 const DELETE_BTN = '<button class="changes-file-action changes-delete-untracked" title="Delete file">✕</button>';
 const ACTION_PLACEHOLDER = '<span class="changes-action-placeholder"></span>';
 
+// ── Folder-level action button HTML (tree view only) ────────────
+const FOLDER_UNSTAGE = '<button class="changes-folder-action changes-folder-unstage" title="Unstage folder">&minus;</button>';
+const FOLDER_STAGE = '<button class="changes-folder-action changes-folder-stage" title="Stage folder">+</button>';
+const FOLDER_DISCARD = '<button class="changes-folder-action changes-folder-discard" title="Discard folder">↺</button>';
+const FOLDER_DELETE = '<button class="changes-folder-action changes-folder-delete" title="Delete folder">✕</button>';
+
 // ── Badge class lookup ──────────────────────────────────────────
 const BADGE_CLASS = { M: 'changes-badge-m', A: 'changes-badge-a', D: 'changes-badge-d', R: 'changes-badge-r', C: 'changes-badge-c', U: 'changes-badge-u', '?': 'changes-badge-q' };
 const badgeCls = (status) => BADGE_CLASS[status] || 'changes-badge-m';
@@ -133,18 +139,21 @@ const SECTION_DEFS = {
     actions: '<span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'true' }, statSpan(f.added, f.deleted), UNSTAGE_BTN, ACTION_PLACEHOLDER),
     getPath: (f) => f.file,
+    folderActionsHtml: FOLDER_UNSTAGE,
   },
   unstaged: {
     label: 'Changes',
     actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-unstaged" title="Stage all changes">+</button><button class="changes-section-action-icon discard-all-unstaged" title="Discard all changes">↺</button></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'false' }, statSpan(f.added, f.deleted), STAGE_BTN, DISCARD_BTN),
     getPath: (f) => f.file,
+    folderActionsHtml: FOLDER_STAGE + FOLDER_DISCARD,
   },
   untracked: {
     label: 'Untracked',
     actions: '<span class="changes-header-actions"><button class="changes-section-action-icon stage-all-untracked" title="Stage all untracked">+</button><button class="changes-section-action-icon delete-all-untracked" title="Delete all untracked">✕</button></span>',
     entryFn: (f) => createChangeEntryEl(f, '?', 'changes-badge-q', { file: f, untracked: 'true' }, '<span class="changes-added">new</span>', STAGE_BTN, DELETE_BTN),
     getPath: (f) => f,
+    folderActionsHtml: FOLDER_STAGE + FOLDER_DELETE,
   },
 };
 
@@ -157,7 +166,7 @@ function createSectionEl(sec) {
     const entries = document.createElement('div');
     entries.className = 'changes-section-entries';
     if (gitState.changesTreeView) {
-      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath);
+      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath, { folderActionsHtml: def.folderActionsHtml });
     } else {
       for (const item of sec.items) entries.appendChild(def.entryFn(item));
     }
@@ -194,7 +203,7 @@ function updateSectionEl(el, sec) {
     const entries = el.querySelector('.changes-section-entries');
     if (gitState.changesTreeView) {
       entries.innerHTML = '';
-      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath);
+      renderTreeEntries(entries, sec.items, def.entryFn, def.getPath, { folderActionsHtml: def.folderActionsHtml });
     } else {
       if (entries.querySelector('.changes-tree-group')) entries.innerHTML = '';
       reconcileChildren(entries, sec.items, 'file',
