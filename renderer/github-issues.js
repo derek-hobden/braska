@@ -1,24 +1,35 @@
 // ── GitHub Issues — list, detail, create + edit forms ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo, ghSafeColor } from './utils.js';
+import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir } from './utils.js';
 import { ghResetListeners, ghLabelHtml, ghStateBadge } from './github-panel.js';
 import { showGitHubIssueForm } from './github-issues-create.js';
 
-// ── Injected dep ───────────────────────────────────────────────
+// ── Injected deps ──────────────────────────────────────────────
 let _switchRightPanelTab = null;
+let _loadProjects = null;
+let _openWorkDir = null;
 
 // In-progress edit for a single issue. Keyed by issueNumber so refreshes
 // targeting the same issue re-enter edit mode rather than dropping the draft.
 let editDraft = null;
 
-export function initGitHubIssues({ switchRightPanelTab }) {
+export function initGitHubIssues({ switchRightPanelTab, loadProjects, openWorkDir }) {
   _switchRightPanelTab = switchRightPanelTab;
+  _loadProjects = loadProjects;
+  _openWorkDir = openWorkDir;
 }
 
 // ── Issue list ─────────────────────────────────────────────────
 
 export async function refreshGitHubIssues(workDir) {
+  // When openIssueInPanel routed us here with a target issue, short-circuit to
+  // the detail view so the list fetch doesn't race with the detail fetch.
+  if (ghState.directIssueNumber) {
+    const n = ghState.directIssueNumber;
+    ghState.directIssueNumber = null;
+    return showGitHubIssueDetail(workDir, n);
+  }
   const content = document.getElementById('gh-content');
   content.innerHTML = '<div class="gh-empty">Loading issues...</div>';
 
@@ -76,9 +87,10 @@ export async function showGitHubIssueDetail(workDir, number) {
   const content = document.getElementById('gh-content');
   content.innerHTML = '<div class="gh-empty">Loading issue...</div>';
 
-  const [result, todosResult] = await Promise.all([
+  const [result, todosResult, projectsList] = await Promise.all([
     window.github.issueView(workDir, number),
     window.todo.list(workDir),
+    window.projects.list(),
   ]);
   if (!result.ok) {
     content.innerHTML = `<div class="gh-detail"><button class="gh-detail-back">&larr; Back</button><div class="gh-status-msg error">${escHtml(result.error)}</div></div>`;
@@ -121,9 +133,23 @@ export async function showGitHubIssueDetail(workDir, number) {
     html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
   }
 
+  // Linked Braska worktree (by branch). projects.list() returns each project
+  // with worktrees enriched by getGitInfo, which sets `githubIssue` from the
+  // repo-local JSON or the gh-issue-N branch-name regex fallback.
+  const projectRoot = getProjectRootForWorkDir(workDir);
+  const project = projectRoot ? (projectsList || []).find(p => p.path === projectRoot) : null;
+  const linkedWt = project ? (project.worktrees || []).find(w => w.githubIssue === number) : null;
+  html += '<div class="gh-link-section">';
+  if (projectRoot) {
+    if (linkedWt) {
+      html += `<div class="gh-link-row">Linked worktree: <span class="gh-link-wt-branch">${escHtml(linkedWt.branch || '')}</span> <button class="gh-btn-primary" id="gh-focus-worktree-btn" style="padding:1px 8px;font-size:0.68rem">Focus worktree</button></div>`;
+    } else {
+      html += `<div class="gh-link-row"><button class="gh-action-btn" id="gh-create-worktree-btn">Work on this in a new worktree</button><span id="gh-create-worktree-status" style="margin-left:8px;color:#777;font-size:0.7rem"></span></div>`;
+    }
+  }
+
   // Linked Braska todo
   const linkedTodo = (todosResult || []).find(t => t.githubIssue === number);
-  html += '<div class="gh-link-section">';
   if (linkedTodo) {
     html += `<div class="gh-link-row">Linked to Braska todo: <a data-gh-goto-todo="${escHtml(linkedTodo.path)}">#${escHtml(linkedTodo.filename.match(/^(\d+)/)?.[1] || '')} ${escHtml(linkedTodo.title)}</a> <button class="gh-btn-cancel" data-gh-unlink="${escHtml(linkedTodo.path)}" style="padding:1px 6px;font-size:0.68rem">Unlink</button></div>`;
   } else {
@@ -173,6 +199,18 @@ export async function showGitHubIssueDetail(workDir, number) {
     editDraft = null;
     refreshGitHubIssues(workDir);
   });
+
+  // Worktree focus / create handlers
+  const focusWtBtn = document.getElementById('gh-focus-worktree-btn');
+  if (focusWtBtn && linkedWt) {
+    focusWtBtn.addEventListener('click', () => {
+      if (_openWorkDir) _openWorkDir(linkedWt.path);
+    });
+  }
+  const createWtBtn = document.getElementById('gh-create-worktree-btn');
+  if (createWtBtn && projectRoot && !linkedWt) {
+    createWtBtn.addEventListener('click', () => createWorktreeFromIssue(workDir, number, projectRoot, createWtBtn));
+  }
 
   // Link/unlink handlers
   const linkBtn = document.getElementById('gh-link-todo-btn');
@@ -271,6 +309,38 @@ export async function showGitHubIssueDetail(workDir, number) {
     const saveBtn = document.getElementById('gh-issue-save-btn');
     if (saveBtn) saveBtn.addEventListener('click', () => saveIssueEdit(workDir, issue));
   }
+}
+
+// ── Create worktree from issue ─────────────────────────────────
+
+async function createWorktreeFromIssue(workDir, issueNumber, projectRoot, btn) {
+  const branchName = `gh-issue-${issueNumber}`;
+  const parentDir = projectRoot.replace(/\/[^/]+$/, '');
+  const projectName = projectRoot.split('/').pop();
+  const wtPath = `${parentDir}/${projectName}.worktrees/${branchName}`;
+  const statusEl = document.getElementById('gh-create-worktree-status');
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Creating worktree...';
+  if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#777'; }
+
+  const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
+  if (!result.ok) {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    if (statusEl) { statusEl.style.color = '#c62828'; statusEl.textContent = result.error || 'Failed to create worktree.'; }
+    return;
+  }
+
+  // Record the explicit link (the regex fallback would catch this branch name
+  // anyway, but the JSON entry also records createdAt and is what user-renamed
+  // branches would rely on).
+  try { await window.worktree.linkIssue(projectRoot, branchName, issueNumber); }
+  catch { /* best-effort — regex fallback still covers gh-issue-N */ }
+
+  if (_loadProjects) await _loadProjects();
+  if (_openWorkDir) _openWorkDir(wtPath);
 }
 
 // ── Labels region (read + edit modes) ──────────────────────────

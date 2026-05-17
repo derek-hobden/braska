@@ -210,6 +210,20 @@
       opacity: 1;
       filter: drop-shadow(0 0 3px rgba(111, 173, 207, 0.4));
     }
+    /* Linked-to-issue worktree row: replace dim branch icon with bright green
+       octicon, full opacity at rest, pointer cursor — it's a click target.
+       Hover bumps the drop-shadow so users see it's interactive. */
+    .wt-icon.wt-icon-issue {
+      color: #3fb950;
+      opacity: 1;
+      cursor: pointer;
+    }
+    .wt-icon.wt-icon-issue:hover {
+      filter: drop-shadow(0 0 4px rgba(63, 185, 80, 0.55));
+    }
+    .worktree-item.active .wt-icon.wt-icon-issue {
+      filter: drop-shadow(0 0 3px rgba(63, 185, 80, 0.45));
+    }
 
     .worktree-item .wt-lock-icon {
       color: #888;

@@ -229,10 +229,21 @@ window.gitOps.onProjectsChanged(() => {
   watchState.projectsChangedDebounce = setTimeout(() => loadProjects(), 400);
 });
 
+// ── Open a linked GitHub issue without unselecting the worktree ──
+// Used by sidebar.js when the user clicks the gh-issue icon on a worktree row.
+// Keeps the worktree active + reveals its tabs (via openWorkDir), then routes
+// the right panel into the GitHub → Issues section straight to the detail view.
+function openIssueInPanel(workDir, issueNumber) {
+  openWorkDir(workDir);
+  ghState.section = 'issues';
+  ghState.directIssueNumber = issueNumber;
+  switchRightPanelTab('github');
+}
+
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references
-initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope });
+initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
@@ -244,7 +255,7 @@ initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOr
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
 initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
-initGitHubPanel({ startTask, switchRightPanelTab });
+initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
