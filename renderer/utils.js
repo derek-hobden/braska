@@ -329,6 +329,18 @@ export function divergenceBadges(m, cls = '') {
   return { html: badges.join(''), title: tips.join(' \u2014 ') };
 }
 
+/** Resolve the git project root for any worktree path via the sidebar DOM. */
+export function getProjectRootForWorkDir(workDir) {
+  const wtEl = document.querySelector(`.worktree-item[data-path="${CSS.escape(workDir)}"]`);
+  if (wtEl) {
+    const entry = wtEl.closest('.project-entry');
+    return entry?.dataset.path || null;
+  }
+  const projEl = document.querySelector(`.project-entry[data-path="${CSS.escape(workDir)}"]`);
+  if (projEl && projEl.classList.contains('is-git')) return workDir;
+  return null;
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';
