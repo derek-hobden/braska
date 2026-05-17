@@ -1,3 +1,5 @@
 node_modules/
 .braska/workspace/
 workspace/
+work-in-progress.html
+.claude/state/
