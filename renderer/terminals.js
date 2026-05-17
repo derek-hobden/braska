@@ -240,7 +240,7 @@ function normalizeUrl(input) {
   return (isLocal ? 'http://' : 'https://') + input;
 }
 
-export async function startBrowser(workDir, initialUrl = null) {
+export async function startBrowser(workDir, initialUrl = null, sourceFile = null) {
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
@@ -330,7 +330,8 @@ export async function startBrowser(workDir, initialUrl = null) {
 
   setupBrowserViewVisibility();
 
-  tabState.tabs.set(id, { type: 'browser', navInput, viewport, resizeObs, pane, tabEl: null, label: 'Browser', workDir });
+  const initialLabel = sourceFile ? sourceFile.split('/').pop() : 'Browser';
+  tabState.tabs.set(id, { type: 'browser', navInput, viewport, resizeObs, pane, tabEl: null, label: initialLabel, workDir, sourceFile });
   addTabToOrder(id, workDir);
   tabState.activeTabId = id;
   renderTabBar();

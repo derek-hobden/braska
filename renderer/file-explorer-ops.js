@@ -11,6 +11,7 @@ let _refreshFileTree = null;
 let _ftFocusItem = null;
 let _startTask = null;
 let _switchRightPanelTab = null;
+let _openFileEditor = null;
 
 export function initFileExplorerOps(deps) {
   _activeWorkDir = deps.activeWorkDir;
@@ -20,6 +21,7 @@ export function initFileExplorerOps(deps) {
   _ftFocusItem = deps.ftFocusItem;
   _startTask = deps.startTask;
   _switchRightPanelTab = deps.switchRightPanelTab;
+  _openFileEditor = deps.openFileEditor;
   _initContextMenuActions();
   _initRootContextAndDragDrop();
   _initKeyboardNav();
@@ -169,7 +171,16 @@ function _initContextMenuActions() {
     const action = item.dataset.action;
     const relPath = explorerState.ftCtxTarget?.dataset.path || '';
 
-    if (action === 'new-file') {
+    if (action === 'open-in-editor') {
+      if (relPath && _activeWorkDir()) {
+        const name = relPath.split('/').pop();
+        _openFileEditor?.(relPath, name);
+      }
+    } else if (action === 'open-in-browser') {
+      if (relPath && _activeWorkDir()) {
+        window.shellOps.openPath(_activeWorkDir() + '/' + relPath);
+      }
+    } else if (action === 'new-file') {
       await startInlineCreate(explorerState.ftCtxTarget, false);
     } else if (action === 'new-folder') {
       await startInlineCreate(explorerState.ftCtxTarget, true);

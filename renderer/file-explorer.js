@@ -22,6 +22,28 @@ let _refreshChanges;
 let _startTask;
 let _refreshTodos;
 let _refreshGitHub;
+let _startBrowser;
+let _switchTab;
+
+function isHtmlPath(relPath) {
+  return /\.html?$/i.test(relPath);
+}
+
+function pathToFileUrl(absPath) {
+  return 'file://' + absPath.split('/').map(encodeURIComponent).join('/');
+}
+
+function openHtmlInBrowserTab(relPath) {
+  const workDir = activeWorkDir();
+  if (!workDir) return;
+  for (const [id, tab] of tabState.tabs) {
+    if (tab.type === 'browser' && tab.sourceFile === relPath && tab.workDir === workDir) {
+      _switchTab?.(id);
+      return;
+    }
+  }
+  _startBrowser?.(workDir, pathToFileUrl(workDir + '/' + relPath), relPath);
+}
 
 // ── Helper: access active work dir from tabState ──
 function activeWorkDir() { return tabState.activeWorkDir; }
@@ -234,7 +256,11 @@ async function renderFileTreeLevel(workDir, relDir, container, depth) {
       entryEl.dataset.path = entry.path;
       const fi = fileIcon(entry.name);
       itemEl.innerHTML = `<span class="ft-icon" style="color:${fi.color}">${fi.svg}</span><span class="ft-name">${safeName}</span>`;
-      itemEl.addEventListener('click', () => { ftFocusItem(entryEl); _openFileEditor(entry.path, entry.name); });
+      itemEl.addEventListener('click', () => {
+        ftFocusItem(entryEl);
+        if (isHtmlPath(entry.path)) openHtmlInBrowserTab(entry.path);
+        else _openFileEditor(entry.path, entry.name);
+      });
       entryEl.appendChild(itemEl);
     }
     // Right-click context menu for all entries
@@ -243,6 +269,7 @@ async function renderFileTreeLevel(workDir, relDir, container, depth) {
       ftFocusItem(entryEl);
       explorerState.ftCtxTarget = entryEl;
       explorerState.ftCtxIsDir = entry.isDirectory;
+      ftContextMenu.classList.toggle('is-html', !entry.isDirectory && isHtmlPath(entry.path));
       ftContextMenu.style.left = e.clientX + 'px';
       ftContextMenu.style.top = e.clientY + 'px';
       ftContextMenu.classList.add('active');
@@ -359,11 +386,13 @@ function initResizablePanels() {
 
 // ── Init: wire up all event listeners ───────────────────────────
 
-export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos: injectedRefreshTodos, refreshGitHub: injectedRefreshGitHub }) {
+export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, startBrowser, switchTab, refreshTodos: injectedRefreshTodos, refreshGitHub: injectedRefreshGitHub }) {
   _openFileEditor = openFileEditor;
   _openDiffTab = openDiffTab;
   _refreshChanges = refreshChanges;
   _startTask = startTask;
+  _startBrowser = startBrowser;
+  _switchTab = switchTab;
   _refreshTodos = injectedRefreshTodos;
   _refreshGitHub = injectedRefreshGitHub;
 
@@ -403,6 +432,7 @@ export function initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, 
     refreshFileTree,
     ftFocusItem,
     startTask,
+    openFileEditor,
     switchRightPanelTab: { toggleSidebar, toggleFiletree, switchRightPanelTab },
   });
 

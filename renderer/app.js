@@ -239,7 +239,7 @@ initSettings();
 initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos, updateTodoFocus, refreshRightPanel });
 initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
-initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, refreshTodos, refreshGitHub });
+initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, startBrowser, switchTab, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
