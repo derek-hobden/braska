@@ -2983,7 +2983,7 @@
       border-radius: 50%;
       background: #4a9eff;
       position: absolute;
-      right: 12px;
+      left: 48px;
       top: 50%;
       transform: translateY(-50%);
     }
@@ -2994,7 +2994,7 @@
       border-radius: 50%;
       background: #4a9eff;
       position: absolute;
-      right: 40px;
+      left: 23px;
       top: 50%;
       transform: translateY(-50%);
     }
@@ -3005,7 +3005,7 @@
       border-radius: 50%;
       background: #3fb950;
       position: absolute;
-      right: 12px;
+      left: 48px;
       top: 50%;
       transform: translateY(-50%);
       animation: pulse-busy 1.5s ease-in-out infinite;
@@ -3017,11 +3017,16 @@
       border-radius: 50%;
       background: #3fb950;
       position: absolute;
-      right: 40px;
+      left: 23px;
       top: 50%;
       transform: translateY(-50%);
       animation: pulse-busy 1.5s ease-in-out infinite;
     }
+    /* Hide the underlying icon so the colored dot visually replaces it (visibility, not display, to avoid horizontal shift). */
+    .worktree-item.has-busy .wt-icon,
+    .worktree-item.has-notification .wt-icon { visibility: hidden; }
+    .project-item.has-busy .expand-icon,
+    .project-item.has-notification .expand-icon { visibility: hidden; }
     #notification-bell {
       position: relative;
       background: none;
