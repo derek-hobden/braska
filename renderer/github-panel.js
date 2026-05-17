@@ -132,16 +132,29 @@ export { showGitHubIssueDetail };
 
 // ── CI section ──────────────────────────────────────────────────
 
-async function refreshGitHubCI(workDir) {
+// Stringified fingerprint of the last-rendered CI run set. Auto-refresh skips
+// the innerHTML rebuild when this is unchanged. gh issue #30.
+let ciLastFingerprint = null;
+
+function ciFingerprint(branch, runs) {
+  return branch + '|' + runs.map(r => `${r.databaseId}:${r.status}:${r.conclusion}`).join(',');
+}
+
+async function refreshGitHubCI(workDir, opts = {}) {
   const content = document.getElementById('gh-content');
-  content.innerHTML = '<div class="gh-empty">Loading CI runs...</div>';
+  if (!opts.silent) content.innerHTML = '<div class="gh-empty">Loading CI runs...</div>';
 
   const branch = await window.gitDiff.currentBranch(workDir);
   const result = await window.github.runList(workDir, branch);
   if (!result.ok) {
     content.innerHTML = `<div class="gh-status-msg error">${escHtml(result.error)}</div>`;
+    ciLastFingerprint = null;
     return;
   }
+
+  const fingerprint = ciFingerprint(branch, result.data);
+  if (opts.silent && fingerprint === ciLastFingerprint) return; // nothing changed
+  ciLastFingerprint = fingerprint;
 
   let html = `<div class="gh-toolbar"><span style="color:#888;font-size:0.75rem">Branch: ${escHtml(branch || 'unknown')}</span><button class="gh-action-btn" id="gh-ci-refresh-btn">Refresh</button></div>`;
 
@@ -185,7 +198,7 @@ async function refreshGitHubCI(workDir) {
   ghState.ciInterval = setInterval(() => {
     if (document.hidden) return;
     if (ghState.viewActive && ghState.section === 'ci' && tabState.activeWorkDir) {
-      refreshGitHubCI(tabState.activeWorkDir);
+      refreshGitHubCI(tabState.activeWorkDir, { silent: true });
     } else {
       clearInterval(ghState.ciInterval);
       ghState.ciInterval = null;

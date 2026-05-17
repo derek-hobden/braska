@@ -17,10 +17,24 @@ import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
+import { initDiagnosticsPanel } from './diagnostics-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => e.preventDefault());
+
+// ── Pause always-on UI work when the window is hidden (gh issue #30) ──
+// Toggles body.app-hidden (CSS pauses animations) and freezes xterm cursor blink
+// on every live terminal tab. Restored on visibility.
+document.addEventListener('visibilitychange', () => {
+  const hidden = document.hidden;
+  document.body.classList.toggle('app-hidden', hidden);
+  for (const tab of tabState.tabs.values()) {
+    if (tab.type === 'terminal' && tab.term) {
+      try { tab.term.options.cursorBlink = !hidden; } catch { /* old xterm shape */ }
+    }
+  }
+});
 
 // ── Version info ──
 const info = document.getElementById('info');
@@ -249,6 +263,7 @@ initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });
+initDiagnosticsPanel();
 
 // ── Tab type picker modal handlers ──
 

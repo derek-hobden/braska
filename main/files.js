@@ -31,11 +31,19 @@ function register({ ipcMain, BrowserWindow, shell }) {
     }
   });
 
+  // Generation token — every filetree:watch call bumps it. The deferred git-dir
+  // watcher created inside the resolveGitDir().then() block checks its captured
+  // token against this on resolution; if a newer watch has landed, the deferred
+  // watcher is closed immediately instead of being installed. Prevents a watcher
+  // leak when the user rapidly switches worktrees. gh issue #30.
+  let watchGen = 0;
+
   ipcMain.on('filetree:watch', (event, dirPath) => {
     const prev = getActiveWatcher();
     if (prev) { prev.close(); setActiveWatcher(null); }
     const prevGit = getActiveGitDirWatcher();
     if (prevGit) { prevGit.close(); setActiveGitDirWatcher(null); }
+    const myGen = ++watchGen;
     if (!dirPath) return;
     try {
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -48,6 +56,7 @@ function register({ ipcMain, BrowserWindow, shell }) {
       // In worktrees, .git is a file pointing to the real git dir (e.g. main/.git/worktrees/<name>).
       // Index changes happen there, outside fs.watch's reach — watch it separately.
       resolveGitDir(dirPath).then(gitDir => {
+        if (myGen !== watchGen) return; // stale — newer watch has superseded us
         if (!gitDir || gitDir === path.join(dirPath, '.git')) return;
         try {
           const gitWatcher = fs.watch(gitDir, { recursive: true }, () => {
@@ -61,6 +70,7 @@ function register({ ipcMain, BrowserWindow, shell }) {
   });
 
   ipcMain.on('filetree:unwatch', () => {
+    ++watchGen; // invalidate any in-flight deferred git-dir watcher creation
     const prev = getActiveWatcher();
     if (prev) { prev.close(); setActiveWatcher(null); }
     const prevGit = getActiveGitDirWatcher();

@@ -173,6 +173,7 @@ app.whenReady().then(async () => {
   require('./git-fetcher').register(deps);
   require('./github').register(deps);
   require('./browser-view').register(deps);
+  require('./diagnostics').register(deps);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
