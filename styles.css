@@ -1707,6 +1707,31 @@
       flex-shrink: 0;
       margin-left: 4px;
     }
+    .changes-tree-folder-actions {
+      display: flex;
+      gap: 2px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .changes-folder-action {
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .changes-folder-action:hover { color: #ccc; background: #333; }
+    .changes-folder-action.changes-folder-stage { color: #3fb950; }
+    .changes-folder-action.changes-folder-stage:hover { color: #56d364; }
+    .changes-folder-action.changes-folder-unstage { color: #f85149; }
+    .changes-folder-action.changes-folder-unstage:hover { color: #ff6e67; }
+    .changes-folder-action.changes-folder-discard { font-size: 13px; }
+    .changes-folder-action.changes-folder-discard:hover { color: #f85149; }
+    .changes-folder-action.changes-folder-delete { font-size: 11px; }
+    .changes-folder-action.changes-folder-delete:hover { color: #f85149; }
     .changes-toolbar-btn.active { color: #4a9eff; }
     .changes-toolbar-btn.active:hover { color: #6bb5ff; }
 
