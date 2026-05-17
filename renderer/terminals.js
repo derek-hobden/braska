@@ -8,15 +8,27 @@ import { onCommitterExit, onGithubSpecialistExit } from './journey-zone.js';
 import { renderMarkdown } from './markdown.js';
 import { languageForPath, renderHighlighted } from './code-highlight.js';
 
+// Pre-warm xterm + addon modules at renderer load instead of on first startTask().
+// Avoids paying ESM parse cost on first agent-tab open. Subsequent imports hit
+// the same Promise. gh issue #30.
+const xtermModulesPromise = Promise.all([
+  import('../node_modules/@xterm/xterm/lib/xterm.mjs'),
+  import('../node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
+  import('../node_modules/@xterm/addon-web-links/lib/addon-web-links.mjs'),
+]);
+
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;
 
 // ── Terminal tab creation ──────────────────────────────────────
 
 export async function startTask(agentName, workDir, options = {}) {
+  const t0 = performance.now();
+  const mark = (label) => console.log(`[diag] startTask(${agentName}) ${label} +${(performance.now() - t0).toFixed(0)}ms`);
   const workDirChanged = tabState.activeWorkDir !== workDir;
   tabState.activeWorkDir = workDir;
   if (workDirChanged) refreshRightPanel(workDir);
+  mark('refreshRightPanel done');
 
   // Show terminal view
   const mainIntro = document.getElementById('main');
@@ -38,12 +50,9 @@ export async function startTask(agentName, workDir, options = {}) {
   pane.className = 'terminal-pane';
   terminalContainers.appendChild(pane);
 
-  // Load xterm via ESM dynamic import
-  const [{ Terminal }, { FitAddon }, { WebLinksAddon }] = await Promise.all([
-    import('../node_modules/@xterm/xterm/lib/xterm.mjs'),
-    import('../node_modules/@xterm/addon-fit/lib/addon-fit.mjs'),
-    import('../node_modules/@xterm/addon-web-links/lib/addon-web-links.mjs'),
-  ]);
+  // Load xterm via ESM dynamic import (pre-warmed at module init — see end of file)
+  const [{ Terminal }, { FitAddon }, { WebLinksAddon }] = await xtermModulesPromise;
+  mark('xterm modules loaded');
 
   const term = new Terminal({
     theme: { background: '#1e1e1e', foreground: '#d4d4d4', cursor: '#d4d4d4', selectionBackground: '#3a3a3a' },
@@ -64,6 +73,7 @@ export async function startTask(agentName, workDir, options = {}) {
   let id;
   try {
     id = await window.pty.spawn(agentName, options.cwd || workDir, dims, options.initialPrompt || null, options.skipPermissions || false);
+    mark('pty spawned');
   } catch (err) {
     term.dispose();
     pane.remove();
