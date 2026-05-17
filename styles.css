@@ -1489,6 +1489,9 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(74,158,255,0.06);
     }
     #ft-context-menu.active { display: block; }
+    #ft-context-menu .html-only { display: none; }
+    #ft-context-menu.is-html .html-only { display: flex; }
+    #ft-context-menu.is-html .wt-ctx-sep.html-only { display: block; }
 
     /* Pyrefly particle animations */
     @keyframes ft-pyrefly-out {
