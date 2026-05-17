@@ -3,7 +3,7 @@
 // detail view, worktree creation for todos, and agent launching.
 
 import { tabState, ghState } from './state.js';
-import { escHtml, generateTodoBranchName, todoPriorityIcon, todoTypeIcon } from './utils.js';
+import { escHtml, generateTodoBranchName, todoPriorityIcon, todoTypeIcon, getProjectRootForWorkDir } from './utils.js';
 
 // ── DOM refs (queried once at module level) ────────────────────
 const todoBody = document.getElementById('todo-body');
@@ -239,17 +239,6 @@ export async function refreshTodos(workDir) {
   if (newTodoBtn) {
     newTodoBtn.addEventListener('click', () => _startTask('todoist', workDir));
   }
-}
-
-export function getProjectRootForWorkDir(workDir) {
-  const wtEl = document.querySelector(`.worktree-item[data-path="${CSS.escape(workDir)}"]`);
-  if (wtEl) {
-    const entry = wtEl.closest('.project-entry');
-    return entry?.dataset.path || null;
-  }
-  const projEl = document.querySelector(`.project-entry[data-path="${CSS.escape(workDir)}"]`);
-  if (projEl && projEl.classList.contains('is-git')) return workDir;
-  return null;
 }
 
 export async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {

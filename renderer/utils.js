@@ -10,6 +10,10 @@ export const SVG_GIT_LOGO = '<svg viewBox="0 0 24 24" fill="currentColor"><path 
 
 export const SVG_GIT_BRANCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>';
 
+// GitHub issue-opened octicon — circle with center dot. Shown on a worktree row
+// when the worktree is linked to a GitHub issue, replacing SVG_GIT_BRANCH.
+export const SVG_GH_ISSUE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 9.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/><path fill-rule="evenodd" d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"/></svg>';
+
 export const SVG_FOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
 
 export const SVG_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
@@ -327,6 +331,18 @@ export function divergenceBadges(m, cls = '') {
     tips.push(`GitHub has ${m.pushBehind} commit${s(m.pushBehind)} you don\u2019t have`);
   }
   return { html: badges.join(''), title: tips.join(' \u2014 ') };
+}
+
+/** Resolve the git project root for any worktree path via the sidebar DOM. */
+export function getProjectRootForWorkDir(workDir) {
+  const wtEl = document.querySelector(`.worktree-item[data-path="${CSS.escape(workDir)}"]`);
+  if (wtEl) {
+    const entry = wtEl.closest('.project-entry');
+    return entry?.dataset.path || null;
+  }
+  const projEl = document.querySelector(`.project-entry[data-path="${CSS.escape(workDir)}"]`);
+  if (projEl && projEl.classList.contains('is-git')) return workDir;
+  return null;
 }
 
 /** Generate a git branch name from a todo filename and title. */

@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
-import { SVG_FOLDER, SVG_GIT_BRANCH, divergenceBadges } from './utils.js';
+import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
@@ -15,6 +15,7 @@ let _openWorkDir;
 let _openWorktreeCreateModal;
 let _showWorktreeContextMenu;
 let _openProjectScope;
+let _openIssueInPanel;
 
 // ── SVG icons for section links ──
 const SVG_TODO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
@@ -37,7 +38,11 @@ export function renderProjects(projects) {
       const lockedAttr = w.isLocked ? ' data-is-locked="true"' : '';
       const todoMatch = (w.branch || '').match(/^todo-(\d+)/);
       const todoNumAttr = todoMatch ? ` data-todo-num="${todoMatch[1]}"` : '';
-      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="wt-icon">${SVG_GIT_BRANCH}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
+      const hasIssue = Number.isInteger(w.githubIssue);
+      const iconSvg = hasIssue ? SVG_GH_ISSUE : SVG_GIT_BRANCH;
+      const iconClass = hasIssue ? 'wt-icon wt-icon-issue' : 'wt-icon';
+      const iconAttrs = hasIssue ? ` data-gh-issue="${w.githubIssue}" title="Linked to issue #${w.githubIssue} — click to view"` : '';
+      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     // Project-level section links (available without picking a worktree)
     const sectionLinks = p.isGit ? `<div class="project-actions">
@@ -167,11 +172,12 @@ export async function refreshProjectBadges(projectPath) {
 
 // ── Init (wires up event listeners, avoids circular imports) ──
 
-export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope }) {
+export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel }) {
   _openWorkDir = openWorkDir;
   _openWorktreeCreateModal = openWorktreeCreateModal;
   _showWorktreeContextMenu = showWorktreeContextMenu;
   _openProjectScope = openProjectScope;
+  _openIssueInPanel = openIssueInPanel;
 
   const addMenu = document.getElementById('add-project-menu');
   function closeAddMenu() { addMenu.classList.remove('active'); }
@@ -227,6 +233,19 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
     if (addWtBtn) {
       const projectPath = addWtBtn.dataset.project;
       _openWorktreeCreateModal(projectPath);
+      return;
+    }
+    // GH issue icon click (inside a worktree row) — keep worktree active,
+    // just swap the right panel to the linked issue's detail view.
+    const issueIcon = e.target.closest('.wt-icon[data-gh-issue]');
+    if (issueIcon) {
+      e.stopPropagation();
+      const wtItem = issueIcon.closest('.worktree-item');
+      const wtPath = wtItem?.dataset.path;
+      const issueNum = parseInt(issueIcon.dataset.ghIssue, 10);
+      if (wtPath && Number.isInteger(issueNum) && _openIssueInPanel) {
+        _openIssueInPanel(wtPath, issueNum);
+      }
       return;
     }
     // Worktree click → switch to its tabs or show launchpad
