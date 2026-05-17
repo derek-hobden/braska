@@ -201,11 +201,28 @@ export async function refreshFileTree(workDir) {
     filetreeBody.appendChild(empty);
     return;
   }
+  // Preserve expanded folders, scroll position, and focused entry across rebuilds
+  // so live fs.watch refreshes (file edits, external writes) don't collapse the tree.
+  const expandedPaths = new Set(
+    Array.from(filetreeBody.querySelectorAll('.ft-entry.expanded'))
+      .map(el => el.dataset.path)
+      .filter(Boolean)
+  );
+  const savedScrollTop = filetreeBody.scrollTop;
+  const focusedPath = explorerState.ftFocusedEl?.dataset.path ?? null;
+
   clearFileTreeKeepActions();
-  await renderFileTreeLevel(workDir, '', filetreeBody, 0);
+  await renderFileTreeLevel(workDir, '', filetreeBody, 0, expandedPaths);
+
+  filetreeBody.scrollTop = savedScrollTop;
+  if (focusedPath) {
+    const refocus = filetreeBody.querySelector(`.ft-entry[data-path="${CSS.escape(focusedPath)}"]`);
+    if (refocus) ftFocusItem(refocus);
+    else explorerState.ftFocusedEl = null;
+  }
 }
 
-async function renderFileTreeLevel(workDir, relDir, container, depth) {
+async function renderFileTreeLevel(workDir, relDir, container, depth, expandedSet = null) {
   const entries = await window.filetree.list(workDir, relDir);
   if (entries.length === 0 && depth === 0) {
     container.innerHTML = '<div class="ft-empty">Empty directory</div>';
@@ -224,6 +241,7 @@ async function renderFileTreeLevel(workDir, relDir, container, depth) {
       itemEl.innerHTML = `<span class="ft-icon" style="color:#e8c882">${SVG_FOLDER}</span><span class="ft-name">${safeName}</span>`;
       const childrenEl = document.createElement('div');
       childrenEl.className = 'ft-children';
+      const restoreExpanded = expandedSet?.has(entry.path) === true;
       let loaded = false;
       itemEl.addEventListener('click', async () => {
         ftFocusItem(entryEl);
@@ -251,6 +269,11 @@ async function renderFileTreeLevel(workDir, relDir, container, depth) {
       });
       entryEl.appendChild(itemEl);
       entryEl.appendChild(childrenEl);
+      if (restoreExpanded) {
+        entryEl.classList.add('expanded');
+        loaded = true;
+        await renderFileTreeLevel(workDir, entry.path, childrenEl, depth + 1, expandedSet);
+      }
     } else {
       itemEl.className = 'ft-item ft-file';
       entryEl.dataset.path = entry.path;
