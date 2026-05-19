@@ -45,15 +45,15 @@ Chosen over the sidebar popover and worktree context menu alternatives because (
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred. Use **▶ Active** in bold on exactly one pending task at a time.
 
-- [ ] **▶ Active** — Write tests for `gh:repo-create` and `gh:auth-accounts` IPC handlers
+- [x] Write tests for `gh:repo-create` and `gh:auth-accounts` IPC handlers
   - _Story: As a developer, when I run the test suite, the new handler tests fail for the right reason before any implementation exists._
   - _test: `test/gh-repo-create.test.js`, `test/gh-auth-accounts.test.js`_
 
-- [ ] Implement `gh:repo-create` and `gh:auth-accounts` in `main/github.js`
+- [x] Implement `gh:repo-create` and `gh:auth-accounts` in `main/github.js`
   - _Story: As braska, when the renderer invokes `gh:repo-create`, the main process calls `gh repo create` with correct argv and returns `{ ok, url }` or `{ ok, error }`._
   - _test: `test/gh-repo-create.test.js`, `test/gh-auth-accounts.test.js`_
 
-- [ ] Add `repoCreate` and `authAccounts` to `window.github` in `preload.js`
+- [ ] **▶ Active** — Add `repoCreate` and `authAccounts` to `window.github` in `preload.js`
   - _Story: As the renderer, I can call `window.github.repoCreate(workDir, opts)` and `window.github.authAccounts(workDir)` over the context bridge._
 
 - [ ] Add `#create-repo-modal` HTML to `index.html`
