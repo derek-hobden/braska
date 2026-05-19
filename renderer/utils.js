@@ -345,17 +345,7 @@ export function getProjectRootForWorkDir(workDir) {
   return null;
 }
 
-/**
- * Collapse a statusCheckRollup array into a single status.
- * Handles both CheckRun (__typename='CheckRun', uses .conclusion/.status)
- * and StatusContext (__typename='StatusContext', uses .state) items.
- * Returns 'fail' | 'pending' | 'pass' | null.
- * null means no rollup data (no CI configured or no PR).
- *
- * Note: the existing ghChecksBadge in github-panel.js misclassifies
- * StatusContext{state:'SUCCESS'} as pending because !c.conclusion is true
- * for items that have no conclusion field. This function handles both types.
- */
+// StatusContext items have no .conclusion field — ghChecksBadge misreads them as pending; handle both types explicitly.
 export function prCheckStatus(rollup) {
   if (!rollup || !rollup.length) return null;
   for (const c of rollup) {

@@ -2,10 +2,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { mockExec, installMocks, loadModule, mockIpcMain } = require('./helpers');
 
-// ── prCheckStatus ─────────────────────────────────────────────────────────────
-// Pure function exported from renderer/utils.js — no DOM dependency.
-// We load it directly; it's ESM so we use a dynamic import.
-
 describe('prCheckStatus', async () => {
   const { prCheckStatus } = await import('../renderer/utils.js');
 
@@ -66,7 +62,6 @@ describe('prCheckStatus', async () => {
     assert.equal(prCheckStatus(rollup), 'pending');
   });
 
-  // StatusContext regression tests — ghChecksBadge misclassifies these as pending
   it('returns pass for StatusContext with state SUCCESS (regression for ghChecksBadge bug)', () => {
     const rollup = [
       { __typename: 'StatusContext', state: 'SUCCESS' },
@@ -112,8 +107,6 @@ describe('prCheckStatus', async () => {
   });
 });
 
-// ── gh:pr-for-branch includes statusCheckRollup ───────────────────────────────
-
 describe('gh:pr-for-branch handler', () => {
   let exec, ipc;
 
@@ -135,7 +128,6 @@ describe('gh:pr-for-branch handler', () => {
     assert.ok(result.ok);
     assert.ok(result.pr);
     assert.equal(result.pr.number, 7);
-    // Verify gh was called with statusCheckRollup in the --json argument
     const ghCall = exec.calls.find(c => c.cmd === 'gh' && c.args.includes('pr'));
     assert.ok(ghCall, 'gh should have been called');
     const jsonFlagIdx = ghCall.args.indexOf('--json');
