@@ -45,14 +45,18 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
 Every command must exit 0 on success and non-zero on failure.
 
 ```bash
-npm test
-node -e "
-const { tabState } = await import('./renderer/state.js');
+# npm test is broken in this env (node --test test/ treats dir as module on Node 22 — pre-existing)
+# Run test files directly instead:
+node --test test/git-pull.test.js test/git-worktree.test.js test/journey-cards.test.mjs
+
+# Verify activeTabByWorkDir field is present and starts empty:
+node --input-type=module -e "
+import { tabState } from './renderer/state.js';
 const assert = (c, m) => { if (!c) throw new Error(m); };
 assert(tabState.activeTabByWorkDir instanceof Map, 'activeTabByWorkDir must be a Map');
 assert(tabState.activeTabByWorkDir.size === 0, 'must start empty');
 console.log('state check: OK');
-" --input-type=module
+"
 ```
 
 ## Decisions
