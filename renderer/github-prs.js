@@ -16,6 +16,11 @@ export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWork
 // ── PR list ────────────────────────────────────────────────────
 
 export async function refreshGitHubPRs(workDir) {
+  if (ghState.directPRNumber) {
+    const n = ghState.directPRNumber;
+    ghState.directPRNumber = null;
+    return showGitHubPRDetail(workDir, n);
+  }
   // Consume pendingPRForm flag — skip list and open form directly
   if (ghState.pendingPRForm) {
     ghState.pendingPRForm = false;

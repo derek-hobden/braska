@@ -329,8 +329,8 @@ async function _handleJourneyAction(action, btn) {
     const cached = _prCache.get(_prCacheKey(workDir, branch));
     const number = cached?.pr?.number;
     if (!number || !_switchToGitHubView || !_showGitHubPRDetail) return;
+    ghState.directPRNumber = number;
     _switchToGitHubView(true, { section: 'prs' });
-    setTimeout(() => _showGitHubPRDetail(workDir, number), 100);
 
   } else if (action === 'open-merger') {
     _startTask?.('merger', workDir, {
