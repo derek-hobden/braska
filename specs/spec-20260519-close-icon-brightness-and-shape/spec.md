@@ -35,9 +35,9 @@ _No test file needed — the test suite covers main-process IPC only; renderer H
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Add `SVG_CLOSE` XCircle constant and update remove-btn HTML in `renderer/sidebar.js`
+- [x] — Add `SVG_CLOSE` XCircle constant and update remove-btn HTML in `renderer/sidebar.js`
   - _Story: As a user, when I look at the project row, the remove button shows a circle-X icon consistent with the todo and github icons._
-- [ ] — Update `.remove-btn` CSS in `styles.css` to match `project-section-link` brightness
+- [x] — Update `.remove-btn` CSS in `styles.css` to match `project-section-link` brightness
   - _Story: As a user, the remove button is as visible as the todo/github icons at rest, and brightens on hover._
 
 ## Verify
