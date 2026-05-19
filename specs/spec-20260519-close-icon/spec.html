@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec — close icon (#37)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 80ch; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.5; }
+  h1, h2 { border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .status { font-weight: 600; color: #0d47a1; margin: 0 0 1.5rem; padding: .5rem .9rem; background: #e3f2fd; border-left: 3px solid #1565c0; border-radius: 3px; }
+  blockquote { border-left: 3px solid #888; padding: .25rem .9rem; color: #444; background: #fafafa; }
+  ul.check { list-style: none; padding-left: .5rem; }
+  ul.check ul { padding-left: 1.5rem; margin: .1rem 0; }
+  ul.check li.done { color: #888; text-decoration: line-through; }
+  ul.check li.active { font-weight: bold; }
+  ul.check li.deferred { color: #888; }
+  ul.check li::before { content: "☐ "; }
+  ul.check li.done::before { content: "☑ "; color: #2e7d32; text-decoration: none; }
+  ul.check li.active::before { content: "▶ "; color: #1565c0; }
+  ul.check li.deferred::before { content: "⏸ "; color: #f57c00; text-decoration: none; }
+  .story { display: block; font-style: italic; color: #555; font-size: .9rem; padding-left: 1.5rem; }
+  .testref { display: block; font-family: ui-monospace, "SF Mono", monospace; color: #2e7d32; font-size: .85rem; padding-left: 1.5rem; }
+  .entry { border-left: 2px solid #ccc; padding: .25rem .9rem; margin: .5rem 0; }
+  .entry time { color: #999; font-size: .85rem; display: block; }
+  .entry.dont { border-left-color: #c62828; }
+  .entry.dont strong { color: #c62828; }
+  .assume { padding: .1rem 0; }
+  .assume.uncertain { color: #c62828; }
+  .assume.uncertain::before { content: "⚠ "; }
+  .assume.confident::before { content: "• "; }
+  pre.cmd { background: #f3f3f3; padding: .35rem .6rem; margin: .15rem 0; border-radius: 3px; font-size: .9rem; overflow-x: auto; }
+  code { background: #f3f3f3; padding: 0 .2rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>close icon</h1>
+<p class="meta">Issue <a href="https://github.com/derek-hobden/braska/issues/37">#37</a> · branch <code>claude/issue-37</code> · started 2026-05-19T12:30:00Z</p>
+<p class="status">Spec drafted; implementation not started.</p>
+
+<h2>Issue body</h2>
+<blockquote>
+  the X to close project should be brighter, same as other symbols next to it (the todo icon and the github icon). it's currently too dark against the background and its just generally bad practice. also, perhaps we can change the icon to an x in a circle, the other icons are also circular so that would look nice.
+</blockquote>
+
+<h2>Chosen approach</h2>
+<p>
+  Replace the <code>&amp;times;</code> HTML entity in the remove button with an inline SVG <code>x-circle</code> icon (feather-style: 14×14px, <code>stroke="currentColor"</code>, circle + two diagonal lines), stored as a local constant <code>SVG_X_CIRCLE</code> in <code>renderer/sidebar.js</code> alongside the existing <code>SVG_TODO</code> and <code>SVG_GITHUB</code> constants. Update the <code>.remove-btn</code> CSS to raise opacity at rest from <code>0.15</code> to <code>0.5</code> and change colour from <code>#555</code> to <code>#666</code>, matching the <code>.project-section-link</code> scheme. Keep the red hover tint — it signals a destructive action and is intentional UX. No changes to IPC, state, or any other file.
+</p>
+
+<h2>Assumptions</h2>
+<ul>
+  <li class="assume confident">The red hover tint (<code>color: #e55; background: #2a1515</code>) on the close button is intentional and should be preserved — it visually distinguishes a destructive action from navigation actions.</li>
+  <li class="assume confident">14×14px is the correct icon size — all neighbouring icons use this size.</li>
+  <li class="assume confident">Padding should change from <code>2px 6px</code> to <code>4px</code> to align with <code>.project-section-link</code> sizing and give the circular SVG equal spacing on all sides.</li>
+  <li class="assume confident">The feather/lucide <code>x-circle</code> path (<code>circle cx="12" cy="12" r="10"</code> + two diagonal lines) is an appropriate "x in a circle" — the same icon family used for SVG_TODO.</li>
+</ul>
+
+<h2>Definition of done</h2>
+<ul>
+  <li>The remove-project button renders an SVG circle with an X inside (not a plain &amp;times; character).</li>
+  <li>The icon is visible at <code>opacity: 0.5</code> when the project row is hovered (not nearly invisible at 0.15).</li>
+  <li>On button hover, the icon turns red (<code>#e55</code>) on a dark background — same destructive-action treatment as before.</li>
+  <li>The SVG scales and colours correctly alongside the TODO and GitHub icons (same 14×14px size, same <code>currentColor</code> approach).</li>
+  <li>No other sidebar elements are visually changed.</li>
+  <li><code>npm test</code> passes.</li>
+</ul>
+
+<h2>Up-front tests</h2>
+<ul>
+  <li><code>test/sidebar.test.js::remove-btn renders SVG not times entity</code> — asserts that <code>renderProjects</code> output contains <code>&lt;svg</code> inside the <code>.remove-btn</code> and does not contain <code>&amp;times;</code>.</li>
+  <li><code>test/sidebar.test.js::remove-btn SVG has circle and x lines</code> — asserts the SVG contains a <code>&lt;circle</code> element and two <code>&lt;line</code> elements.</li>
+</ul>
+
+<h2>Tasks</h2>
+<ul class="check">
+  <li class="active">Write failing tests for the SVG change
+    <span class="story">Story: As a developer, when I run <code>npm test</code> before the fix, the new assertions about SVG content in the remove button fail.</span>
+    <span class="testref">test: test/sidebar.test.js::remove-btn renders SVG not times entity</span>
+  </li>
+  <li>Add <code>SVG_X_CIRCLE</code> constant and update button HTML in <code>renderer/sidebar.js</code>
+    <span class="story">Story: As a user, when I look at the project list, I see a circle-X icon instead of a plain × character next to each project.</span>
+    <span class="testref">test: test/sidebar.test.js::remove-btn renders SVG not times entity</span>
+  </li>
+  <li>Update <code>.remove-btn</code> CSS in <code>styles.css</code> to raise opacity and fix colour
+    <span class="story">Story: As a user, when I hover a project row, the close icon is clearly visible at the same brightness as the todo and github icons beside it.</span>
+  </li>
+</ul>
+
+<h2>Verify</h2>
+<pre class="cmd">npm test</pre>
+
+<h2>Decisions</h2>
+<!-- append entries in ascending chronological order -->
+
+<h2>Don'ts / rejected approaches</h2>
+<div class="entry dont">
+  <strong>Don't</strong> move SVG_X_CIRCLE to utils.js — SVG_TODO and SVG_GITHUB are already defined locally in sidebar.js; this icon is used only there; YAGNI.
+</div>
+<div class="entry dont">
+  <strong>Don't</strong> use a CSS-only circle via <code>border-radius: 50%</code> — the &amp;times; entity doesn't scale cleanly at 14px and won't inherit <code>currentColor</code> the same way.
+</div>
+
+<h2>Course corrections</h2>
+
+<h2>Subagent notes</h2>
+
+<h2>Follow-ups (deferred work)</h2>
+<ul>
+</ul>
+
+<h2>Open questions</h2>
+<ul>
+</ul>
+
+<h2>Verification results</h2>
+<!-- populated by Phase 4; one block per Verify command with exit code and tail of output -->
+
+</body>
+</html>
