@@ -345,6 +345,38 @@ export function getProjectRootForWorkDir(workDir) {
   return null;
 }
 
+/**
+ * Collapse a statusCheckRollup array into a single status.
+ * Handles both CheckRun (__typename='CheckRun', uses .conclusion/.status)
+ * and StatusContext (__typename='StatusContext', uses .state) items.
+ * Returns 'fail' | 'pending' | 'pass' | null.
+ * null means no rollup data (no CI configured or no PR).
+ *
+ * Note: the existing ghChecksBadge in github-panel.js misclassifies
+ * StatusContext{state:'SUCCESS'} as pending because !c.conclusion is true
+ * for items that have no conclusion field. This function handles both types.
+ */
+export function prCheckStatus(rollup) {
+  if (!rollup || !rollup.length) return null;
+  for (const c of rollup) {
+    if (c.__typename === 'StatusContext') {
+      if (c.state === 'FAILURE' || c.state === 'ERROR') return 'fail';
+    } else {
+      if (c.conclusion === 'FAILURE' || c.conclusion === 'ERROR' ||
+          c.conclusion === 'TIMED_OUT' || c.conclusion === 'ACTION_REQUIRED') return 'fail';
+    }
+  }
+  for (const c of rollup) {
+    if (c.__typename === 'StatusContext') {
+      if (c.state === 'PENDING') return 'pending';
+    } else {
+      if (!c.conclusion || c.status === 'QUEUED' || c.status === 'IN_PROGRESS' ||
+          c.status === 'WAITING' || c.status === 'PENDING' || c.status === 'REQUESTED') return 'pending';
+    }
+  }
+  return 'pass';
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';

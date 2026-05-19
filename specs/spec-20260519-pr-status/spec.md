@@ -2,7 +2,7 @@
 
 Issue: [#56](https://github.com/derek-hobden/braska/issues/56) · PR: [#63](https://github.com/derek-hobden/braska/pull/63) · branch: `claude/issue-56` · started: 2026-05-19T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** All tasks complete; verifying.
 
 ## Issue body
 
@@ -57,16 +57,16 @@ Extend the existing `gh:pr-for-branch` IPC handler to include `statusCheckRollup
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Add `prCheckStatus(rollup)` to `renderer/utils.js` with tests
+- [x] — Add `prCheckStatus(rollup)` to `renderer/utils.js` with tests
   - _Story: As the sidebar, when I call prCheckStatus(rollup), then I get 'pass'/'fail'/'pending'/null correctly for both CheckRun and StatusContext items._
   - _test: `test/github.test.js` — prCheckStatus suite_
-- [ ] — Extend `gh:pr-for-branch` to include `statusCheckRollup`
+- [x] — Extend `gh:pr-for-branch` to include `statusCheckRollup`
   - _Story: As the renderer, when I call window.github.prForBranch(path), then the returned pr object includes statusCheckRollup._
   - _test: `test/github.test.js` — gh:pr-for-branch includes statusCheckRollup_
-- [ ] — Add CI badge rendering to `refreshWorktreeMetrics` in `renderer/sidebar.js`
+- [x] — Add CI badge rendering to `refreshWorktreeMetrics` in `renderer/sidebar.js`
   - _Story: As a user, when I look at the sidebar, then I see a green ✓, red ✗, or dimmed … next to worktree rows that have an open PR with CI results._
   - _test: visual / manual_
-- [ ] — Add `.wt-metric.ci-pass`, `.wt-metric.ci-fail`, `.wt-metric.ci-pending` CSS rules to `styles.css`
+- [x] — Add `.wt-metric.ci-pass`, `.wt-metric.ci-fail`, `.wt-metric.ci-pending` CSS rules to `styles.css`
   - _Story: As a user, the CI badge is distinctly colored (green/red/dimmed) consistent with the existing metric badge style._
   - _test: visual / manual_
 

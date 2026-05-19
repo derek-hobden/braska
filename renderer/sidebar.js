@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
-import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges } from './utils.js';
+import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges, prCheckStatus } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
@@ -113,7 +113,19 @@ export async function refreshWorktreeMetrics() {
           const n = m.mainStale.originAhead;
           staleHtml = `<span class="wt-metric stale" title="${n} new commit${n !== 1 ? 's' : ''} on origin/${m.mainStale.branch} — pull to update">&#8659;${n}</span>`;
         }
-        el.innerHTML = fileBadges.join('') + divHtml + staleHtml;
+        let ciHtml = '';
+        if (!m.isMain) {
+          try {
+            const prResult = await window.github.prForBranch(m.path);
+            if (prResult?.pr?.statusCheckRollup) {
+              const status = prCheckStatus(prResult.pr.statusCheckRollup);
+              if (status === 'pass') ciHtml = '<span class="wt-metric ci-pass" title="CI checks passing">&#10003;</span>';
+              else if (status === 'fail') ciHtml = '<span class="wt-metric ci-fail" title="CI checks failing">&#10007;</span>';
+              else if (status === 'pending') ciHtml = '<span class="wt-metric ci-pending" title="CI checks in progress">&hellip;</span>';
+            }
+          } catch {}
+        }
+        el.innerHTML = fileBadges.join('') + divHtml + staleHtml + ciHtml;
       }
     } catch {}
   }

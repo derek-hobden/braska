@@ -184,6 +184,9 @@
     .wt-metric.unpushed { color: #b87fff; }
     .wt-metric.unpulled { color: #b87fff; }
     .wt-metric.stale { color: #f0883e; background: #3a2414; }
+    .wt-metric.ci-pass { color: #3fb950; }
+    .wt-metric.ci-fail { color: #f85149; }
+    .wt-metric.ci-pending { color: #666; }
     .worktree-item:hover {
       color: #ccc;
     }
