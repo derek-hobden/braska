@@ -35,7 +35,7 @@
 <body>
 <h1>ability to create github repo in braska directly</h1>
 <p class="meta">Issue <a href="https://github.com/derek-hobden/braska/issues/39">#39</a> · branch <code>claude/sharp-gauss-LJLGz</code> · started 2026-05-19T00:00:00Z</p>
-<p class="status">Spec drafted; implementation not started.</p>
+<p class="status">Implementation complete; all tasks done.</p>
 
 <h2>Issue body</h2>
 <blockquote>it would be cool if after I start a new project on my laptop, and use the button in braska to init a git repo, I could then turn the repo into a GitHub repo from inside brisk too. it should ask which account I want to create it on, what the name of the repo should be, if it should be public or private, and anything else you can think of that makes sense.</blockquote>
@@ -79,37 +79,37 @@
 
 <h2>Tasks</h2>
 <ul class="check">
-  <li class="active">Write up-front tests (marking active) for <code>gh:repo-create</code>, <code>gh:list-accounts</code>, and <code>hasRemote</code> in <code>git:status</code>; confirm they fail before implementation
+  <li class="done">Write up-front tests for <code>gh:repo-create</code>, <code>gh:list-accounts</code>, and <code>hasRemote</code> in <code>git:status</code>; confirm they fail before implementation
     <span class="story">Story: As a developer, when I run the test suite before implementation, then these new tests should fail with "No handler registered" or assertion errors.</span>
     <span class="testref">test: test/gh-repo-create.test.js, test/git-status-has-remote.test.js</span>
   </li>
-  <li>Add <code>hasRemote</code> to <code>git:status</code> response in <code>main/git-read.js</code>
+  <li class="done">Add <code>hasRemote</code> to <code>git:status</code> response in <code>main/git-read.js</code>
     <span class="story">Story: As the journey zone, when I receive a git:status response, then I can read hasRemote to decide whether to show the Publish card.</span>
     <span class="testref">test: test/git-status-has-remote.test.js</span>
   </li>
-  <li>Add <code>gh:repo-create</code> and <code>gh:list-accounts</code> IPC handlers in <code>main/github.js</code>
+  <li class="done">Add <code>gh:repo-create</code> and <code>gh:list-accounts</code> IPC handlers in <code>main/github.js</code>
     <span class="story">Story: As the publish modal, when I call window.github.repoCreate and window.github.listAccounts, then I get the expected data back via IPC.</span>
     <span class="testref">test: test/gh-repo-create.test.js</span>
   </li>
-  <li>Expose <code>github.repoCreate</code> and <code>github.listAccounts</code> in <code>preload.js</code>
+  <li class="done">Expose <code>github.repoCreate</code> and <code>github.listAccounts</code> in <code>preload.js</code>
     <span class="story">Story: As the renderer, when I call window.github.repoCreate(...) or window.github.listAccounts(), then the call reaches the main process.</span>
   </li>
-  <li>Add <code>#publish-modal</code> HTML to <code>index.html</code>
+  <li class="done">Add <code>#publish-modal</code> HTML to <code>index.html</code>
     <span class="story">Story: As the publish modal JS, when I query #publish-modal, then the DOM element exists with the expected form fields.</span>
   </li>
-  <li>Implement <code>renderer/publish-modal.js</code> — modal open/submit/close logic
+  <li class="done">Implement <code>renderer/publish-modal.js</code> — modal open/submit/close logic
     <span class="story">Story: As a user, when I open the Publish modal, then I see my repo name pre-filled, a dropdown of my accounts/orgs, visibility toggle, and description field.</span>
   </li>
-  <li>Wire Entry Point 1: after <code>git:init</code> succeeds in <code>renderer/git-changes.js</code>, open the publish modal
+  <li class="done">Wire Entry Point 1: after <code>git:init</code> succeeds in <code>renderer/git-changes.js</code>, open the publish modal
     <span class="story">Story: As a user, when I click "Initialize Repository" and init succeeds, then the Publish to GitHub modal opens immediately.</span>
   </li>
-  <li>Add <code>publish-to-github</code> journey card to <code>renderer/journey-cards.mjs</code> (Entry Point 2)
+  <li class="done">Add <code>publish-to-github</code> journey card to <code>renderer/journey-cards.mjs</code> (Entry Point 2)
     <span class="story">Story: As a user, when I open a local git repo with no remote in the Changes panel, then I see a "Publish to GitHub" journey card.</span>
   </li>
-  <li>Wire journey card action <code>publish-to-github</code> in <code>renderer/journey-zone.js</code> to open the publish modal
+  <li class="done">Wire journey card action <code>publish-to-github</code> in <code>renderer/journey-zone.js</code> to open the publish modal
     <span class="story">Story: As a user, when I click the "Publish to GitHub" card button, then the publish modal opens.</span>
   </li>
-  <li>Init <code>publish-modal</code> in <code>renderer/app.js</code>
+  <li class="done">Init <code>publish-modal</code> in <code>renderer/app.js</code>
     <span class="story">Story: As the app, when it starts, then the publish modal is initialized with its cross-module deps (loadProjects, refreshChanges, activeWorkDir accessor).</span>
   </li>
 </ul>
@@ -120,7 +120,9 @@
 <pre class="cmd">node --test</pre>
 
 <h2>Decisions</h2>
-<!-- append entries in ascending chronological order -->
+<div class="entry"><time>2026-05-19</time>Used <code>&lt;owner&gt;/&lt;name&gt;</code> positional arg format for <code>gh repo create</code> rather than a <code>--org</code> flag — works for both personal accounts and orgs, consistent with how <code>gh</code> documents its API.</div>
+<div class="entry"><time>2026-05-19</time>Added <code>hasRemote</code> (bool) to <code>git:status</code> via a cheap <code>git remote</code> call (reads <code>.git/config</code>, no network) rather than <code>isGitHub</code> (which would require a <code>gh repo view</code> network call). The journey card fires on any no-remote repo, not just ones whose remote points to github.com.</div>
+<div class="entry"><time>2026-05-19</time>Used native <code>alert()</code> for the no-commits-after-publish case (low-frequency, non-blocking). If this proves janky, a <code>showChangesStatus</code> call would be cleaner but requires threading the dep into the modal.</div>
 
 <h2>Don'ts / rejected approaches</h2>
 
@@ -139,7 +141,7 @@
 </ul>
 
 <h2>Verification results</h2>
-<!-- populated by Phase 4; one block per Verify command with exit code and tail of output -->
+<p>See <a href="verify-results.md">verify-results.md</a>. All 3 commands exited 0. 32/32 tests pass.</p>
 
 </body>
 </html>

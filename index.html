@@ -451,6 +451,37 @@
     </div>
   </div>
 
+  <!-- Publish to GitHub modal -->
+  <div id="publish-modal">
+    <div class="clone-modal-content">
+      <h3>Publish to GitHub</h3>
+      <div class="wt-form-group">
+        <label>Repository name</label>
+        <input type="text" id="publish-repo-name" placeholder="my-project" spellcheck="false">
+      </div>
+      <div class="wt-form-group">
+        <label>Account</label>
+        <select id="publish-account-select"><option value="">Loading…</option></select>
+      </div>
+      <div class="wt-form-group">
+        <label>Visibility</label>
+        <div class="publish-visibility-row">
+          <label><input type="radio" name="publish-visibility" value="private" checked> Private</label>
+          <label><input type="radio" name="publish-visibility" value="public"> Public</label>
+        </div>
+      </div>
+      <div class="wt-form-group">
+        <label>Description <span class="publish-optional">(optional)</span></label>
+        <input type="text" id="publish-description" placeholder="Short description of your project" spellcheck="false">
+      </div>
+      <div class="wt-error" id="publish-error"></div>
+      <div class="wt-modal-buttons">
+        <button id="publish-cancel">Cancel</button>
+        <button id="publish-submit" disabled>Publish</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="renderer/app.js"></script>
 </body>
 </html>

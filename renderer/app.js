@@ -17,6 +17,7 @@ import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
+import { openPublishModal, initPublishModal } from './publish-modal.js';
 import { initDiagnosticsPanel } from './diagnostics-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
@@ -265,15 +266,16 @@ initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, ref
 initTerminals({ refreshRightPanel });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, startBrowser, switchTab, refreshTodos, refreshGitHub });
-initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
+initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir, openPublishModal });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
-initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail, openPublishModal });
 initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });
+initPublishModal({ loadProjects, refreshChanges, getActiveWorkDir: () => tabState.activeWorkDir });
 initDiagnosticsPanel();
 
 // ── Tab type picker modal handlers ──

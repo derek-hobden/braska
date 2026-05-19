@@ -132,7 +132,13 @@ function register({ ipcMain }) {
         } catch {}
       } catch { /* non-critical */ }
 
-      return { isGit: true, branch, unstaged, staged, untracked, conflicted, mainDivergence, mainStale };
+      let hasRemote = false;
+      try {
+        const { stdout: remoteOut } = await execFileAsync('git', ['remote'], opts);
+        hasRemote = remoteOut.trim().length > 0;
+      } catch {}
+
+      return { isGit: true, branch, unstaged, staged, untracked, conflicted, mainDivergence, mainStale, hasRemote };
     } catch {
       return { isGit: false, unstaged: [], staged: [], untracked: [] };
     }

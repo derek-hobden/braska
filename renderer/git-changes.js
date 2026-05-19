@@ -13,11 +13,13 @@ import { renderJourneyZone, getCachedPRPillHtml } from './journey-zone.js';
 let _refreshFileTree = null;
 let _startTask = null;
 let _loadProjects = null;
+let _openPublishModal = null;
 
-export function initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir }) {
+export function initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir, openPublishModal }) {
   _refreshFileTree = refreshFileTree;
   _startTask = startTask;
   _loadProjects = loadProjects;
+  _openPublishModal = openPublishModal || null;
 
   // Forward deps to modals sub-module
   initChangesModals({
@@ -302,6 +304,7 @@ async function _refreshChangesInner(workDir) {
       if (result.ok) {
         if (_loadProjects) _loadProjects();
         refreshChanges(workDir);
+        if (_openPublishModal) _openPublishModal(workDir);
       } else {
         btn.disabled = false;
         btn.textContent = 'Initialize Repository';

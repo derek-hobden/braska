@@ -262,6 +262,53 @@ function register({ ipcMain }) {
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
+  ipcMain.handle('gh:repo-create', async (_event, workDir, name, owner, isPrivate, description) => {
+    try {
+      const opts = { cwd: workDir, encoding: 'utf-8', timeout: 60000 };
+      // Check for commits; skip --push if the repo is empty (nothing to push yet).
+      let hasCommits = false;
+      try {
+        await execFileAsync('git', ['rev-parse', 'HEAD'], opts);
+        hasCommits = true;
+      } catch {}
+
+      const repoRef = `${owner}/${name}`;
+      const args = ['repo', 'create', repoRef, isPrivate ? '--private' : '--public',
+        '--source', workDir, '--remote', 'origin'];
+      if (description) args.push('--description', description);
+      if (hasCommits) args.push('--push');
+
+      const { stdout } = await execFileAsync('gh', args, opts);
+      return { ok: true, url: stdout.trim(), noCommits: !hasCommits };
+    } catch (err) {
+      if (isAuthError(err)) return { ok: false, error: errMsg(err), needsAuth: true };
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('gh:list-accounts', async () => {
+    try {
+      const [userRes, orgsRes] = await Promise.allSettled([
+        execFileAsync('gh', ['api', '/user'], { encoding: 'utf-8', timeout: 15000 }),
+        execFileAsync('gh', ['api', '/user/orgs?per_page=100'], { encoding: 'utf-8', timeout: 15000 }),
+      ]);
+      if (userRes.status === 'rejected') {
+        if (isAuthError(userRes.reason)) return { ok: false, error: errMsg(userRes.reason), needsAuth: true };
+        return { ok: false, error: errMsg(userRes.reason) };
+      }
+      const user = JSON.parse(userRes.value.stdout);
+      const accounts = [{ login: user.login, type: 'user' }];
+      if (orgsRes.status === 'fulfilled') {
+        const orgs = JSON.parse(orgsRes.value.stdout);
+        for (const org of orgs) accounts.push({ login: org.login, type: 'org' });
+      }
+      return { ok: true, accounts };
+    } catch (err) {
+      if (isAuthError(err)) return { ok: false, error: errMsg(err), needsAuth: true };
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
   ipcMain.handle('gh:issue-labels', async (_event, workDir) => {
     try {
       const { stdout } = await execFileAsync('gh', ['label', 'list', '--json', 'name,color', '--limit', '100'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });

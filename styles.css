@@ -4039,6 +4039,47 @@
     #clone-cancel:hover { background: #2a2a2a; color: #ccc; }
 
 
+/* ── Publish to GitHub modal ── */
+    #publish-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+    }
+    #publish-modal.active { display: flex; }
+    .publish-visibility-row {
+      display: flex;
+      gap: 20px;
+    }
+    .publish-visibility-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #ccc;
+    }
+    .publish-optional {
+      color: #666;
+      font-size: 0.8rem;
+      font-weight: normal;
+    }
+    #publish-submit {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+    #publish-submit:hover:not(:disabled) { background: #3a8eef; }
+    #publish-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    #publish-cancel {
+      background: none;
+      color: #888;
+    }
+    #publish-cancel:hover { background: #2a2a2a; color: #ccc; }
+
 /* ── Diagnostics panel (Cmd+Shift+D) — gh issue #30 ── */
 #diagnostics-panel {
   position: fixed; top: 12px; right: 12px; z-index: 99999;

@@ -86,6 +86,17 @@ export function computeJourneyCards(status, opts = {}) {
     });
   }
 
+  // ── Priority 4c: No remote configured — offer GitHub publish ──
+  if (status?.hasRemote === false) {
+    cards.push({
+      key: 'publish-github', accent: 'ready',
+      title: 'Publish to GitHub',
+      tooltip: 'Create a GitHub repository and push your work',
+      buttons: [{ label: 'Publish to GitHub', action: 'publish-to-github', primary: true }],
+    });
+    return cards;
+  }
+
   // ── Priority 5: Ready to share ──
   if (div?.pushAhead > 0 && div.hasUpstream) {
     const btns = [{ label: 'Push', action: 'push', primary: true }];

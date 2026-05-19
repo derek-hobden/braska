@@ -19,6 +19,7 @@ let _loadProjects = null;
 let _openWorkDir = null;
 let _switchToGitHubView = null;
 let _showGitHubPRDetail = null;
+let _openPublishModal = null;
 
 // ── PR-for-branch cache ────────────────────────────────────────
 // Keyed by `${workDir}::${branch}`. Value: { pr: { number, url } | null, ts }.
@@ -76,6 +77,7 @@ export function initJourneyZone(deps) {
   _openWorkDir = deps.openWorkDir;
   _switchToGitHubView = deps.switchToGitHubView;
   _showGitHubPRDetail = deps.showGitHubPRDetail;
+  _openPublishModal = deps.openPublishModal || null;
 
   // Delegated click for the PR pill rendered inside #branch-subtitle
   document.getElementById('branch-subtitle')?.addEventListener('click', (e) => {
@@ -336,6 +338,9 @@ async function _handleJourneyAction(action, btn) {
     _startTask?.('merger', workDir, {
       initialPrompt: 'Resolve all merge conflicts in this repository. Check git status, open conflicting files, resolve the conflicts, stage, and commit.',
     });
+
+  } else if (action === 'publish-to-github') {
+    _openPublishModal?.(workDir);
   }
 }
 
