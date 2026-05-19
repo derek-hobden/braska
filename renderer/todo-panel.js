@@ -259,7 +259,7 @@ export async function workOnTodoInNewWorktree(todoPath, todoAbsPath) {
   const btn = document.querySelector(`.todo-worktree-btn[data-todo-path="${CSS.escape(todoPath)}"]`);
   if (btn) { btn.disabled = true; btn.textContent = 'Creating worktree...'; }
 
-  const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
+  const result = await window.worktree.add(projectRoot, wtPath, branchName, 'new');
   if (!result.ok) {
     if (btn) { btn.disabled = false; btn.textContent = 'Work on this in a new worktree'; }
     let errEl = btn?.parentElement?.querySelector('.todo-worktree-error');
