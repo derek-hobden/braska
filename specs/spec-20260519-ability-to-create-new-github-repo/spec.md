@@ -2,7 +2,7 @@
 
 Issue: [#46](https://github.com/derek-hobden/braska/issues/46) · PR: [#47](https://github.com/derek-hobden/braska/pull/47) · branch: `claude/issue-46` · started: 2026-05-19T14:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementing — Task 1 active.
 
 ## Issue body
 
