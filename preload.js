@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('gitDiff', {
   currentBranch: (workDir) => ipcRenderer.invoke('git:current-branch', workDir),
   branchList: (workDir) => ipcRenderer.invoke('git:branch-list', workDir),
   stashList: (workDir) => ipcRenderer.invoke('git:stash-list', workDir),
+  hasCommits: (workDir) => ipcRenderer.invoke('git:has-commits', workDir),
 });
 
 contextBridge.exposeInMainWorld('gitOps', {
@@ -138,6 +139,8 @@ contextBridge.exposeInMainWorld('github', {
   notificationsMarkRead: (workDir) => ipcRenderer.invoke('gh:notifications-mark-read', workDir),
   linkTicket: (workDir, todoPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, todoPath, issueNumber),
   unlinkTicket: (workDir, todoPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, todoPath),
+  repoCreate: (workDir, opts) => ipcRenderer.invoke('gh:repo-create', workDir, opts),
+  authAccounts: (workDir) => ipcRenderer.invoke('gh:auth-accounts', workDir),
 });
 
 // PTY bridge — thin IPC layer, multi-tab support
