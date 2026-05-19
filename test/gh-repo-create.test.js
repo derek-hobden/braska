@@ -101,4 +101,44 @@ describe('gh:repo-create handler', () => {
     assert.equal(result.ok, false);
     assert.ok(result.error.includes('name already exists'), `error should include stderr: ${result.error}`);
   });
+
+  it('creates empty initial commit before gh when initialCommit:true', async () => {
+    exec.on('repo create', { stdout: 'https://github.com/alice/myapp\n' });
+
+    const result = await ipc.invoke('gh:repo-create', '/repo', {
+      name: 'myapp', owner: 'alice', visibility: 'public', description: '', push: true, initialCommit: true,
+    });
+
+    assert.ok(result.ok, `expected ok:true, got: ${JSON.stringify(result)}`);
+    const commitCall = exec.calls.find(c => c.cmd === 'git' && c.args.includes('commit'));
+    assert.ok(commitCall, 'should have called git commit');
+    assert.ok(commitCall.args.includes('--allow-empty'), 'should include --allow-empty');
+    const ghIdx = exec.calls.findIndex(c => c.cmd === 'gh' && c.args.includes('repo') && c.args.includes('create'));
+    const commitIdx = exec.calls.findIndex(c => c.cmd === 'git' && c.args.includes('commit'));
+    assert.ok(commitIdx >= 0 && ghIdx > commitIdx, 'git commit must run before gh repo create');
+  });
+
+  it('skips git commit when initialCommit is not set', async () => {
+    exec.on('repo create', { stdout: 'https://github.com/alice/myapp\n' });
+
+    await ipc.invoke('gh:repo-create', '/repo', {
+      name: 'myapp', owner: 'alice', visibility: 'public', description: '', push: true,
+    });
+
+    const commitCall = exec.calls.find(c => c.cmd === 'git' && c.args.includes('commit'));
+    assert.equal(commitCall, undefined, 'should not call git commit when initialCommit is falsy');
+  });
+
+  it('returns error and skips gh when initial commit fails', async () => {
+    exec.on('git commit', { throws: 'cannot commit', stderr: 'fatal: not a git repository' });
+
+    const result = await ipc.invoke('gh:repo-create', '/repo', {
+      name: 'myapp', owner: 'alice', visibility: 'public', description: '', push: true, initialCommit: true,
+    });
+
+    assert.equal(result.ok, false);
+    assert.ok(result.error.includes('Could not create initial commit'), `error should mention initial commit: ${result.error}`);
+    const ghCall = exec.calls.find(c => c.cmd === 'gh' && c.args.includes('repo') && c.args.includes('create'));
+    assert.equal(ghCall, undefined, 'should not call gh repo create when commit fails');
+  });
 });

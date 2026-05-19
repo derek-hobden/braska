@@ -138,6 +138,15 @@ function register({ ipcMain }) {
     }
   });
 
+  ipcMain.handle('git:has-commits', async (_event, workDir) => {
+    try {
+      await execFileAsync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: workDir, encoding: 'utf-8', timeout: 5000 });
+      return { ok: true, hasCommits: true };
+    } catch {
+      return { ok: true, hasCommits: false };
+    }
+  });
+
   ipcMain.handle('git:worktree-metrics', async (_event, projectPath) => {
     try {
       const info = await getGitInfo(projectPath);

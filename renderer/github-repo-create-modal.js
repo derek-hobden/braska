@@ -7,6 +7,7 @@ const modal = document.getElementById('create-repo-modal');
 
 let _loadProjects = null;
 let _refreshGitHub = null;
+let _hasCommits = true;
 
 function setError(msg) {
   const el = document.getElementById('create-repo-error');
@@ -23,6 +24,24 @@ function folderName(workDir) {
   if (!workDir) return '';
   const parts = workDir.replace(/\\/g, '/').split('/');
   return parts[parts.length - 1] || '';
+}
+
+function getVisibility() {
+  const active = modal.querySelector('.vis-btn.active');
+  return active?.dataset.vis || 'private';
+}
+
+function setVisibility(vis) {
+  modal.querySelectorAll('.vis-btn').forEach(btn => {
+    const on = btn.dataset.vis === vis;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+}
+
+function updatePushLabel() {
+  const label = document.getElementById('create-repo-push-label');
+  label.textContent = _hasCommits ? 'Push commits now' : 'Create initial commit and push';
 }
 
 function updateCreateButton() {
@@ -46,6 +65,16 @@ async function populateOwnerDropdown(workDir) {
   updateCreateButton();
 }
 
+async function detectHasCommits(workDir) {
+  try {
+    const result = await window.gitDiff.hasCommits(workDir);
+    _hasCommits = !!(result && result.hasCommits);
+  } catch {
+    _hasCommits = true;
+  }
+  updatePushLabel();
+}
+
 export function openCreateRepoModal(workDir) {
   modalState.createRepoWorkDir = workDir;
   modalState.createRepoBusy = false;
@@ -53,12 +82,14 @@ export function openCreateRepoModal(workDir) {
   document.getElementById('create-repo-name').value = folderName(workDir);
   document.getElementById('create-repo-description').value = '';
   document.getElementById('create-repo-push').checked = true;
-  const privRadio = document.querySelector('input[name="create-repo-visibility"][value="private"]');
-  if (privRadio) privRadio.checked = true;
+  setVisibility('private');
+  _hasCommits = true;
+  updatePushLabel();
   setError('');
   updateCreateButton();
   modal.classList.add('active');
   populateOwnerDropdown(workDir);
+  detectHasCommits(workDir);
   document.getElementById('create-repo-name').focus();
 }
 
@@ -71,9 +102,10 @@ async function doCreate() {
   const workDir = modalState.createRepoWorkDir;
   const name = document.getElementById('create-repo-name').value.trim();
   const owner = document.getElementById('create-repo-owner').value;
-  const visibility = document.querySelector('input[name="create-repo-visibility"]:checked')?.value || 'private';
+  const visibility = getVisibility();
   const description = document.getElementById('create-repo-description').value.trim();
   const push = document.getElementById('create-repo-push').checked;
+  const initialCommit = push && !_hasCommits;
 
   if (!name || !owner) return;
 
@@ -81,7 +113,7 @@ async function doCreate() {
   updateCreateButton();
   setError('');
 
-  const result = await window.github.repoCreate(workDir, { name, owner, visibility, description, push });
+  const result = await window.github.repoCreate(workDir, { name, owner, visibility, description, push, initialCommit });
 
   if (!result.ok) {
     modalState.createRepoBusy = false;
@@ -90,7 +122,6 @@ async function doCreate() {
     return;
   }
 
-  // Invalidate the auth cache so refreshGitHub detects the new remote.
   ghState.cachedAuth = null;
 
   closeModal();
@@ -106,6 +137,10 @@ export function initCreateRepoModal({ loadProjects, refreshGitHub }) {
   document.getElementById('create-repo-owner').addEventListener('change', updateCreateButton);
   document.getElementById('create-repo-name').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !document.getElementById('create-repo-btn').disabled) doCreate();
+  });
+
+  modal.querySelectorAll('.vis-btn').forEach(btn => {
+    btn.addEventListener('click', () => setVisibility(btn.dataset.vis));
   });
 
   document.getElementById('create-repo-cancel').addEventListener('click', closeModal);

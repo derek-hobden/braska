@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld('gitDiff', {
   currentBranch: (workDir) => ipcRenderer.invoke('git:current-branch', workDir),
   branchList: (workDir) => ipcRenderer.invoke('git:branch-list', workDir),
   stashList: (workDir) => ipcRenderer.invoke('git:stash-list', workDir),
+  hasCommits: (workDir) => ipcRenderer.invoke('git:has-commits', workDir),
 });
 
 contextBridge.exposeInMainWorld('gitOps', {
