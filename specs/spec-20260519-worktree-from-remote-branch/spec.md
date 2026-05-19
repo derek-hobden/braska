@@ -2,7 +2,7 @@
 
 Issue: [#48](https://github.com/derek-hobden/braska/issues/48) · PR: [#49](https://github.com/derek-hobden/braska/pull/49) · branch: `claude/issue-48` · started: 2026-05-19T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; verify passed.
 
 ## Issue body
 
@@ -38,14 +38,14 @@ Add a "Local / Remote" pill toggle beside the "Branch" label in the existing `wt
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Add `git:remote-branches` IPC handler and expose via preload
+- [x] Add `git:remote-branches` IPC handler and expose via preload
   - _Story: As the renderer, when I call `window.worktree.remoteBranches(path)`, then I get an array of `origin/branch-name` strings with HEAD aliases filtered out._
   - _test: `test/git-worktree.test.js::git:remote-branches handler`_
-- [ ] Add Local/Remote toggle and second select to "Add Worktree" modal HTML
+- [x] Add Local/Remote toggle and second select to "Add Worktree" modal HTML
   - _Story: As a user, when I uncheck "Create new branch", then I see a "Local" / "Remote" toggle beside the Branch label._
-- [ ] Wire toggle logic and remote branch load in renderer
+- [x] Wire toggle logic and remote branch load in renderer
   - _Story: As a user, when I click "Remote", then the select refreshes with remote branches; when I click "Local" the original list reappears; path auto-generation uses the short branch name in both cases._
-- [ ] Add CSS for toggle buttons
+- [x] Add CSS for toggle buttons
   - _Story: As a user, the toggle buttons look visually consistent with the modal's dark theme._
 
 ## Verify
@@ -90,8 +90,8 @@ _Things that need human input before merge._
 
 ## Baseline verify (pre-implementation)
 
-_Populated at end of Phase 2._
+See `baseline-verify.md`: 19 tests, 0 failures.
 
 ## Verification results (post-implementation)
 
-_Populated in Phase 4._
+See `verify-results.md`: 22 tests, 0 failures. No regressions.
