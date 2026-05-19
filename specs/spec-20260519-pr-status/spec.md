@@ -73,8 +73,7 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
 ## Verify
 
 ```bash
-node --test test/github.test.js
-npm test
+node --test test/github.test.js test/git-worktree.test.js test/git-pull.test.js test/journey-cards.test.mjs
 ```
 
 ## Decisions
