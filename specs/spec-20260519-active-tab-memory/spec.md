@@ -2,7 +2,7 @@
 
 Issue: [#42](https://github.com/derek-hobden/braska/issues/42) · PR: [#43](https://github.com/derek-hobden/braska/pull/43) · branch: `claude/issue-42` · started: 2026-05-19T13:30:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; verification passed.
 
 ## Issue body
 
@@ -33,11 +33,11 @@ TDD carve-out applies to this fix. The renderer state changes are 3 lines that i
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Add `activeTabByWorkDir` field to `tabState` in `renderer/state.js`
+- [x] Add `activeTabByWorkDir` field to `tabState` in `renderer/state.js`
   - _Story: As the renderer, when `tabState` is initialised, there is a Map available to store the last-active tab per worktree._
-- [ ] Write `activeTabByWorkDir` in `switchTab` (`renderer/tabs.js`)
+- [x] Write `activeTabByWorkDir` in `switchTab` (`renderer/tabs.js`)
   - _Story: As the app, when I switch to tab T in worktree W, `tabState.activeTabByWorkDir.get(W)` returns T's id._
-- [ ] Read `activeTabByWorkDir` in `openWorkDir` (`renderer/app.js`)
+- [x] Read `activeTabByWorkDir` in `openWorkDir` (`renderer/app.js`)
   - _Story: As a user, when I switch back to worktree W, the tab I was on before is re-selected; if it was closed, the last tab shows instead._
 
 ## Verify

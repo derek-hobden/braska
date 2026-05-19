@@ -17,6 +17,7 @@ export const appState = {
 export const tabState = {
   tabs: new Map(),            // id → { term, fitAddon, resizeObs, pane, tabEl, label, workDir, ... }
   tabOrder: new Map(),        // workDir → [tabId, ...]
+  activeTabByWorkDir: new Map(), // workDir → last-active tabId
   activeTabId: null,
   activeWorkDir: null,
   nextBrowserTabId: -1,
