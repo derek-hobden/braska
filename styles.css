@@ -96,17 +96,19 @@
     .remove-btn {
       background: none;
       border: none;
-      color: #555;
-      font-size: 0.9rem;
+      color: #666;
       cursor: pointer;
-      padding: 2px 6px;
+      padding: 4px;
       border-radius: 4px;
-      opacity: 0.15;
+      opacity: 0.5;
       flex-shrink: 0;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.2s ease, color 0.15s ease, background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    .project-item:hover .remove-btn { opacity: 0.5; }
-    .remove-btn:hover { opacity: 1 !important; color: #e55; background: #2a1515; }
+    .project-item:hover .remove-btn { opacity: 1; }
+    .remove-btn:hover { color: #e55 !important; background: #2a1515; }
     #empty-sidebar {
       padding: 16px;
       color: #555;

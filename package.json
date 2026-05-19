@@ -21,7 +21,7 @@
   "scripts": {
     "start": "electron .",
     "postinstall": "electron-rebuild -f -w node-pty",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
