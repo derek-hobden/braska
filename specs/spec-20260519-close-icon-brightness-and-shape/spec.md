@@ -2,7 +2,7 @@
 
 Issue: [#44](https://github.com/derek-hobden/braska/issues/44) · PR: [#45](https://github.com/derek-hobden/braska/pull/45) · branch: `claude/issue-44` · started: 2026-05-19T00:00:00Z
 
-**Status:** Spec drafted; implementing.
+**Status:** Complete; ready for review.
 
 ## Issue body
 
