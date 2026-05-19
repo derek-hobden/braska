@@ -253,6 +253,28 @@ async function _handleJourneyAction(action, btn) {
       else _showChangesStatus?.('Pull failed: ' + (result.error || '').split('\n')[0], 'error');
     } finally { btn.disabled = false; btn.textContent = 'Pull'; }
 
+  } else if (action === 'pull-push') {
+    btn.disabled = true;
+    btn.textContent = 'Pulling...';
+    try {
+      const pullResult = await window.gitOps.pull(workDir);
+      if (!pullResult.ok) {
+        if (pullResult.hasConflicts) {
+          _refreshChanges?.(workDir);
+          _refreshWorktreeMetrics?.();
+          _showChangesStatus?.('Pull conflicts \u2014 resolve and commit', 'error');
+        } else {
+          _showChangesStatus?.('Pull failed: ' + (pullResult.error || '').split('\n')[0], 'error');
+        }
+        return;
+      }
+      btn.textContent = 'Pushing...';
+      await _doPush?.(workDir, { autoUpstream: false });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Pull & Push';
+    }
+
   } else if (action === 'pull-main') {
     _doPullLatestMain?.(workDir);
 
