@@ -368,6 +368,31 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+    .wt-branch-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .wt-branch-source-toggle {
+      display: inline-flex;
+      gap: 2px;
+    }
+    .wt-src-btn {
+      background: transparent;
+      border: 1px solid #3a3a3a;
+      color: #666;
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .wt-src-btn.active {
+      background: #1a3a5a;
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
     .wt-form-group input,
     .wt-form-group select {
       width: 100%;

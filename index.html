@@ -322,8 +322,15 @@
         <label><input type="checkbox" id="wt-new-branch-check"> Create new branch</label>
       </div>
       <div class="wt-form-group" id="wt-branch-select-group">
-        <label>Branch</label>
+        <label class="wt-branch-label">
+          Branch
+          <span class="wt-branch-source-toggle">
+            <button class="wt-src-btn active" id="wt-src-local" type="button">Local</button>
+            <button class="wt-src-btn" id="wt-src-remote" type="button">Remote</button>
+          </span>
+        </label>
         <select id="wt-branch-select"><option value="">Loading...</option></select>
+        <select id="wt-remote-branch-select" style="display:none"><option value="">Loading...</option></select>
       </div>
       <div class="wt-form-group" id="wt-branch-name-group" style="display:none">
         <label>New Branch Name</label>
