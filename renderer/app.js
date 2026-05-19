@@ -116,11 +116,9 @@ export function openWorkDir(workDir) {
     launchpad.classList.remove('active');
     terminalView.classList.add('active');
     renderTabBar();
-    if (!tabState.activeTabId || tabState.tabs.get(tabState.activeTabId)?.workDir !== workDir) {
-      switchTab(existing[existing.length - 1][0]);
-    } else {
-      switchTab(tabState.activeTabId);
-    }
+    const rememberedId = tabState.activeTabByWorkDir.get(workDir);
+    const fallbackId = existing[existing.length - 1][0];
+    switchTab((rememberedId && tabState.tabs.has(rememberedId)) ? rememberedId : fallbackId);
   } else {
     tabState.activeWorkDir = workDir;
     tabState.activeTabId = null;
