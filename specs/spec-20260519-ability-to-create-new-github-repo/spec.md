@@ -2,7 +2,7 @@
 
 Issue: [#46](https://github.com/derek-hobden/braska/issues/46) · PR: [#47](https://github.com/derek-hobden/braska/pull/47) · branch: `claude/issue-46` · started: 2026-05-19T14:00:00Z
 
-**Status:** Implementing — Task 1 active.
+**Status:** Implementation complete; tidy and verify in progress.
 
 ## Issue body
 
@@ -53,19 +53,19 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
   - _Story: As braska, when the renderer invokes `gh:repo-create`, the main process calls `gh repo create` with correct argv and returns `{ ok, url }` or `{ ok, error }`._
   - _test: `test/gh-repo-create.test.js`, `test/gh-auth-accounts.test.js`_
 
-- [ ] **▶ Active** — Add `repoCreate` and `authAccounts` to `window.github` in `preload.js`
+- [x] Add `repoCreate` and `authAccounts` to `window.github` in `preload.js`
   - _Story: As the renderer, I can call `window.github.repoCreate(workDir, opts)` and `window.github.authAccounts(workDir)` over the context bridge._
 
-- [ ] Add `#create-repo-modal` HTML to `index.html`
+- [x] Add `#create-repo-modal` HTML to `index.html`
   - _Story: As the DOM, the modal structure exists on page load with the correct IDs for the JS to query._
 
-- [ ] Add create-repo modal state fields to `renderer/state.js`
+- [x] Add create-repo modal state fields to `renderer/state.js`
   - _Story: As the modal module, it can read/write `modalState.createRepoBusy` and related fields without importing a non-existent key._
 
-- [ ] Create `renderer/github-repo-create-modal.js` — modal logic
+- [x] Create `renderer/github-repo-create-modal.js` — modal logic
   - _Story: As a user, when I open the modal and fill in fields and click Create, the repo is created and the panel refreshes._
 
-- [ ] Add "Create on GitHub…" button in `renderer/github-panel.js` and wire modal init in `renderer/app.js`
+- [x] Add "Create on GitHub…" button in `renderer/github-panel.js` and wire modal init in `renderer/app.js`
   - _Story: As a user, when I navigate to the GitHub panel for a local-only git repo, I see the "Create on GitHub…" button._
 
 ## Verify

@@ -137,6 +137,8 @@ contextBridge.exposeInMainWorld('github', {
   notificationsMarkRead: (workDir) => ipcRenderer.invoke('gh:notifications-mark-read', workDir),
   linkTicket: (workDir, todoPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, todoPath, issueNumber),
   unlinkTicket: (workDir, todoPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, todoPath),
+  repoCreate: (workDir, opts) => ipcRenderer.invoke('gh:repo-create', workDir, opts),
+  authAccounts: (workDir) => ipcRenderer.invoke('gh:auth-accounts', workDir),
 });
 
 // PTY bridge — thin IPC layer, multi-tab support

@@ -433,6 +433,40 @@
     </div>
   </div>
 
+  <!-- Create GitHub repo modal -->
+  <div id="create-repo-modal">
+    <div class="clone-modal-content">
+      <h3>Create GitHub Repository</h3>
+      <div class="wt-form-group">
+        <label>Owner</label>
+        <select id="create-repo-owner"><option value="">Loading...</option></select>
+      </div>
+      <div class="wt-form-group">
+        <label>Repository name</label>
+        <input type="text" id="create-repo-name" spellcheck="false" placeholder="my-project">
+      </div>
+      <div class="wt-form-group">
+        <label>Visibility</label>
+        <div class="create-repo-radio-group">
+          <label><input type="radio" name="create-repo-visibility" value="private" checked> Private</label>
+          <label><input type="radio" name="create-repo-visibility" value="public"> Public</label>
+        </div>
+      </div>
+      <div class="wt-form-group">
+        <label>Description <span style="color:#666;font-weight:normal">(optional)</span></label>
+        <input type="text" id="create-repo-description" spellcheck="false" placeholder="Short description...">
+      </div>
+      <div class="wt-form-row">
+        <label><input type="checkbox" id="create-repo-push" checked> Push commits now</label>
+      </div>
+      <div class="wt-error" id="create-repo-error"></div>
+      <div class="wt-modal-buttons">
+        <button id="create-repo-cancel">Cancel</button>
+        <button id="create-repo-btn" disabled>Create</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="renderer/app.js"></script>
 </body>
 </html>

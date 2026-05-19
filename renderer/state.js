@@ -40,6 +40,8 @@ export const modalState = {
   cloneRepoRef: '',           // parsed/selected owner/repo
   cloneDestParent: '',        // chosen parent directory (absolute)
   cloneBusy: false,           // true while a clone is in-flight
+  createRepoWorkDir: '',      // workDir for the create-repo modal
+  createRepoBusy: false,      // true while repo creation is in-flight
 };
 
 // ── File explorer state ─────────────────────────────────────────
