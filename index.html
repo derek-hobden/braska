@@ -322,8 +322,15 @@
         <label><input type="checkbox" id="wt-new-branch-check"> Create new branch</label>
       </div>
       <div class="wt-form-group" id="wt-branch-select-group">
-        <label>Branch</label>
+        <label class="wt-branch-label">
+          Branch
+          <span class="wt-branch-source-toggle">
+            <button class="wt-src-btn active" id="wt-src-local" type="button">Local</button>
+            <button class="wt-src-btn" id="wt-src-remote" type="button">Remote</button>
+          </span>
+        </label>
         <select id="wt-branch-select"><option value="">Loading...</option></select>
+        <select id="wt-remote-branch-select" style="display:none"><option value="">Loading...</option></select>
       </div>
       <div class="wt-form-group" id="wt-branch-name-group" style="display:none">
         <label>New Branch Name</label>
@@ -386,6 +393,24 @@
         <button id="todo-close-done-btn" class="pull-main-primary">Mark as Done</button>
         <button id="todo-close-leave-btn">Leave Open</button>
         <button id="todo-close-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commit staged changes modal -->
+  <div id="commit-modal">
+    <div class="commit-modal-content">
+      <h3>Commit staged changes</h3>
+      <div id="commit-modal-summary"></div>
+      <textarea id="commit-modal-msg" placeholder="Subject line&#10;&#10;Optional body…" rows="6" spellcheck="false"></textarea>
+      <label class="commit-modal-amend">
+        <input type="checkbox" id="commit-modal-amend-toggle"> Amend last commit
+      </label>
+      <div class="commit-modal-error" id="commit-modal-error"></div>
+      <div class="commit-modal-buttons">
+        <button id="commit-modal-cancel">Cancel</button>
+        <button id="commit-modal-generate">Generate with Claude</button>
+        <button id="commit-modal-submit" class="commit-modal-primary">Commit</button>
       </div>
     </div>
   </div>
