@@ -44,7 +44,7 @@ Update `ISSUE_BRANCH_RE` in `main/projects.js` (line 41) from `/^gh-issue-(\d+)$
 
 ## Tasks
 
-- [ ] **▶ Active** — Add unit tests for `ISSUE_BRANCH_RE` covering the new branch formats
+- [ ] **▶ Active** — Add unit tests for `ISSUE_BRANCH_RE` covering the new branch formats  <!-- started -->
   - _Story: As a developer, when I run the test suite, then tests assert the regex matches `gh-issue-N`, `claude/issue-N`, `issue-N` and rejects `main` and plain feature branches._
   - _test: `test/issue-branch-re.test.js`_
 - [ ] Update `ISSUE_BRANCH_RE` in `main/projects.js` to match `claude/issue-N` style branches
