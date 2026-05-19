@@ -38,7 +38,7 @@ async function saveWorktreeIssues(mainWtPath, map) {
   await fsp.writeFile(file, JSON.stringify(map, null, 2));
 }
 
-const ISSUE_BRANCH_RE = /^gh-issue-(\d+)$/;
+const ISSUE_BRANCH_RE = /^(?:[\w.-]+\/)?(?:gh-)?issue-(\d+)$/;
 
 async function getGitInfo(projectPath) {
   try {
@@ -142,4 +142,4 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
   });
 }
 
-module.exports = { register, getGitInfo, loadProjects, loadWorktreeIssues, saveWorktreeIssues };
+module.exports = { register, getGitInfo, loadProjects, loadWorktreeIssues, saveWorktreeIssues, ISSUE_BRANCH_RE };

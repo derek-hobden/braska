@@ -2,7 +2,7 @@
 
 Issue: [#55](https://github.com/derek-hobden/braska/issues/55) · PR: [#58](https://github.com/derek-hobden/braska/pull/58) · branch: `claude/issue-55` · started: 2026-05-19T18:30:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; awaiting final verify.
 
 ## Issue body
 
@@ -44,10 +44,10 @@ Update `ISSUE_BRANCH_RE` in `main/projects.js` (line 41) from `/^gh-issue-(\d+)$
 
 ## Tasks
 
-- [ ] **▶ Active** — Add unit tests for `ISSUE_BRANCH_RE` covering the new branch formats  <!-- started -->
+- [x] Add unit tests for `ISSUE_BRANCH_RE` covering the new branch formats
   - _Story: As a developer, when I run the test suite, then tests assert the regex matches `gh-issue-N`, `claude/issue-N`, `issue-N` and rejects `main` and plain feature branches._
   - _test: `test/issue-branch-re.test.js`_
-- [ ] Update `ISSUE_BRANCH_RE` in `main/projects.js` to match `claude/issue-N` style branches
+- [x] Update `ISSUE_BRANCH_RE` in `main/projects.js` to match `claude/issue-N` style branches
   - _Story: As a user, when I have a worktree on branch `claude/issue-46`, then the sidebar shows the issue icon and it's clickable._
   - _test: `test/issue-branch-re.test.js::matches claude/issue-N`_
 
