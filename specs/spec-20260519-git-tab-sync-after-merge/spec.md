@@ -40,7 +40,7 @@ No new test file. The change is a three-line addition to a DOM/IPC-coupled event
 ## Verify
 
 ```bash
-npm test
+node --test test/git-pull.test.js test/git-worktree.test.js test/journey-cards.test.mjs
 grep -n "refreshChanges" renderer/github-prs.js
 grep -n "refreshChanges" renderer/app.js | grep "initGitHubPRs"
 ```
