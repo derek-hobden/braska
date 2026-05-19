@@ -13,7 +13,7 @@ import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, op
 // post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
 import { initJourneyZone, renderJourneyZone, onCommitterExit, onGithubSpecialistExit, dismissPostCommitPrompt } from './journey-zone.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
-import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
+import { initGitHubPRs } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
@@ -268,7 +268,7 @@ initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, start
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
-initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView });
 initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
 initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
