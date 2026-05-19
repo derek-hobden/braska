@@ -38,6 +38,48 @@ describe('git:remote-branches handler', () => {
   });
 });
 
+describe('git:worktree-add handler', () => {
+  let exec, ipc;
+
+  beforeEach(() => {
+    exec = mockExec();
+    installMocks(exec);
+    const { register } = loadModule('../main/git-worktree');
+    ipc = mockIpcMain();
+    register({ ipcMain: ipc });
+  });
+
+  it("mode='new' uses -b to create a new local branch", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'feature-x', 'new');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'feature-x', '/wt/foo']);
+  });
+
+  it("mode='local' checks out an existing local branch", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'feature-x', 'local');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '/wt/foo', 'feature-x']);
+  });
+
+  it("mode='remote' creates a local tracking branch from origin/<name>", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'origin/feature-x', 'remote');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    // Must use -b <localName> so git creates a tracking branch instead of
+    // checking out detached HEAD at the remote ref.
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'feature-x', '/wt/foo', 'origin/feature-x']);
+  });
+
+  it("mode='remote' strips only the first slash for multi-segment branch names", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'origin/claude/issue-48', 'remote');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'claude/issue-48', '/wt/foo', 'origin/claude/issue-48']);
+  });
+});
+
 describe('git:pull-latest-main handler', () => {
   let exec, ipc;
 

@@ -347,7 +347,8 @@ export function initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsFo
     createBtn.textContent = 'Creating...';
     createError.classList.remove('visible');
 
-    const result = await window.worktree.add(modalState.wtCreateProjectPath, wtPath, branch, isNew);
+    const mode = isNew ? 'new' : isRemote ? 'remote' : 'local';
+    const result = await window.worktree.add(modalState.wtCreateProjectPath, wtPath, branch, mode);
     createBtn.disabled = false;
     createBtn.textContent = 'Create';
 

@@ -158,14 +158,24 @@ function register({ ipcMain }) {
     } catch { return []; }
   });
 
-  ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, createNew) => {
+  ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, mode) => {
     const t0 = Date.now();
+    // `mode`: 'new' = create new local branch; 'local' = check out existing local
+    // branch; 'remote' = create local tracking branch from `<remote>/<name>` ref.
+    // Plain `git worktree add <path> <remote>/<name>` would resolve to a commit-ish
+    // and check out detached HEAD — DWIM only fires for bare branch names.
+    const localFromRemote = (ref) => {
+      const i = ref.indexOf('/');
+      return i >= 0 ? ref.slice(i + 1) : ref;
+    };
+    const buildArgs = () => {
+      if (mode === 'new') return ['worktree', 'add', '-b', branch, worktreePath];
+      if (mode === 'remote') return ['worktree', 'add', '-b', localFromRemote(branch), worktreePath, branch];
+      return ['worktree', 'add', worktreePath, branch];
+    };
     try {
       const opts = { cwd: workDir, encoding: 'utf-8', timeout: 30000 };
-      const addArgs = createNew
-        ? ['worktree', 'add', '-b', branch, worktreePath]
-        : ['worktree', 'add', worktreePath, branch];
-      await execFileAsync('git', addArgs, opts);
+      await execFileAsync('git', buildArgs(), opts);
       console.log(`[diag] git:worktree-add ${branch} took ${Date.now() - t0}ms`);
       return { ok: true };
     } catch (err) {
@@ -174,7 +184,7 @@ function register({ ipcMain }) {
           if (await pathExists(worktreePath)) {
             await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath], { cwd: workDir, encoding: 'utf-8', timeout: 60000 });
           }
-          await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
+          await execFileAsync('git', buildArgs(), { cwd: workDir, encoding: 'utf-8', timeout: 30000 });
           console.log(`[diag] git:worktree-add ${branch} (retry) took ${Date.now() - t0}ms`);
           return { ok: true };
         } catch (retryErr) {
