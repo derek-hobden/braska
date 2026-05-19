@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec — ability to create github repo in braska directly (#39)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 80ch; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.5; }
+  h1, h2 { border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+  .meta { color: #777; font-size: .9rem; }
+  .status { font-weight: 600; color: #0d47a1; margin: 0 0 1.5rem; padding: .5rem .9rem; background: #e3f2fd; border-left: 3px solid #1565c0; border-radius: 3px; }
+  blockquote { border-left: 3px solid #888; padding: .25rem .9rem; color: #444; background: #fafafa; }
+  ul.check { list-style: none; padding-left: .5rem; }
+  ul.check ul { padding-left: 1.5rem; margin: .1rem 0; }
+  ul.check li.done { color: #888; text-decoration: line-through; }
+  ul.check li.active { font-weight: bold; }
+  ul.check li.deferred { color: #888; }
+  ul.check li::before { content: "☐ "; }
+  ul.check li.done::before { content: "☑ "; color: #2e7d32; text-decoration: none; }
+  ul.check li.active::before { content: "▶ "; color: #1565c0; }
+  ul.check li.deferred::before { content: "⏸ "; color: #f57c00; text-decoration: none; }
+  .story { display: block; font-style: italic; color: #555; font-size: .9rem; padding-left: 1.5rem; }
+  .testref { display: block; font-family: ui-monospace, "SF Mono", monospace; color: #2e7d32; font-size: .85rem; padding-left: 1.5rem; }
+  .entry { border-left: 2px solid #ccc; padding: .25rem .9rem; margin: .5rem 0; }
+  .entry time { color: #999; font-size: .85rem; display: block; }
+  .entry.dont { border-left-color: #c62828; }
+  .entry.dont strong { color: #c62828; }
+  .assume { padding: .1rem 0; }
+  .assume.uncertain { color: #c62828; }
+  .assume.uncertain::before { content: "⚠ "; }
+  .assume.confident::before { content: "• "; }
+  pre.cmd { background: #f3f3f3; padding: .35rem .6rem; margin: .15rem 0; border-radius: 3px; font-size: .9rem; overflow-x: auto; }
+  code { background: #f3f3f3; padding: 0 .2rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>ability to create github repo in braska directly</h1>
+<p class="meta">Issue <a href="https://github.com/derek-hobden/braska/issues/39">#39</a> · branch <code>claude/sharp-gauss-LJLGz</code> · started 2026-05-19T00:00:00Z</p>
+<p class="status">Spec drafted; implementation not started.</p>
+
+<h2>Issue body</h2>
+<blockquote>it would be cool if after I start a new project on my laptop, and use the button in braska to init a git repo, I could then turn the repo into a GitHub repo from inside brisk too. it should ask which account I want to create it on, what the name of the repo should be, if it should be public or private, and anything else you can think of that makes sense.</blockquote>
+
+<h2>Chosen approach</h2>
+<p>Two entry points feed one "Publish to GitHub" modal (<code>renderer/publish-modal.js</code>). Entry point 1: after <code>git:init</code> succeeds in <code>git-changes.js</code>, immediately open the modal — the highest-signal moment, no detection work needed. Entry point 2: add <code>hasRemote</code> to the <code>git:status</code> response (a pure local read of <code>.git/config</code> via <code>git remote</code>, no network), then render a "Publish to GitHub" journey card whenever a git repo has no remote. The modal collects: repo name (pre-filled from folder basename), owner (personal account + orgs via new <code>gh:list-accounts</code> handler), visibility (private by default), and optional description. On submit, <code>gh:repo-create</code> calls <code>gh repo create &lt;owner&gt;/&lt;name&gt; --source . --remote origin [--push]</code>, skipping push if the repo has no commits yet. This mirrors VS Code's "Publish Branch" and GitHub Desktop's "Publish repository" patterns.</p>
+
+<h2>Assumptions</h2>
+<ul>
+  <li class="assume confident">The installed <code>gh</code> CLI supports <code>gh repo create &lt;owner/name&gt; --source &lt;path&gt; --remote origin --push</code> (available since gh v2.4).</li>
+  <li class="assume confident">Org repos are created using <code>&lt;org&gt;/&lt;name&gt;</code> as the positional argument to <code>gh repo create</code> (not <code>--org</code> flag).</li>
+  <li class="assume confident"><code>gh api /user/orgs?per_page=100</code> returns all orgs the authenticated user belongs to (same pattern as <code>gh:list-repos</code>).</li>
+  <li class="assume confident">Adding a single <code>git remote</code> call to <code>git:status</code> is acceptable latency — it reads <code>.git/config</code> locally, no network, same order as other status checks already done there.</li>
+  <li class="assume uncertain">If the user has no commits yet, <code>gh repo create --source . --push</code> fails. We assume detecting this via <code>git rev-parse HEAD</code> and omitting <code>--push</code> is the right fallback (create the remote but let the user push manually). Human should verify this is the desired UX.</li>
+  <li class="assume uncertain">Default visibility should be <code>private</code> (matching GitHub Desktop). Human should confirm this matches the product expectation.</li>
+</ul>
+
+<h2>Definition of done</h2>
+<ul>
+  <li>Clicking "Initialize Repository" in the Changes panel and then submitting the Publish modal creates a new GitHub repo and sets <code>origin</code> remote in the local git config.</li>
+  <li>The sidebar immediately shows the repo as a GitHub project (GitHub icon / badge) after publish succeeds.</li>
+  <li>A "Publish to GitHub" journey card appears on any git repo that has no remote configured (i.e., not just freshly-inited ones).</li>
+  <li>The modal pre-fills repo name from the folder basename.</li>
+  <li>The account dropdown lists the authenticated user's personal login plus all orgs they belong to.</li>
+  <li>Visibility defaults to private; user can toggle to public.</li>
+  <li>Description field is optional.</li>
+  <li>If the repo has no commits, publish succeeds without a push and the user sees an informational message.</li>
+  <li>Auth errors surface a message pointing to <code>gh auth login</code>.</li>
+  <li><code>node --test</code> passes with new tests for <code>gh:repo-create</code> and <code>gh:list-accounts</code>.</li>
+</ul>
+
+<h2>Up-front tests</h2>
+<ul>
+  <li><code>test/gh-repo-create.test.js::creates repo and pushes when commits exist</code> — asserts gh repo create is called with correct args including --push</li>
+  <li><code>test/gh-repo-create.test.js::creates repo without push when no commits</code> — asserts --push is omitted when git rev-parse HEAD fails</li>
+  <li><code>test/gh-repo-create.test.js::propagates auth error</code> — asserts needsAuth:true when gh exits with auth error text</li>
+  <li><code>test/gh-repo-create.test.js::list-accounts returns user plus orgs</code> — asserts gh:list-accounts combines /user and /user/orgs responses</li>
+  <li><code>test/git-status-has-remote.test.js::hasRemote false when no remotes</code> — asserts git:status returns hasRemote:false when git remote returns empty</li>
+  <li><code>test/git-status-has-remote.test.js::hasRemote true when origin exists</code> — asserts git:status returns hasRemote:true when git remote returns origin</li>
+</ul>
+
+<h2>Tasks</h2>
+<ul class="check">
+  <li class="active">Write up-front tests for <code>gh:repo-create</code>, <code>gh:list-accounts</code>, and <code>hasRemote</code> in <code>git:status</code>; confirm they fail before implementation
+    <span class="story">Story: As a developer, when I run the test suite before implementation, then these new tests should fail with "No handler registered" or assertion errors.</span>
+    <span class="testref">test: test/gh-repo-create.test.js, test/git-status-has-remote.test.js</span>
+  </li>
+  <li>Add <code>hasRemote</code> to <code>git:status</code> response in <code>main/git-read.js</code>
+    <span class="story">Story: As the journey zone, when I receive a git:status response, then I can read hasRemote to decide whether to show the Publish card.</span>
+    <span class="testref">test: test/git-status-has-remote.test.js</span>
+  </li>
+  <li>Add <code>gh:repo-create</code> and <code>gh:list-accounts</code> IPC handlers in <code>main/github.js</code>
+    <span class="story">Story: As the publish modal, when I call window.github.repoCreate and window.github.listAccounts, then I get the expected data back via IPC.</span>
+    <span class="testref">test: test/gh-repo-create.test.js</span>
+  </li>
+  <li>Expose <code>github.repoCreate</code> and <code>github.listAccounts</code> in <code>preload.js</code>
+    <span class="story">Story: As the renderer, when I call window.github.repoCreate(...) or window.github.listAccounts(), then the call reaches the main process.</span>
+  </li>
+  <li>Add <code>#publish-modal</code> HTML to <code>index.html</code>
+    <span class="story">Story: As the publish modal JS, when I query #publish-modal, then the DOM element exists with the expected form fields.</span>
+  </li>
+  <li>Implement <code>renderer/publish-modal.js</code> — modal open/submit/close logic
+    <span class="story">Story: As a user, when I open the Publish modal, then I see my repo name pre-filled, a dropdown of my accounts/orgs, visibility toggle, and description field.</span>
+  </li>
+  <li>Wire Entry Point 1: after <code>git:init</code> succeeds in <code>renderer/git-changes.js</code>, open the publish modal
+    <span class="story">Story: As a user, when I click "Initialize Repository" and init succeeds, then the Publish to GitHub modal opens immediately.</span>
+  </li>
+  <li>Add <code>publish-to-github</code> journey card to <code>renderer/journey-cards.mjs</code> (Entry Point 2)
+    <span class="story">Story: As a user, when I open a local git repo with no remote in the Changes panel, then I see a "Publish to GitHub" journey card.</span>
+  </li>
+  <li>Wire journey card action <code>publish-to-github</code> in <code>renderer/journey-zone.js</code> to open the publish modal
+    <span class="story">Story: As a user, when I click the "Publish to GitHub" card button, then the publish modal opens.</span>
+  </li>
+  <li>Init <code>publish-modal</code> in <code>renderer/app.js</code>
+    <span class="story">Story: As the app, when it starts, then the publish modal is initialized with its cross-module deps (loadProjects, refreshChanges, activeWorkDir accessor).</span>
+  </li>
+</ul>
+
+<h2>Verify</h2>
+<pre class="cmd">node --test test/gh-repo-create.test.js</pre>
+<pre class="cmd">node --test test/git-status-has-remote.test.js</pre>
+<pre class="cmd">node --test</pre>
+
+<h2>Decisions</h2>
+<!-- append entries in ascending chronological order -->
+
+<h2>Don'ts / rejected approaches</h2>
+
+<h2>Course corrections</h2>
+
+<h2>Subagent notes</h2>
+
+<h2>Follow-ups (deferred work)</h2>
+<ul>
+</ul>
+
+<h2>Open questions</h2>
+<ul>
+  <li>Should the default visibility be private (matching GitHub Desktop) or public? Spec assumes private — confirm with product owner before merge.</li>
+  <li>When there are no commits and push is skipped, should the modal show a success message explaining the user must push manually, or should it prompt them to make a first commit immediately?</li>
+</ul>
+
+<h2>Verification results</h2>
+<!-- populated by Phase 4; one block per Verify command with exit code and tail of output -->
+
+</body>
+</html>
