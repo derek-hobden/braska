@@ -2,7 +2,7 @@
 
 Issue: [#51](https://github.com/derek-hobden/braska/issues/51) · PR: [#52](https://github.com/derek-hobden/braska/pull/52) · branch: `claude/issue-51` · started: 2026-05-19T00:00:00Z
 
-**Status:** Implementing.
+**Status:** Complete; ready for review.
 
 ## Issue body
 
@@ -40,13 +40,13 @@ The fix adds a distinct `sync` card case for the diverged state that replaces bo
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred. Use **▶ Active** in bold on exactly one pending task at a time.
 
-- [ ] **▶ Active** — Write failing tests for diverged-state card in `test/journey-cards.test.mjs`
+- [x] Write failing tests for diverged-state card in `test/journey-cards.test.mjs`
   - _Story: As a developer running the test suite, when I run `node --test test/journey-cards.test.mjs`, I see three new failing tests confirming the sync card is not yet produced._
   - _test: `test/journey-cards.test.mjs::diverged state — shows sync card...`_
-- [ ] — Add `sync` card branch to `renderer/journey-cards.mjs` for the diverged state
+- [x] Add `sync` card branch to `renderer/journey-cards.mjs` for the diverged state
   - _Story: As a user on main with 2 commits ahead and 1 behind, I see a "Sync with origin" card with "Pull & Push" and "Pull Only" buttons instead of separate pull and push cards._
   - _test: `test/journey-cards.test.mjs::diverged state — shows sync card...`_
-- [ ] — Add `pull-push` action handler to `renderer/journey-zone.js`
+- [x] Add `pull-push` action handler to `renderer/journey-zone.js`
   - _Story: As a user, when I click "Pull & Push", the branch pulls remote changes and immediately pushes local commits, with status updates ("Pulling…" → "Pushing…" → "Pulled & pushed" or error message)._
   - _test: manual (renderer action handler, no pure-unit harness)_
 
