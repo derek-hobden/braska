@@ -1,9 +1,84 @@
-// Tests for Fix 3: git:pull-latest-main should work even when the current
-// branch IS the main branch (remove the early-return guard).
-
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { mockExec, installMocks, loadModule, mockIpcMain } = require('./helpers');
+
+describe('git:remote-branches handler', () => {
+  let exec, ipc;
+
+  beforeEach(() => {
+    exec = mockExec();
+    installMocks(exec);
+    const { register } = loadModule('../main/git-worktree');
+    ipc = mockIpcMain();
+    register({ ipcMain: ipc });
+  });
+
+  it('lists remote branches and filters out HEAD alias', async () => {
+    exec.on('branch', { stdout: 'origin/main\norigin/HEAD\norigin/feature-xyz\norigin/claude/issue-48\n' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, ['origin/main', 'origin/feature-xyz', 'origin/claude/issue-48']);
+  });
+
+  it('returns empty array when no remote branches exist', async () => {
+    exec.on('branch', { stdout: '' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, []);
+  });
+
+  it('returns empty array on git error', async () => {
+    exec.on('branch', { throws: 'not a git repository' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, []);
+  });
+});
+
+describe('git:worktree-add handler', () => {
+  let exec, ipc;
+
+  beforeEach(() => {
+    exec = mockExec();
+    installMocks(exec);
+    const { register } = loadModule('../main/git-worktree');
+    ipc = mockIpcMain();
+    register({ ipcMain: ipc });
+  });
+
+  it("mode='new' uses -b to create a new local branch", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'feature-x', 'new');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'feature-x', '/wt/foo']);
+  });
+
+  it("mode='local' checks out an existing local branch", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'feature-x', 'local');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '/wt/foo', 'feature-x']);
+  });
+
+  it("mode='remote' creates a local tracking branch from origin/<name>", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'origin/feature-x', 'remote');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    // Must use -b <localName> so git creates a tracking branch instead of
+    // checking out detached HEAD at the remote ref.
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'feature-x', '/wt/foo', 'origin/feature-x']);
+  });
+
+  it("mode='remote' strips only the first slash for multi-segment branch names", async () => {
+    const result = await ipc.invoke('git:worktree-add', '/repo', '/wt/foo', 'origin/claude/issue-48', 'remote');
+    assert.ok(result.ok);
+    const addCall = exec.calls.find(c => c.args[0] === 'worktree' && c.args[1] === 'add');
+    assert.deepEqual(addCall.args, ['worktree', 'add', '-b', 'claude/issue-48', '/wt/foo', 'origin/claude/issue-48']);
+  });
+});
 
 describe('git:pull-latest-main handler', () => {
   let exec, ipc;

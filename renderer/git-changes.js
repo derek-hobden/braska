@@ -136,7 +136,7 @@ const badgeCls = (status) => BADGE_CLASS[status] || 'changes-badge-m';
 const SECTION_DEFS = {
   staged: {
     label: 'Staged',
-    actions: '<span class="changes-header-actions"><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button><span class="changes-action-placeholder"></span></span>',
+    actions: '<span class="changes-header-actions has-text"><button class="changes-section-action-text commit-staged" title="Commit staged changes">Commit</button><button class="changes-section-action-icon unstage-all" title="Unstage all">&minus;</button></span>',
     entryFn: (f) => createChangeEntryEl(f.file, f.status, badgeCls(f.status), { file: f.file, staged: 'true' }, statSpan(f.added, f.deleted), UNSTAGE_BTN, ACTION_PLACEHOLDER),
     getPath: (f) => f.file,
     folderActionsHtml: FOLDER_UNSTAGE,

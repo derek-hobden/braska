@@ -79,6 +79,7 @@ export const ghState = {
 // ── Git / pull-main state ───────────────────────────────────────
 export const gitState = {
   currentPullMainWorkDir: null,
+  currentCommitWorkDir: null,
   _pullMainIsStashConflict: false,
   _pullMainDirtyResolve: null,
   _stageAttentionTimeout: null,
