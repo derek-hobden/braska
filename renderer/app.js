@@ -270,7 +270,7 @@ initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
 initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
 initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
-initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
+initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, refreshChanges });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });

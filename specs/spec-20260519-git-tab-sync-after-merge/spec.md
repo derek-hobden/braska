@@ -2,7 +2,7 @@
 
 Issue: [#26](https://github.com/derek-hobden/braska/issues/26) · PR: [#50](https://github.com/derek-hobden/braska/pull/50) · branch: `claude/issue-26` · started: 2026-05-19T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; awaiting final verify.
 
 ## Issue body
 
@@ -33,9 +33,9 @@ No new test file. The change is a three-line addition to a DOM/IPC-coupled event
 
 ## Tasks
 
-- [ ] **▶ Active** — Inject `refreshChanges` into `initGitHubPRs` and call it after all merge success paths in `renderer/github-prs.js`
+- [x] Inject `refreshChanges` into `initGitHubPRs` and call it after all merge success paths in `renderer/github-prs.js`
   - _Story: As a user, when I merge a PR via the braska GitHub panel, the branch subtitle and changes section immediately reflect the true git state._
-- [ ] Update `renderer/app.js` to pass `refreshChanges` into the `initGitHubPRs()` call
+- [x] Update `renderer/app.js` to pass `refreshChanges` into the `initGitHubPRs()` call
 
 ## Verify
 
