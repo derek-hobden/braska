@@ -22,6 +22,21 @@ export function computeJourneyCards(status, opts = {}) {
   // Gated behind dirty files: pulling with uncommitted changes fails in
   // most git configurations, so don't offer it. Commit/stash first.
   if (div?.pushBehind > 0 && dirtyCount === 0) {
+    if (div.pushAhead > 0) {
+      // Branch has diverged: local and remote both have commits the other lacks.
+      // Offering push alone here is misleading — git will reject it.
+      // Expose a single "sync" path that pulls first, then pushes.
+      cards.push({
+        key: 'sync', accent: 'warning',
+        title: `Sync with origin (${div.pushAhead} ahead, ${div.pushBehind} behind)`,
+        tooltip: 'Your branch has diverged from origin. Pull remote changes first, then push yours.',
+        buttons: [
+          { label: 'Pull & Push', action: 'pull-push', primary: true },
+          { label: 'Pull Only', action: 'pull', primary: false },
+        ],
+      });
+      return cards;
+    }
     cards.push({
       key: 'pull-remote', accent: 'warning',
       title: `Pull changes (${div.pushBehind} new)`,
