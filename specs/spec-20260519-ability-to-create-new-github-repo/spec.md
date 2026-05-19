@@ -73,8 +73,10 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
 Every command must exit 0 on success and non-zero on failure.
 
 ```bash
-npm test
+node --test test/*.test.js test/*.test.mjs
 ```
+
+Note: `npm test` (`node --test test/`) has a pre-existing failure because `node --test` on v22 cannot accept a directory containing non-test files (`helpers.js`). The working command above explicitly globs only test files.
 
 ## Decisions
 
