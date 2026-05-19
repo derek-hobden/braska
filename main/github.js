@@ -13,6 +13,7 @@ function isAuthError(err) {
 // interpret repoRef as a flag (execFileAsync prevents shell injection, but `gh`
 // itself still parses leading-dash tokens as options).
 const REPO_REF_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]+$/;
+const NAME_RE = /^[A-Za-z0-9][\w.-]*$/;  // single component of owner or repo name
 
 function register({ ipcMain }) {
   ipcMain.handle('gh:auth-status', async (_event, workDir) => {
@@ -300,9 +301,6 @@ function register({ ipcMain }) {
       return { ok: true };
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
-
-  // Allowed characters for owner and repo name; same leading-dash guard as REPO_REF_RE.
-  const NAME_RE = /^[A-Za-z0-9][\w.-]*$/;
 
   ipcMain.handle('gh:repo-create', async (_event, workDir, { name, owner, visibility, description, push }) => {
     if (!name || !NAME_RE.test(name)) return { ok: false, error: 'Invalid repository name.' };
