@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('todo', {
 
 contextBridge.exposeInMainWorld('worktree', {
   branches: (workDir) => ipcRenderer.invoke('git:branches', workDir),
+  remoteBranches: (workDir) => ipcRenderer.invoke('git:remote-branches', workDir),
   add: (workDir, worktreePath, branch, createNew) => ipcRenderer.invoke('git:worktree-add', workDir, worktreePath, branch, createNew),
   remove: (workDir, worktreePath, force, deleteBranch) => ipcRenderer.invoke('git:worktree-remove', workDir, worktreePath, force, deleteBranch),
   prune: (workDir) => ipcRenderer.invoke('git:worktree-prune', workDir),

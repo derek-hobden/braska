@@ -149,6 +149,15 @@ function register({ ipcMain }) {
     } catch { return []; }
   });
 
+  ipcMain.handle('git:remote-branches', async (_event, workDir) => {
+    try {
+      const { stdout } = await execFileAsync('git', ['branch', '-r', '--format=%(refname:short)'], { cwd: workDir, encoding: 'utf-8', timeout: 5000 });
+      const out = stdout.trim();
+      if (!out) return [];
+      return out.split('\n').filter(b => b && !b.endsWith('/HEAD'));
+    } catch { return []; }
+  });
+
   ipcMain.handle('git:worktree-add', async (_event, workDir, worktreePath, branch, createNew) => {
     const t0 = Date.now();
     try {

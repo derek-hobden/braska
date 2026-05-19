@@ -1,9 +1,42 @@
-// Tests for Fix 3: git:pull-latest-main should work even when the current
-// branch IS the main branch (remove the early-return guard).
-
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { mockExec, installMocks, loadModule, mockIpcMain } = require('./helpers');
+
+describe('git:remote-branches handler', () => {
+  let exec, ipc;
+
+  beforeEach(() => {
+    exec = mockExec();
+    installMocks(exec);
+    const { register } = loadModule('../main/git-worktree');
+    ipc = mockIpcMain();
+    register({ ipcMain: ipc });
+  });
+
+  it('lists remote branches and filters out HEAD alias', async () => {
+    exec.on('branch', { stdout: 'origin/main\norigin/HEAD\norigin/feature-xyz\norigin/claude/issue-48\n' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, ['origin/main', 'origin/feature-xyz', 'origin/claude/issue-48']);
+  });
+
+  it('returns empty array when no remote branches exist', async () => {
+    exec.on('branch', { stdout: '' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, []);
+  });
+
+  it('returns empty array on git error', async () => {
+    exec.on('branch', { throws: 'not a git repository' });
+
+    const result = await ipc.invoke('git:remote-branches', '/repo');
+
+    assert.deepEqual(result, []);
+  });
+});
 
 describe('git:pull-latest-main handler', () => {
   let exec, ipc;
