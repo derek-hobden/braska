@@ -2,7 +2,7 @@
 
 Issue: [#59](https://github.com/derek-hobden/braska/issues/59) · PR: [#60](https://github.com/derek-hobden/braska/pull/60) · branch: `claude/issue-59` · started: 2026-05-19T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; verifying.
 
 ## Issue body
 
@@ -40,7 +40,7 @@ No new unit tests required — the changed code is DOM manipulation with no pure
 
 ## Tasks
 
-- [ ] **▶ Active** — Move label editing region from detail header to dedicated section below body textarea in edit mode
+- [x] Move label editing region from detail header to dedicated section below body textarea in edit mode
   - _Story: As a user, when I click "Edit" on an issue, then I see a clearly-labelled "Labels" section below the body text area where I can add and remove labels._
   - _Changes:_ `renderer/github-issues.js` — `showGitHubIssueDetail`: render `gh-edit-labels-region` in a new `gh-edit-labels-section` div after the body textarea instead of inside the header. Keep header labels for view mode unchanged.
   - _Changes:_ `styles.css` — add `.gh-edit-labels-section` and `.gh-edit-label-caption` styles.
