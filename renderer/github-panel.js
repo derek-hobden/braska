@@ -6,7 +6,6 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo } from './utils.js';
 import { refreshGitHubPRs } from './github-prs.js';
 import { refreshGitHubIssues, showGitHubIssueDetail, initGitHubIssues } from './github-issues.js';
-import { clearGitHubBadgeForWorkDir } from './sidebar.js';
 import { openCreateRepoModal } from './github-repo-create-modal.js';
 
 // ── Cross-module deps injected via init ─────────────────────────
@@ -313,7 +312,6 @@ async function refreshGitHubNotifs(workDir) {
       if (res.ok) {
         ghState.hasActivity = false;
         updateActivityBadge();
-        clearGitHubBadgeForWorkDir(workDir);
         // Optimistic UI: gh CLI's --cache 60s on the GET means a refetch
         // would return the same stale unread list. Replace with empty state.
         content.querySelectorAll('.gh-notif-item').forEach(el => el.remove());

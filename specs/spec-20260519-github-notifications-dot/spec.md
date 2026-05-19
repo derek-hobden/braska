@@ -2,7 +2,7 @@
 
 Issue: [#61](https://github.com/derek-hobden/braska/issues/61) · PR: [#62](https://github.com/derek-hobden/braska/pull/62) · branch: `claude/issue-61` · started: 2026-05-19T19:00:00Z
 
-**Status:** Implementing.
+**Status:** Implementation complete; verifying.
 
 ## Issue body
 
@@ -36,7 +36,7 @@ No new unit tests — the existing test suite covers main-process Node code; ren
 
 ## Tasks
 
-- [ ] **▶ Active** — Remove GitHub activity dot (sidebar.js, github-panel.js, styles.css)
+- [x] Remove GitHub activity dot (sidebar.js, github-panel.js, styles.css)
   - _Story: As a user, when I look at the sidebar, I see no orange dot next to the GitHub icon._
   - _test: `npm test` exits 0 (no regressions)_
 
