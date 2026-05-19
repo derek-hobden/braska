@@ -2,7 +2,7 @@
 
 Issue: [#59](https://github.com/derek-hobden/braska/issues/59) · PR: [#60](https://github.com/derek-hobden/braska/pull/60) · branch: `claude/issue-59` · started: 2026-05-19T00:00:00Z
 
-**Status:** Implementation complete; verifying.
+**Status:** Complete.
 
 ## Issue body
 
