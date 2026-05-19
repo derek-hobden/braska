@@ -87,16 +87,32 @@ export async function openWorktreeCreateModal(projectPath) {
   document.getElementById('wt-branch-select-group').style.display = 'none';
   document.getElementById('wt-branch-name-group').style.display = '';
 
-  // Load branches
+  // Reset branch source toggle to Local
+  document.getElementById('wt-src-local').classList.add('active');
+  document.getElementById('wt-src-remote').classList.remove('active');
+  document.getElementById('wt-branch-select').style.display = '';
+  document.getElementById('wt-remote-branch-select').style.display = 'none';
+
+  // Load local branches
   const branchSelect = document.getElementById('wt-branch-select');
+  const remoteBranchSelect = document.getElementById('wt-remote-branch-select');
   branchSelect.innerHTML = '<option value="">Loading...</option>';
+  remoteBranchSelect.innerHTML = '<option value="">Loading...</option>';
   wtCreateModal.classList.add('active');
   document.getElementById('wt-branch-name').focus();
 
-  const branches = await window.worktree.branches(projectPath);
+  const [branches, remoteBranches] = await Promise.all([
+    window.worktree.branches(projectPath),
+    window.worktree.remoteBranches(projectPath),
+  ]);
+
   branchSelect.innerHTML = branches.length
     ? branches.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('')
-    : '<option value="">No branches found</option>';
+    : '<option value="">No local branches found</option>';
+
+  remoteBranchSelect.innerHTML = remoteBranches.length
+    ? remoteBranches.map(b => `<option value="${b.replace(/"/g, '&quot;')}">${b}</option>`).join('')
+    : '<option value="">No remote branches found</option>';
 
   // Auto-generate path from first branch
   updateWorktreePath();
@@ -108,6 +124,10 @@ function updateWorktreePath() {
   let branchName;
   if (isNew) {
     branchName = document.getElementById('wt-branch-name').value.trim();
+  } else if (document.getElementById('wt-src-remote').classList.contains('active')) {
+    // Strip the remote prefix (e.g. "origin/feature" → "feature") for path generation
+    const raw = document.getElementById('wt-remote-branch-select').value;
+    branchName = raw.includes('/') ? raw.slice(raw.indexOf('/') + 1) : raw;
   } else {
     branchName = document.getElementById('wt-branch-select').value;
   }
@@ -264,6 +284,23 @@ export function initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsFo
   });
 
   document.getElementById('wt-branch-select').addEventListener('change', updateWorktreePath);
+  document.getElementById('wt-remote-branch-select').addEventListener('change', updateWorktreePath);
+
+  document.getElementById('wt-src-local').addEventListener('click', () => {
+    document.getElementById('wt-src-local').classList.add('active');
+    document.getElementById('wt-src-remote').classList.remove('active');
+    document.getElementById('wt-branch-select').style.display = '';
+    document.getElementById('wt-remote-branch-select').style.display = 'none';
+    updateWorktreePath();
+  });
+
+  document.getElementById('wt-src-remote').addEventListener('click', () => {
+    document.getElementById('wt-src-remote').classList.add('active');
+    document.getElementById('wt-src-local').classList.remove('active');
+    document.getElementById('wt-remote-branch-select').style.display = '';
+    document.getElementById('wt-branch-select').style.display = 'none';
+    updateWorktreePath();
+  });
   document.getElementById('wt-branch-name').addEventListener('input', (e) => {
     const { selectionStart } = e.target;
     e.target.value = e.target.value.replace(/ /g, '-');
@@ -286,9 +323,12 @@ export function initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsFo
   document.getElementById('wt-create-btn').addEventListener('click', async () => {
     const createError = document.getElementById('wt-create-error');
     const isNew = document.getElementById('wt-new-branch-check').checked;
+    const isRemote = !isNew && document.getElementById('wt-src-remote').classList.contains('active');
     const branch = isNew
       ? document.getElementById('wt-branch-name').value.trim()
-      : document.getElementById('wt-branch-select').value;
+      : isRemote
+        ? document.getElementById('wt-remote-branch-select').value
+        : document.getElementById('wt-branch-select').value;
     const wtPath = document.getElementById('wt-path-input').value.trim();
 
     if (!branch) {
