@@ -169,13 +169,15 @@ function prBadgeHtml(pr) {
   if (!pr || !Number.isInteger(pr.number)) return '';
   const cls = prStateBadgeClass(pr.state, pr.isDraft);
   if (!cls) return '';
-  return `<span class="wt-pr-badge ${cls}" data-pr-number="${pr.number}" title="PR #${pr.number} (${cls}) — click to open">PR</span>`;
+  return `<span class="wt-pr-badge ${cls}" data-pr-number="${pr.number}" title="PR #${pr.number} (${cls}) — click to open">PR#${pr.number}</span>`;
 }
 
 function scheduleCIPoll() {
   if (_ciPollTimer) { clearTimeout(_ciPollTimer); _ciPollTimer = null; }
   if (document.visibilityState !== 'visible') return;
-  if (!projectList.querySelector('.wt-ci-dot.pending')) return;
+  const hasPending = projectList.querySelector('.wt-ci-dot.pending');
+  const hasDraft = projectList.querySelector('.wt-pr-badge.draft');
+  if (!hasPending && !hasDraft) return;
   _ciPollTimer = setTimeout(refreshCIBadges, CI_POLL_MS);
 }
 
