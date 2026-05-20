@@ -36,8 +36,12 @@ function highlightCodeBlocks(root) {
   }
 }
 
-export function renderMarkdown(text) {
-  const html = marked.parse(text || '');
+// `opts.breaks=true` makes single newlines emit <br> — matches GitHub's
+// renderer for issue/PR comments, where users routinely separate lines
+// without blank-line paragraph breaks. Default false matches CommonMark
+// (correct for README-style docs in the editor preview).
+export function renderMarkdown(text, opts = {}) {
+  const html = marked.parse(text || '', { gfm: true, breaks: !!opts.breaks });
   const tmpl = document.createElement('template');
   tmpl.innerHTML = html;
   sanitize(tmpl.content);
