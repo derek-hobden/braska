@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
-import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges, prCheckStatus } from './utils.js';
+import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges, prCheckStatus, prStateBadgeClass } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
@@ -16,6 +16,7 @@ let _openWorktreeCreateModal;
 let _showWorktreeContextMenu;
 let _openProjectScope;
 let _openIssueInPanel;
+let _openPRInPanel;
 
 // ── SVG icons for section links ──
 const SVG_TODO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
@@ -43,7 +44,7 @@ export function renderProjects(projects) {
       const iconSvg = hasIssue ? SVG_GH_ISSUE : SVG_GIT_BRANCH;
       const iconClass = hasIssue ? 'wt-icon wt-icon-issue' : 'wt-icon';
       const iconAttrs = hasIssue ? ` data-gh-issue="${w.githubIssue}" title="Linked to issue #${w.githubIssue} — click to view"` : '';
-      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-ci" data-wt-path="${wtPath}"></span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
+      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-pr" data-wt-path="${wtPath}"></span><span class="wt-ci" data-wt-path="${wtPath}"></span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     // Project-level section links (available without picking a worktree)
     const sectionLinks = p.isGit ? `<div class="project-actions">
@@ -143,20 +144,40 @@ export async function refreshCIBadges() {
   const slots = projectList.querySelectorAll('.wt-ci[data-wt-path]');
   for (const slot of slots) {
     const wtItem = slot.closest('.worktree-item');
-    if (!wtItem || wtItem.dataset.isMain === 'true') { slot.innerHTML = ''; continue; }
+    const prSlot = wtItem?.querySelector('.wt-pr');
+    if (!wtItem || wtItem.dataset.isMain === 'true') {
+      slot.innerHTML = '';
+      if (prSlot) prSlot.innerHTML = '';
+      continue;
+    }
     const wtPath = slot.dataset.wtPath;
     try {
       const prResult = await window.github.prForBranch(wtPath);
-      slot.innerHTML = prResult?.pr ? ciBadgeHtml(prCheckStatus(prResult.pr)) : '';
-    } catch { slot.innerHTML = ''; }
+      const pr = prResult?.pr || null;
+      // CI dot only on OPEN PRs — for merged/closed PRs the rollup is stale info.
+      slot.innerHTML = (pr && pr.state === 'OPEN') ? ciBadgeHtml(prCheckStatus(pr)) : '';
+      if (prSlot) prSlot.innerHTML = prBadgeHtml(pr);
+    } catch {
+      slot.innerHTML = '';
+      if (prSlot) prSlot.innerHTML = '';
+    }
   }
   scheduleCIPoll();
+}
+
+function prBadgeHtml(pr) {
+  if (!pr || !Number.isInteger(pr.number)) return '';
+  const cls = prStateBadgeClass(pr.state, pr.isDraft);
+  if (!cls) return '';
+  return `<span class="wt-pr-badge ${cls}" data-pr-number="${pr.number}" title="PR #${pr.number} (${cls}) — click to open">PR#${pr.number}</span>`;
 }
 
 function scheduleCIPoll() {
   if (_ciPollTimer) { clearTimeout(_ciPollTimer); _ciPollTimer = null; }
   if (document.visibilityState !== 'visible') return;
-  if (!projectList.querySelector('.wt-ci-dot.pending')) return;
+  const hasPending = projectList.querySelector('.wt-ci-dot.pending');
+  const hasDraft = projectList.querySelector('.wt-pr-badge.draft');
+  if (!hasPending && !hasDraft) return;
   _ciPollTimer = setTimeout(refreshCIBadges, CI_POLL_MS);
 }
 
@@ -189,12 +210,13 @@ export async function refreshProjectBadges(projectPath) {
 
 // ── Init (wires up event listeners, avoids circular imports) ──
 
-export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel }) {
+export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel, openPRInPanel }) {
   _openWorkDir = openWorkDir;
   _openWorktreeCreateModal = openWorktreeCreateModal;
   _showWorktreeContextMenu = showWorktreeContextMenu;
   _openProjectScope = openProjectScope;
   _openIssueInPanel = openIssueInPanel;
+  _openPRInPanel = openPRInPanel;
 
   const addMenu = document.getElementById('add-project-menu');
   function closeAddMenu() { addMenu.classList.remove('active'); }
@@ -262,6 +284,19 @@ export function initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktree
       const issueNum = parseInt(issueIcon.dataset.ghIssue, 10);
       if (wtPath && Number.isInteger(issueNum) && _openIssueInPanel) {
         _openIssueInPanel(wtPath, issueNum);
+      }
+      return;
+    }
+    // PR badge click — same shape as issue-icon: keep worktree active, route
+    // right panel to the PR detail view.
+    const prBadge = e.target.closest('.wt-pr-badge[data-pr-number]');
+    if (prBadge) {
+      e.stopPropagation();
+      const wtItem = prBadge.closest('.worktree-item');
+      const wtPath = wtItem?.dataset.path;
+      const prNum = parseInt(prBadge.dataset.prNumber, 10);
+      if (wtPath && Number.isInteger(prNum) && _openPRInPanel) {
+        _openPRInPanel(wtPath, prNum);
       }
       return;
     }

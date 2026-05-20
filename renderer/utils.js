@@ -383,6 +383,15 @@ export function prCheckStatus(pr) {
   return 'pass';
 }
 
+/** Map a `gh pr view` (`state`, `isDraft`) pair to a CSS class suffix. Draft takes precedence over OPEN — a draft PR is technically state=OPEN, but renders distinctly. Returns `null` for unknown state values. */
+export function prStateBadgeClass(state, isDraft = false) {
+  if (state === 'OPEN' && isDraft) return 'draft';
+  if (state === 'OPEN') return 'open';
+  if (state === 'CLOSED') return 'closed';
+  if (state === 'MERGED') return 'merged';
+  return null;
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';

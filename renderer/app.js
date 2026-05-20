@@ -254,10 +254,17 @@ function openIssueInPanel(workDir, issueNumber) {
   switchRightPanelTab('github');
 }
 
+function openPRInPanel(workDir, prNumber) {
+  openWorkDir(workDir);
+  ghState.section = 'prs';
+  ghState.directPRNumber = prNumber;
+  switchRightPanelTab('github');
+}
+
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references
-initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel });
+initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel, openPRInPanel });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
