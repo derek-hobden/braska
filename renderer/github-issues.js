@@ -325,7 +325,7 @@ async function createWorktreeFromIssue(workDir, issueNumber, projectRoot, btn) {
   btn.textContent = 'Creating worktree...';
   if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#777'; }
 
-  const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
+  const result = await window.worktree.add(projectRoot, wtPath, branchName, 'new');
   if (!result.ok) {
     btn.disabled = false;
     btn.textContent = originalText;

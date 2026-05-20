@@ -4,13 +4,14 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo } from './utils.js';
 import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge } from './github-panel.js';
 
-let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir;
+let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir, _refreshChanges;
 
-export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir }) {
+export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, refreshChanges }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _closeTab = closeTab;
   _tabsForWorkDir = tabsForWorkDir;
+  _refreshChanges = refreshChanges;
 }
 
 // ── PR list ────────────────────────────────────────────────────
@@ -180,12 +181,15 @@ export async function showGitHubPRDetail(workDir, number) {
         if (cleanDir === workDir) {
           // We were inside the removed worktree — switch to main
           _openWorkDir?.(r.mainWorktreePath);
+          _refreshChanges?.(r.mainWorktreePath || workDir);
         } else {
           // We're in a different worktree (e.g. main) — refresh the PR view
           showGitHubPRDetail(workDir, number);
+          _refreshChanges?.(workDir);
         }
       } else if (r.ok) {
         showGitHubPRDetail(workDir, number);
+        _refreshChanges?.(workDir);
       } else {
         mergeBtn.textContent = 'Error';
         const msg = document.createElement('div');

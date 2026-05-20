@@ -322,8 +322,15 @@
         <label><input type="checkbox" id="wt-new-branch-check"> Create new branch</label>
       </div>
       <div class="wt-form-group" id="wt-branch-select-group">
-        <label>Branch</label>
+        <label class="wt-branch-label">
+          Branch
+          <span class="wt-branch-source-toggle">
+            <button class="wt-src-btn active" id="wt-src-local" type="button">Local</button>
+            <button class="wt-src-btn" id="wt-src-remote" type="button">Remote</button>
+          </span>
+        </label>
         <select id="wt-branch-select"><option value="">Loading...</option></select>
+        <select id="wt-remote-branch-select" style="display:none"><option value="">Loading...</option></select>
       </div>
       <div class="wt-form-group" id="wt-branch-name-group" style="display:none">
         <label>New Branch Name</label>
@@ -390,6 +397,24 @@
     </div>
   </div>
 
+  <!-- Commit staged changes modal -->
+  <div id="commit-modal">
+    <div class="commit-modal-content">
+      <h3>Commit staged changes</h3>
+      <div id="commit-modal-summary"></div>
+      <textarea id="commit-modal-msg" placeholder="Subject line&#10;&#10;Optional body…" rows="6" spellcheck="false"></textarea>
+      <label class="commit-modal-amend">
+        <input type="checkbox" id="commit-modal-amend-toggle"> Amend last commit
+      </label>
+      <div class="commit-modal-error" id="commit-modal-error"></div>
+      <div class="commit-modal-buttons">
+        <button id="commit-modal-cancel">Cancel</button>
+        <button id="commit-modal-generate">Generate with Claude</button>
+        <button id="commit-modal-submit" class="commit-modal-primary">Commit</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pull Latest Main: dirty state modal -->
   <div id="pull-main-dirty-modal">
     <div class="pull-main-modal-content">
@@ -429,6 +454,54 @@
       <div class="branch-error" id="branch-error"></div>
       <div class="branch-modal-footer">
         <button id="branch-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create GitHub repo modal -->
+  <div id="create-repo-modal">
+    <div class="clone-modal-content">
+      <h3>Create GitHub Repository</h3>
+      <div class="create-repo-row">
+        <div class="wt-form-group create-repo-owner-group">
+          <label>Owner</label>
+          <select id="create-repo-owner"><option value="">Loading…</option></select>
+        </div>
+        <div class="wt-form-group create-repo-name-group">
+          <label>Repository name</label>
+          <input type="text" id="create-repo-name" spellcheck="false" placeholder="my-project">
+        </div>
+      </div>
+      <div class="wt-form-group">
+        <label>Visibility</label>
+        <div class="vis-toggle" role="radiogroup" aria-label="Visibility">
+          <button type="button" class="vis-btn active" data-vis="private" role="radio" aria-checked="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="vis-text">
+              <span class="vis-label">Private</span>
+              <span class="vis-desc">Only you and people you choose</span>
+            </span>
+          </button>
+          <button type="button" class="vis-btn" data-vis="public" role="radio" aria-checked="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="vis-text">
+              <span class="vis-label">Public</span>
+              <span class="vis-desc">Anyone on the internet</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="wt-form-group">
+        <label>Description <span class="wt-label-hint">(optional)</span></label>
+        <input type="text" id="create-repo-description" spellcheck="false" placeholder="Short description…">
+      </div>
+      <div class="wt-form-row">
+        <label><input type="checkbox" id="create-repo-push" checked> <span id="create-repo-push-label">Push commits now</span></label>
+      </div>
+      <div class="wt-error" id="create-repo-error"></div>
+      <div class="wt-modal-buttons">
+        <button id="create-repo-cancel">Cancel</button>
+        <button id="create-repo-btn" disabled>Create</button>
       </div>
     </div>
   </div>
