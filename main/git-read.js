@@ -170,7 +170,7 @@ function register({ ipcMain }) {
       } catch {}
 
       const results = await Promise.all(info.worktrees.map(async (wt) => {
-        const m = { path: wt.path, changed: 0, untracked: 0, ahead: 0, behind: 0, pushAhead: 0, pushBehind: 0, mainStale, isMain: !!wt.isMain };
+        const m = { path: wt.path, branch: wt.branch || null, changed: 0, untracked: 0, ahead: 0, behind: 0, pushAhead: 0, pushBehind: 0, mainStale, isMain: !!wt.isMain };
         const opts = { cwd: wt.path, encoding: 'utf-8', timeout: 10000 };
         try {
           const { stdout } = await execFileAsync('git', ['status', '--porcelain'], opts);
