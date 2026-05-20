@@ -165,7 +165,13 @@ _Nothing recorded yet._
 
 ## Course corrections
 
-_Nothing recorded yet._
+- 2026-05-20 — Initial implementation used the global `breaks: false` (CommonMark
+  default). Advisor flagged that GitHub comments routinely separate lines with
+  single newlines (no blank line), which would have collapsed to a single
+  paragraph — a visible regression vs. the previous `escHtml + pre-wrap`.
+  Fixed by extending `renderMarkdown(text, opts)` with an opt-in `breaks`
+  option and passing `{ breaks: true }` from the github panel. Editor preview
+  keeps the CommonMark default by not opting in.
 
 ## Subagent notes
 
@@ -174,6 +180,11 @@ _Nothing recorded yet._
 ## Follow-ups (deferred work)
 
 - Fix `package.json` `test` script for Node 25 (use explicit globs). Out of scope here.
+- CSP currently restricts to `default-src 'self'` with no explicit `img-src`,
+  so external images embedded in markdown (`![alt](https://...)`) will not
+  load — they'll show as broken-image icons. Same behavior as the editor
+  preview today. Adding `img-src 'self' https: data:` is the obvious fix
+  but it's a security-policy change that deserves its own deliberation.
 
 ## Open questions
 
