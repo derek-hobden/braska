@@ -3833,7 +3833,8 @@
     .gh-notif-reason { color: #555; font-size: 0.68rem; flex-shrink: 0; }
     .gh-notif-time { color: #444; font-size: 0.68rem; flex-shrink: 0; }
 
-    /* Open-on-GitHub affordance. Hover-only icon button on rows that carry a github.com URL. */
+    /* Open-on-GitHub affordance. Hover-only icon button on rows that carry a github.com URL.
+       No border-bottom: .gh-subnav (rendered directly below) already supplies a separator. */
     .gh-repo-header {
       display: flex;
       align-items: center;
@@ -3843,7 +3844,6 @@
       color: #888;
       font-family: Menlo, Monaco, "Courier New", monospace;
       cursor: pointer;
-      border-bottom: 1px solid #1a1a1a;
     }
     .gh-repo-header:hover { background: #1c1c1c; color: #ccc; }
     .gh-repo-header-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

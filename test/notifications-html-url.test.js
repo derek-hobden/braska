@@ -59,7 +59,10 @@ describe('notificationSubjectToHtmlUrl', () => {
     );
   });
 
-  it('passes through enterprise GHE hosts (api.<host> → <host>)', () => {
+  // Only api.<host>-style URLs match (api.github.com and GHE Cloud tenants like
+  // api.<tenant>.ghe.com). GHE Server (uses <host>/api/v3/repos/...) is not covered;
+  // those rows skip the icon via the null fallback.
+  it('passes through api.<host>-style tenants by stripping the api. prefix', () => {
     const out = notificationSubjectToHtmlUrl(
       'https://api.github.acme.corp/repos/team/proj/issues/7',
       'Issue',
