@@ -1,6 +1,6 @@
 # Spec — Show PR badge next to worktree name with status color (#70)
 
-Issue: https://github.com/derek-hobden/braska/issues/70 · branch: `gh-issue-70` · started: 2026-05-20T00:00:00Z
+Issue: https://github.com/derek-hobden/braska/issues/70 · branch: `gh-issue-70` · PR: https://github.com/derek-hobden/braska/pull/74 · started: 2026-05-20T00:00:00Z
 
 **Status:** Ready for review (pending visual verification by user — see report).
 
