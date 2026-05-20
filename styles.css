@@ -167,6 +167,27 @@
       margin-left: 6px;
       flex-shrink: 0;
     }
+    .wt-pr {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      flex-shrink: 0;
+    }
+    .wt-pr-badge {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 0 5px;
+      border-radius: 6px;
+      line-height: 1.4;
+      cursor: pointer;
+      user-select: none;
+    }
+    .wt-pr-badge.open    { color: #3fb950; background: rgba(63, 185, 80, 0.12); }
+    .wt-pr-badge.draft   { color: #b8c0c8; background: rgba(184, 192, 200, 0.12); }
+    .wt-pr-badge.closed  { color: #e5534b; background: rgba(229, 83, 75, 0.12); }
+    .wt-pr-badge.merged  { color: #a371f7; background: rgba(163, 113, 247, 0.12); }
+    .wt-pr-badge:hover { filter: brightness(1.25); }
     .wt-ci-glyph {
       display: inline-flex;
       align-items: center;
@@ -3553,7 +3574,6 @@
       font-size: 0.82rem;
       color: #bbb;
       line-height: 1.6;
-      white-space: pre-wrap;
       word-break: break-word;
       margin-bottom: 16px;
       padding: 8px 0;
@@ -3667,7 +3687,6 @@
       font-size: 0.8rem;
       color: #bbb;
       line-height: 1.5;
-      white-space: pre-wrap;
       word-break: break-word;
       margin-top: 4px;
     }

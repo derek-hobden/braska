@@ -4,6 +4,7 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir, ghExtLink } from './utils.js';
 import { ghResetListeners, ghLabelHtml, ghStateBadge, handleGhExternalClick } from './github-panel.js';
 import { showGitHubIssueForm } from './github-issues-create.js';
+import { renderMarkdown } from './markdown.js';
 
 // ── Injected deps ──────────────────────────────────────────────
 let _switchRightPanelTab = null;
@@ -136,7 +137,7 @@ export async function showGitHubIssueDetail(workDir, number) {
       <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, true)}</div>
     </div>`;
   } else if (issue.body) {
-    html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
+    html += `<div class="gh-detail-body markdown-body">${renderMarkdown(issue.body, { breaks: true })}</div>`;
   }
 
   // Linked Braska worktree (by branch). projects.list() returns each project
@@ -177,7 +178,7 @@ export async function showGitHubIssueDetail(workDir, number) {
   if (issue.comments && issue.comments.length) {
     html += `<div class="gh-section-title">Comments (${issue.comments.length})</div>`;
     for (const c of issue.comments) {
-      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body">${escHtml(c.body)}</div></div>`;
+      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body markdown-body">${renderMarkdown(c.body, { breaks: true })}</div></div>`;
     }
   }
 
@@ -199,7 +200,9 @@ export async function showGitHubIssueDetail(workDir, number) {
   html += '</div>';
 
   html += '</div>';
+  const detailSignal = ghResetListeners();
   content.innerHTML = html;
+  content.addEventListener('click', (e) => { handleGhExternalClick(e); }, { signal: detailSignal });
 
   content.querySelector('.gh-detail-back').addEventListener('click', () => {
     editDraft = null;

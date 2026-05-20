@@ -3,6 +3,7 @@
 import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo, ghExtLink } from './utils.js';
 import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge, handleGhExternalClick } from './github-panel.js';
+import { renderMarkdown } from './markdown.js';
 
 let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir, _refreshChanges;
 
@@ -102,7 +103,7 @@ export async function showGitHubPRDetail(workDir, number) {
     <div class="gh-detail-meta">${escHtml((pr.author || {}).login || 'unknown')} &middot; ${escHtml(pr.headRefName)} &rarr; ${escHtml(pr.baseRefName)} &middot; +${pr.additions || 0} &minus;${pr.deletions || 0} &middot; ${timeAgo(pr.createdAt)}</div>`;
 
   if (pr.body) {
-    html += `<div class="gh-detail-body">${escHtml(pr.body)}</div>`;
+    html += `<div class="gh-detail-body markdown-body">${renderMarkdown(pr.body, { breaks: true })}</div>`;
   }
 
   // Files
@@ -129,7 +130,7 @@ export async function showGitHubPRDetail(workDir, number) {
   if (pr.comments && pr.comments.length) {
     html += `<div class="gh-section-title">Comments (${pr.comments.length})</div>`;
     for (const c of pr.comments) {
-      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body">${escHtml(c.body)}</div></div>`;
+      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body markdown-body">${renderMarkdown(c.body, { breaks: true })}</div></div>`;
     }
   }
 
@@ -147,7 +148,9 @@ export async function showGitHubPRDetail(workDir, number) {
   }
 
   html += '</div>';
+  const detailSignal = ghResetListeners();
   content.innerHTML = html;
+  content.addEventListener('click', (e) => { handleGhExternalClick(e); }, { signal: detailSignal });
 
   content.querySelector('.gh-detail-back').addEventListener('click', () => refreshGitHubPRs(workDir));
 
