@@ -3,7 +3,7 @@
 // PRs and issues are in github-prs.js and github-issues.js.
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo } from './utils.js';
+import { escHtml, timeAgo, ghExtLink } from './utils.js';
 import { refreshGitHubPRs } from './github-prs.js';
 import { refreshGitHubIssues, showGitHubIssueDetail, initGitHubIssues } from './github-issues.js';
 import { openCreateRepoModal } from './github-repo-create-modal.js';
@@ -22,6 +22,31 @@ export function ghResetListeners() {
   if (ghState.contentAC) ghState.contentAC.abort();
   ghState.contentAC = new AbortController();
   return ghState.contentAC.signal;
+}
+
+// Intercepts the two "open on GitHub" affordances every list section shares:
+// (1) click on a [data-gh-external-url] button; (2) cmd-click on a row that
+// carries [data-gh-row-url]. Returns true when the event was handled so the
+// caller can short-circuit its detail-open / filter behaviour.
+export function handleGhExternalClick(e) {
+  const extBtn = e.target.closest('[data-gh-external-url]');
+  if (extBtn) {
+    const url = extBtn.dataset.ghExternalUrl;
+    if (url) window.windowActions.openExternal(url);
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  }
+  if (e.metaKey) {
+    const row = e.target.closest('[data-gh-row-url]');
+    const url = row && row.dataset.ghRowUrl;
+    if (url) {
+      window.windowActions.openExternal(url);
+      e.preventDefault();
+      return true;
+    }
+  }
+  return false;
 }
 
 export function ghChecksBadge(rollup) {
@@ -117,13 +142,26 @@ export async function refreshGitHub(workDir) {
     return;
   }
 
-  let html = `<div class="gh-subnav">
+  const repo = ghState.cachedAuth.repo;
+  const repoLabel = repo && repo.owner && repo.name ? `${repo.owner.login || repo.owner}/${repo.name}` : '';
+  const repoUrl = repo && repo.url;
+  const repoHeader = repoLabel
+    ? `<div class="gh-repo-header" data-gh-row-url="${escHtml(repoUrl || '')}"><span class="gh-repo-header-name">${escHtml(repoLabel)}</span>${ghExtLink(repoUrl)}</div>`
+    : '';
+
+  let html = `${repoHeader}<div class="gh-subnav">
     <button class="gh-subnav-btn${ghState.section === 'prs' ? ' active' : ''}" data-gh-section="prs">PRs</button>
     <button class="gh-subnav-btn${ghState.section === 'issues' ? ' active' : ''}" data-gh-section="issues">Issues</button>
     <button class="gh-subnav-btn${ghState.section === 'ci' ? ' active' : ''}" data-gh-section="ci">CI</button>
     <button class="gh-subnav-btn${ghState.section === 'notifs' ? ' active' : ''}" data-gh-section="notifs">Notifications</button>
   </div><div id="gh-content"></div>`;
   ghBody.innerHTML = html;
+
+  if (repoHeader) {
+    ghBody.querySelector('.gh-repo-header').addEventListener('click', (e) => {
+      handleGhExternalClick(e);
+    });
+  }
 
   ghBody.querySelector('.gh-subnav').addEventListener('click', (e) => {
     const btn = e.target.closest('.gh-subnav-btn');
@@ -187,11 +225,12 @@ async function refreshGitHubCI(workDir, opts = {}) {
       const icon = run.conclusion === 'success' ? '<span style="color:#3fb950">&#10003;</span>' :
                    run.conclusion === 'failure' ? '<span style="color:#f85149">&#10007;</span>' :
                    '<span style="color:#d29922">&#9679;</span>';
-      html += `<div class="gh-ci-item" data-gh-run-id="${run.databaseId}">
+      html += `<div class="gh-ci-item" data-gh-run-id="${run.databaseId}" data-gh-row-url="${escHtml(run.url || '')}">
         ${icon}
         <span class="gh-ci-title">${escHtml(run.displayTitle)}</span>
         <span class="gh-badge gh-badge-${statusCls}">${escHtml(run.conclusion || run.status || 'pending')}</span>
         <span class="gh-ci-time">${timeAgo(run.createdAt)}</span>
+        ${ghExtLink(run.url)}
       </div>`;
     }
   }
@@ -199,6 +238,7 @@ async function refreshGitHubCI(workDir, opts = {}) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     if (e.target.closest('#gh-ci-refresh-btn')) {
       refreshGitHubCI(tabState.activeWorkDir);
       return;
@@ -290,11 +330,13 @@ async function refreshGitHubNotifs(workDir) {
       const typeIcon = subject.type === 'PullRequest' ? '<span style="color:#a371f7">PR</span>' :
                        subject.type === 'Issue' ? '<span style="color:#3fb950">I</span>' :
                        '<span style="color:#888">N</span>';
-      html += `<div class="gh-notif-item">
+      const rowUrlAttr = n.htmlUrl ? ` data-gh-row-url="${escHtml(n.htmlUrl)}"` : '';
+      html += `<div class="gh-notif-item"${rowUrlAttr}>
         ${typeIcon}
         <span class="gh-notif-title">${escHtml(subject.title || 'Notification')}</span>
         <span class="gh-notif-reason">${escHtml(n.reason || '')}</span>
         <span class="gh-notif-time">${timeAgo(n.updated_at)}</span>
+        ${ghExtLink(n.htmlUrl)}
       </div>`;
     }
   }
@@ -302,6 +344,7 @@ async function refreshGitHubNotifs(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', async (e) => {
+    if (handleGhExternalClick(e)) return;
     if (e.target.closest('#gh-notif-refresh-btn')) {
       refreshGitHubNotifs(tabState.activeWorkDir);
       return;

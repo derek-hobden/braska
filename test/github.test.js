@@ -4,17 +4,18 @@ const { mockExec, installMocks, loadModule, mockIpcMain } = require('./helpers')
 
 describe('prCheckStatus', async () => {
   const { prCheckStatus } = await import('../renderer/utils.js');
+  const pr = (rollup, extras = {}) => ({ statusCheckRollup: rollup, mergeable: 'UNKNOWN', isDraft: false, ...extras });
 
-  it('returns null for null rollup', () => {
+  it('returns null for null pr', () => {
     assert.equal(prCheckStatus(null), null);
   });
 
-  it('returns null for empty rollup', () => {
-    assert.equal(prCheckStatus([]), null);
+  it('returns null for empty rollup with unknown mergeability', () => {
+    assert.equal(prCheckStatus(pr([])), null);
   });
 
-  it('returns null for undefined rollup', () => {
-    assert.equal(prCheckStatus(undefined), null);
+  it('returns null for undefined rollup with unknown mergeability', () => {
+    assert.equal(prCheckStatus(pr(undefined)), null);
   });
 
   it('returns pass when all CheckRuns succeeded', () => {
@@ -22,7 +23,7 @@ describe('prCheckStatus', async () => {
       { __typename: 'CheckRun', conclusion: 'SUCCESS', status: 'COMPLETED' },
       { __typename: 'CheckRun', conclusion: 'NEUTRAL', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pass');
+    assert.equal(prCheckStatus(pr(rollup)), 'pass');
   });
 
   it('returns fail on FAILURE conclusion', () => {
@@ -30,21 +31,21 @@ describe('prCheckStatus', async () => {
       { __typename: 'CheckRun', conclusion: 'SUCCESS', status: 'COMPLETED' },
       { __typename: 'CheckRun', conclusion: 'FAILURE', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('returns fail on ERROR conclusion', () => {
     const rollup = [
       { __typename: 'CheckRun', conclusion: 'ERROR', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('returns fail on TIMED_OUT conclusion', () => {
     const rollup = [
       { __typename: 'CheckRun', conclusion: 'TIMED_OUT', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('returns pending when a CheckRun has no conclusion (in progress)', () => {
@@ -52,42 +53,42 @@ describe('prCheckStatus', async () => {
       { __typename: 'CheckRun', conclusion: null, status: 'IN_PROGRESS' },
       { __typename: 'CheckRun', conclusion: 'SUCCESS', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pending');
+    assert.equal(prCheckStatus(pr(rollup)), 'pending');
   });
 
   it('returns pending when a CheckRun status is QUEUED', () => {
     const rollup = [
       { __typename: 'CheckRun', conclusion: null, status: 'QUEUED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pending');
+    assert.equal(prCheckStatus(pr(rollup)), 'pending');
   });
 
   it('returns pass for StatusContext with state SUCCESS (regression for ghChecksBadge bug)', () => {
     const rollup = [
       { __typename: 'StatusContext', state: 'SUCCESS' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pass');
+    assert.equal(prCheckStatus(pr(rollup)), 'pass');
   });
 
   it('returns fail for StatusContext with state FAILURE', () => {
     const rollup = [
       { __typename: 'StatusContext', state: 'FAILURE' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('returns fail for StatusContext with state ERROR', () => {
     const rollup = [
       { __typename: 'StatusContext', state: 'ERROR' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('returns pending for StatusContext with state PENDING', () => {
     const rollup = [
       { __typename: 'StatusContext', state: 'PENDING' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pending');
+    assert.equal(prCheckStatus(pr(rollup)), 'pending');
   });
 
   it('fail takes priority over pending', () => {
@@ -95,7 +96,7 @@ describe('prCheckStatus', async () => {
       { __typename: 'CheckRun', conclusion: null, status: 'IN_PROGRESS' },
       { __typename: 'CheckRun', conclusion: 'FAILURE', status: 'COMPLETED' },
     ];
-    assert.equal(prCheckStatus(rollup), 'fail');
+    assert.equal(prCheckStatus(pr(rollup)), 'fail');
   });
 
   it('mixed CheckRun and StatusContext — all passing', () => {
@@ -103,7 +104,28 @@ describe('prCheckStatus', async () => {
       { __typename: 'CheckRun', conclusion: 'SUCCESS', status: 'COMPLETED' },
       { __typename: 'StatusContext', state: 'SUCCESS' },
     ];
-    assert.equal(prCheckStatus(rollup), 'pass');
+    assert.equal(prCheckStatus(pr(rollup)), 'pass');
+  });
+
+  it('returns conflict when mergeable is CONFLICTING', () => {
+    assert.equal(prCheckStatus(pr([], { mergeable: 'CONFLICTING' })), 'conflict');
+  });
+
+  it('conflict takes priority over passing checks', () => {
+    const rollup = [{ __typename: 'CheckRun', conclusion: 'SUCCESS', status: 'COMPLETED' }];
+    assert.equal(prCheckStatus(pr(rollup, { mergeable: 'CONFLICTING' })), 'conflict');
+  });
+
+  it('returns pass when no checks but PR is mergeable and not draft', () => {
+    assert.equal(prCheckStatus(pr([], { mergeable: 'MERGEABLE' })), 'pass');
+  });
+
+  it('returns null when no checks but PR is draft', () => {
+    assert.equal(prCheckStatus(pr([], { mergeable: 'MERGEABLE', isDraft: true })), null);
+  });
+
+  it('returns null when no checks and mergeability is unknown', () => {
+    assert.equal(prCheckStatus(pr([], { mergeable: 'UNKNOWN' })), null);
   });
 });
 

@@ -1,8 +1,8 @@
 // ── GitHub Issues — list, detail, create + edit forms ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir } from './utils.js';
-import { ghResetListeners, ghLabelHtml, ghStateBadge } from './github-panel.js';
+import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir, ghExtLink } from './utils.js';
+import { ghResetListeners, ghLabelHtml, ghStateBadge, handleGhExternalClick } from './github-panel.js';
 import { showGitHubIssueForm } from './github-issues-create.js';
 
 // ── Injected deps ──────────────────────────────────────────────
@@ -54,11 +54,12 @@ export async function refreshGitHubIssues(workDir) {
       if (issue.labels && issue.labels.length) {
         for (const l of issue.labels) labels += ghLabelHtml(l);
       }
-      html += `<div class="gh-item" data-gh-issue-number="${issue.number}">
+      html += `<div class="gh-item" data-gh-issue-number="${issue.number}" data-gh-row-url="${escHtml(issue.url || '')}">
         <span class="gh-item-number">#${issue.number}</span>
         <span class="gh-item-title">${escHtml(issue.title)}</span>
         ${labels}
         ${ghStateBadge(issue.state)}
+        ${ghExtLink(issue.url)}
       </div>`;
     }
   }
@@ -66,6 +67,7 @@ export async function refreshGitHubIssues(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     const filterBtn = e.target.closest('.gh-filter-btn[data-gh-issue-filter]');
     if (filterBtn) {
       ghState.issueFilter = filterBtn.dataset.ghIssueFilter;

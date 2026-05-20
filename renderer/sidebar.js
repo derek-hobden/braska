@@ -128,11 +128,13 @@ const CI_POLL_MS = 25000;
 
 const SVG_CI_PASS = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M11.78 6.28a.75.75 0 0 0-1.06-1.06L6.75 9.19 5.28 7.72a.75.75 0 1 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0z"/></svg>';
 const SVG_CI_FAIL = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M5.72 5.72a.75.75 0 0 1 1.06 0L8 6.94l1.22-1.22a.75.75 0 1 1 1.06 1.06L9.06 8l1.22 1.22a.75.75 0 1 1-1.06 1.06L8 9.06l-1.22 1.22a.75.75 0 0 1-1.06-1.06L6.94 8 5.72 6.78a.75.75 0 0 1 0-1.06z"/></svg>';
+const SVG_CI_CONFLICT = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M7.13 2.5L1.5 13a1 1 0 0 0 .87 1.5h11.26a1 1 0 0 0 .87-1.5L8.87 2.5a1 1 0 0 0-1.74 0z" fill="currentColor"/><path d="M7.25 6.75a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3zM8 11.25a.875.875 0 1 1 0 1.75.875.875 0 0 1 0-1.75z"/></svg>';
 
 function ciBadgeHtml(status) {
-  if (status === 'pass') return `<span class="wt-ci-glyph pass" title="CI checks passing">${SVG_CI_PASS}</span>`;
+  if (status === 'pass') return `<span class="wt-ci-glyph pass" title="Ready to merge">${SVG_CI_PASS}</span>`;
   if (status === 'fail') return `<span class="wt-ci-glyph fail" title="CI checks failing">${SVG_CI_FAIL}</span>`;
   if (status === 'pending') return '<span class="wt-ci-dot pending" title="CI checks in progress"></span>';
+  if (status === 'conflict') return `<span class="wt-ci-glyph conflict" title="Merge conflict">${SVG_CI_CONFLICT}</span>`;
   return '';
 }
 
@@ -145,8 +147,7 @@ export async function refreshCIBadges() {
     const wtPath = slot.dataset.wtPath;
     try {
       const prResult = await window.github.prForBranch(wtPath);
-      const rollup = prResult?.pr?.statusCheckRollup;
-      slot.innerHTML = rollup ? ciBadgeHtml(prCheckStatus(rollup)) : '';
+      slot.innerHTML = prResult?.pr ? ciBadgeHtml(prCheckStatus(prResult.pr)) : '';
     } catch { slot.innerHTML = ''; }
   }
   scheduleCIPoll();

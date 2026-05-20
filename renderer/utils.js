@@ -30,6 +30,8 @@ export const SVG_STYLE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 
 export const SVG_TEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>';
 
+export const SVG_EXTERNAL_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
 // Tab-type icons — match the tab-type-picker for visual consistency.
 export const SVG_TAB_CLAUDE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 export const SVG_TAB_TERMINAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
@@ -145,6 +147,15 @@ export function ghSafeColor(raw) {
   if (typeof raw !== 'string') return '666666';
   if (/^[0-9a-fA-F]{3}$/.test(raw)) return raw[0]+raw[0]+raw[1]+raw[1]+raw[2]+raw[2];
   return /^[0-9a-fA-F]{6}$/.test(raw) ? raw : '666666';
+}
+
+/** Render the "open on GitHub" external-link icon button for an item row.
+ *  Returns an empty string when url is falsy — callers can interpolate
+ *  unconditionally. The button carries data-gh-external-url so a single
+ *  delegated listener per panel can handle every section. */
+export function ghExtLink(url) {
+  if (!url) return '';
+  return `<button class="gh-ext-link" data-gh-external-url="${escHtml(url)}" title="Open on GitHub" tabindex="-1">${SVG_EXTERNAL_LINK}</button>`;
 }
 
 /** Convert an agent name (e.g. '__CLAUDE__', 'code-reviewer') to a display name. */
@@ -346,8 +357,13 @@ export function getProjectRootForWorkDir(workDir) {
 }
 
 // StatusContext items have no .conclusion field — ghChecksBadge misreads them as pending; handle both types explicitly.
-export function prCheckStatus(rollup) {
-  if (!rollup || !rollup.length) return null;
+export function prCheckStatus(pr) {
+  if (!pr) return null;
+  if (pr.mergeable === 'CONFLICTING') return 'conflict';
+  const rollup = pr.statusCheckRollup;
+  if (!rollup || !rollup.length) {
+    return (pr.mergeable === 'MERGEABLE' && !pr.isDraft) ? 'pass' : null;
+  }
   for (const c of rollup) {
     if (c.__typename === 'StatusContext') {
       if (c.state === 'FAILURE' || c.state === 'ERROR') return 'fail';
