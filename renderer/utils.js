@@ -345,6 +345,28 @@ export function getProjectRootForWorkDir(workDir) {
   return null;
 }
 
+// StatusContext items have no .conclusion field — ghChecksBadge misreads them as pending; handle both types explicitly.
+export function prCheckStatus(rollup) {
+  if (!rollup || !rollup.length) return null;
+  for (const c of rollup) {
+    if (c.__typename === 'StatusContext') {
+      if (c.state === 'FAILURE' || c.state === 'ERROR') return 'fail';
+    } else {
+      if (c.conclusion === 'FAILURE' || c.conclusion === 'ERROR' ||
+          c.conclusion === 'TIMED_OUT' || c.conclusion === 'ACTION_REQUIRED') return 'fail';
+    }
+  }
+  for (const c of rollup) {
+    if (c.__typename === 'StatusContext') {
+      if (c.state === 'PENDING') return 'pending';
+    } else {
+      if (!c.conclusion || c.status === 'QUEUED' || c.status === 'IN_PROGRESS' ||
+          c.status === 'WAITING' || c.status === 'PENDING' || c.status === 'REQUESTED') return 'pending';
+    }
+  }
+  return 'pass';
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';

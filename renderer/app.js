@@ -2,7 +2,7 @@
 // Imports all modules, wires cross-module dependencies, and initializes the app.
 
 import { tabState, appState, watchState, ghState } from './state.js';
-import { loadProjects, refreshWorktreeMetrics, refreshProjectBadges, initSidebar } from './sidebar.js';
+import { loadProjects, refreshWorktreeMetrics, refreshCIBadges, refreshProjectBadges, initSidebar } from './sidebar.js';
 import { showWorktreeContextMenu, openWorktreeCreateModal, openMergeModal, initWorktreeModals } from './worktree-modals.js';
 import { enterSettings, exitSettings, bindSettingsDeps, initSettings } from './settings.js';
 import { tabsForWorkDir, renderTabBar, switchTab, closeTab, addTabToOrder, removeTabFromOrder, initTabs } from './tabs.js';
@@ -35,6 +35,7 @@ document.addEventListener('visibilitychange', () => {
       try { tab.term.options.cursorBlink = !hidden; } catch { /* old xterm shape */ }
     }
   }
+  if (!hidden && document.querySelector('.wt-ci-dot.pending')) refreshCIBadges();
 });
 
 // ── Version info ──

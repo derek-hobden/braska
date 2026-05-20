@@ -1,6 +1,6 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
-import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges } from './utils.js';
+import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges, prCheckStatus } from './utils.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
@@ -43,7 +43,7 @@ export function renderProjects(projects) {
       const iconSvg = hasIssue ? SVG_GH_ISSUE : SVG_GIT_BRANCH;
       const iconClass = hasIssue ? 'wt-icon wt-icon-issue' : 'wt-icon';
       const iconAttrs = hasIssue ? ` data-gh-issue="${w.githubIssue}" title="Linked to issue #${w.githubIssue} — click to view"` : '';
-      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
+      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-ci" data-wt-path="${wtPath}"></span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     // Project-level section links (available without picking a worktree)
     const sectionLinks = p.isGit ? `<div class="project-actions">
@@ -120,6 +120,43 @@ export async function refreshWorktreeMetrics() {
       }
     } catch {}
   }
+  refreshCIBadges();
+}
+
+let _ciPollTimer = null;
+const CI_POLL_MS = 25000;
+
+const SVG_CI_PASS = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M11.78 6.28a.75.75 0 0 0-1.06-1.06L6.75 9.19 5.28 7.72a.75.75 0 1 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0z"/></svg>';
+const SVG_CI_FAIL = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M5.72 5.72a.75.75 0 0 1 1.06 0L8 6.94l1.22-1.22a.75.75 0 1 1 1.06 1.06L9.06 8l1.22 1.22a.75.75 0 1 1-1.06 1.06L8 9.06l-1.22 1.22a.75.75 0 0 1-1.06-1.06L6.94 8 5.72 6.78a.75.75 0 0 1 0-1.06z"/></svg>';
+
+function ciBadgeHtml(status) {
+  if (status === 'pass') return `<span class="wt-ci-glyph pass" title="CI checks passing">${SVG_CI_PASS}</span>`;
+  if (status === 'fail') return `<span class="wt-ci-glyph fail" title="CI checks failing">${SVG_CI_FAIL}</span>`;
+  if (status === 'pending') return '<span class="wt-ci-dot pending" title="CI checks in progress"></span>';
+  return '';
+}
+
+export async function refreshCIBadges() {
+  if (_ciPollTimer) { clearTimeout(_ciPollTimer); _ciPollTimer = null; }
+  const slots = projectList.querySelectorAll('.wt-ci[data-wt-path]');
+  for (const slot of slots) {
+    const wtItem = slot.closest('.worktree-item');
+    if (!wtItem || wtItem.dataset.isMain === 'true') { slot.innerHTML = ''; continue; }
+    const wtPath = slot.dataset.wtPath;
+    try {
+      const prResult = await window.github.prForBranch(wtPath);
+      const rollup = prResult?.pr?.statusCheckRollup;
+      slot.innerHTML = rollup ? ciBadgeHtml(prCheckStatus(rollup)) : '';
+    } catch { slot.innerHTML = ''; }
+  }
+  scheduleCIPoll();
+}
+
+function scheduleCIPoll() {
+  if (_ciPollTimer) { clearTimeout(_ciPollTimer); _ciPollTimer = null; }
+  if (document.visibilityState !== 'visible') return;
+  if (!projectList.querySelector('.wt-ci-dot.pending')) return;
+  _ciPollTimer = setTimeout(refreshCIBadges, CI_POLL_MS);
 }
 
 // ── Badge refresh for project-level section links ──
