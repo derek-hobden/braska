@@ -18,7 +18,6 @@ let _refreshWorktreeMetrics = null;
 let _loadProjects = null;
 let _openWorkDir = null;
 let _switchToGitHubView = null;
-let _showGitHubPRDetail = null;
 
 // ── PR-for-branch cache ────────────────────────────────────────
 // Keyed by `${workDir}::${branch}`. Value: { pr: { number, url } | null, ts }.
@@ -75,7 +74,6 @@ export function initJourneyZone(deps) {
   _loadProjects = deps.loadProjects;
   _openWorkDir = deps.openWorkDir;
   _switchToGitHubView = deps.switchToGitHubView;
-  _showGitHubPRDetail = deps.showGitHubPRDetail;
 
   // Delegated click for the PR pill rendered inside #branch-subtitle
   document.getElementById('branch-subtitle')?.addEventListener('click', (e) => {
@@ -350,9 +348,9 @@ async function _handleJourneyAction(action, btn) {
     const branch = document.getElementById('branch-name-btn')?.textContent || '';
     const cached = _prCache.get(_prCacheKey(workDir, branch));
     const number = cached?.pr?.number;
-    if (!number || !_switchToGitHubView || !_showGitHubPRDetail) return;
+    if (!number || !_switchToGitHubView) return;
+    ghState.directPRNumber = number;
     _switchToGitHubView(true, { section: 'prs' });
-    setTimeout(() => _showGitHubPRDetail(workDir, number), 100);
 
   } else if (action === 'open-merger') {
     _startTask?.('merger', workDir, {
