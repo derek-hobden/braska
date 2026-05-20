@@ -106,7 +106,10 @@ export async function refreshWorktreeMetrics() {
         const fileBadges = [];
         if (m.changed > 0) fileBadges.push(`<span class="wt-metric changed" title="${m.changed} changed file${m.changed > 1 ? 's' : ''}">${m.changed}M</span>`);
         if (m.untracked > 0) fileBadges.push(`<span class="wt-metric untracked" title="${m.untracked} new file${m.untracked > 1 ? 's' : ''}">${m.untracked}U</span>`);
-        const { html: divHtml } = divergenceBadges(m, 'wt-metric');
+        const mForBadges = (m.isMain && m.branch && m.branch === m.mainStale?.branch)
+          ? { ...m, pushBehind: 0 }
+          : m;
+        const { html: divHtml } = divergenceBadges(mForBadges, 'wt-metric');
         // Stale-main indicator — only on the main worktree row, when origin has advanced
         let staleHtml = '';
         if (m.isMain && m.mainStale?.originAhead > 0) {
