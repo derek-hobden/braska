@@ -42,12 +42,14 @@ export function handleGhExternalClick(e) {
   const anchor = e.target.closest('a[href]');
   if (anchor) {
     const href = anchor.getAttribute('href');
+    // preventDefault unconditionally so relative/hash hrefs don't navigate
+    // the renderer away from the SPA; route only http(s)/mailto externally.
+    e.preventDefault();
+    e.stopPropagation();
     if (href && /^(https?:|mailto:)/i.test(href)) {
       window.windowActions.openExternal(href);
-      e.preventDefault();
-      e.stopPropagation();
-      return true;
     }
+    return true;
   }
   if (e.metaKey) {
     const row = e.target.closest('[data-gh-row-url]');
