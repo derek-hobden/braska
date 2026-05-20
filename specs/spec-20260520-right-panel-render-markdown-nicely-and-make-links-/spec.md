@@ -1,8 +1,8 @@
 # Spec — Right panel: render markdown nicely and make links clickable for issues, PRs, CI runs, notifications (#68)
 
-Issue: https://github.com/derek-hobden/braska/issues/68 · branch: `gh-issue-68` · started: 2026-05-20T00:00:00Z
+Issue: https://github.com/derek-hobden/braska/issues/68 · PR: https://github.com/derek-hobden/braska/pull/73 · branch: `gh-issue-68` · started: 2026-05-20T00:00:00Z
 
-**Status:** Ready for commit (implementation done; tests 81/81 green; awaiting manual UI verification).
+**Status:** Draft PR open at #73 (tests 81/81 green; repo has no CI on push/PR; awaiting manual UI verification — mark ready with `gh pr ready 73` after review).
 
 ## Issue body
 
