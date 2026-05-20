@@ -2,7 +2,7 @@
 
 Issue: https://github.com/derek-hobden/braska/issues/71 · PR: https://github.com/derek-hobden/braska/pull/75 · branch: `gh-issue-71` · started: 2026-05-20T00:00:00Z
 
-**Status:** Ready for commit. Draft PR until DELETE round-trip + visual verify in running app confirms ⚠ uncertain assumption.
+**Status:** Draft PR open at https://github.com/derek-hobden/braska/pull/75. Held in draft pending: (a) real round-trip of `gh:notification-thread-done` in running app (DELETE not destructively tested at spec time); (b) visual verify of the new UI in-app. No CI runner configured for this repo, so the ready-for-review promotion is a human gate.
 
 ## Issue body
 
