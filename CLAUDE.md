@@ -36,13 +36,13 @@ Electron desktop app for running AI coding agents (Claude "experts") inside per-
 | npm | Package manager (lockfile present) |
 
 ## Architecture
-The Electron main process (`main.js` → `main/index.js`) registers IPC handlers from every `main/*.js` module: `projects`, `git-*`, `github`, `pty`, `files`, `todo`, `agents-setup`, `skills`, `state`, `browser-view`, `migration`. Persistent app state lives in `app.getPath('userData')/projects.json`; per-repo state (todos, tickets, expert hooks, soon also worktree↔issue links) lives under `<projectRoot>/.the-agency/`.
+The Electron main process (`main.js` → `main/index.js`) registers IPC handlers from every `main/*.js` module: `projects`, `git-*`, `github`, `pty`, `files`, `todo`, `agents-setup`, `skills`, `state`, `browser-view`, `migration`. Persistent app state lives in `app.getPath('userData')/projects.json`; all per-project state braska needs to manage (worktree↔issue links, todos/tickets, project-scoped scripts) lives under `~/.braska/projects/<projectName>/`. Braska is the IDE across many projects and other team members may use different IDEs — braska never persists state inside a project repo.
 
 The preload script (`preload.js`) is the only bridge: it exposes one `window.<namespace>` object per main subsystem (`projects`, `worktree`, `gitDiff`, `gitOps`, `github`, `pty`, `browserView`, `filetree`, `fileOps`, `fileEditor`, `todo`, `skills`, `agents`, `windowActions`). The renderer never imports Node APIs.
 
 The renderer (`renderer/app.js` is the entrypoint) is ESM with explicit dependency-injection between modules via `init*()` calls — this avoids circular imports between `sidebar`, `tabs`, `app`, `terminals`, etc. UI is organised as: left sidebar (projects + worktrees), center main area (launchpad / terminal-view / settings / editor / diff tabs), right panel (file explorer / git changes / todo / github) with both side panels drag-resizable. Each worktree owns its own tab list (terminals, browsers, editors, diff views); switching worktrees in the sidebar swaps the active tab group while keeping background PTYs alive.
 
-Experts are folders under `~/.the-agency/experts/<name>/` with a `claude.md` and `.claude/skills/<skill>/SKILL.md` symlinks; Claude is spawned with `cwd = workDir` and `--add-dir <expertDir>` so it picks up the expert config while the user's `@`-completion targets the repo. Skills are markdown files at `~/.the-agency/skills/<name>.md`. Tickets/todos are per-repo markdown files under `<repo>/.the-agency/{tickets,todos}/{open,done,cancelled}/`.
+Custom agents (the user's "experts") are single markdown files under `~/.claude/agents/<name>.md` with YAML frontmatter; legacy `~/.braska/specialists/` is migrated into that location on startup. Skills are markdown files at `~/.braska/skills/<name>.md`. Tickets/todos are per-project markdown files under `~/.braska/projects/<projectName>/todo/{open,done,cancelled}/` (the `git-common-dir`'s parent basename is `projectName`, so all worktrees of one repo share the same todo set).
 
 ## Naming Conventions
 - **Files:** `kebab-case.js` (renderer + main).

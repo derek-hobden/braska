@@ -2,6 +2,7 @@ const path = require('path');
 const os = require('os');
 const { pathExists, fsp } = require('./utils');
 const { BUILTIN_AGENTS, CLAUDE_AGENTS_DIR } = require('./agents');
+const { loadProjects } = require('./projects');
 
 async function migrateData(app) {
   // Home directory: ~/.the-agency -> ~/.braska, ~/.yuna -> ~/.braska
@@ -35,6 +36,26 @@ async function migrateData(app) {
     } catch (err) {
       console.error(`Failed to migrate userData from ${legacyName}:`, err.message);
     }
+  }
+
+  // Per-project: <repo>/.the-agency/worktree-issues.json -> ~/.braska/projects/<name>/worktree-issues.json
+  // and remove the empty .the-agency/ directory left in any project.
+  try {
+    const projects = await loadProjects(app);
+    for (const p of projects) {
+      if (!p || !p.path) continue;
+      const legacyDir = path.join(p.path, '.the-agency');
+      const legacyFile = path.join(legacyDir, 'worktree-issues.json');
+      const newDir = path.join(braskaHome, 'projects', path.basename(p.path));
+      const newFile = path.join(newDir, 'worktree-issues.json');
+      if (await pathExists(legacyFile) && !await pathExists(newFile)) {
+        await fsp.mkdir(newDir, { recursive: true });
+        await fsp.rename(legacyFile, newFile);
+      }
+      try { await fsp.rmdir(legacyDir); } catch { /* not empty or absent — leave it */ }
+    }
+  } catch (err) {
+    console.error('Failed to migrate per-project worktree-issues:', err.message);
   }
 }
 
