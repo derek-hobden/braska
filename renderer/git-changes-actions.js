@@ -2,6 +2,7 @@
 
 import { tabState } from './state.js';
 import { escHtml, statSpan, changeEntry } from './utils.js';
+import { openCommitModal } from './git-changes-modals.js';
 
 // Review-loop prompt moved to journey-zone.js
 
@@ -208,6 +209,13 @@ export function initChangesActions(deps) {
           }
         }
       }
+      return;
+    }
+
+    // Commit staged changes — opens commit modal
+    if (e.target.closest('.commit-staged')) {
+      e.stopPropagation();
+      if (activeWorkDir) openCommitModal(activeWorkDir);
       return;
     }
 

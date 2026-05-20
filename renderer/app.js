@@ -17,6 +17,7 @@ import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
+import { initCreateRepoModal } from './github-repo-create-modal.js';
 import { initDiagnosticsPanel } from './diagnostics-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
@@ -116,11 +117,9 @@ export function openWorkDir(workDir) {
     launchpad.classList.remove('active');
     terminalView.classList.add('active');
     renderTabBar();
-    if (!tabState.activeTabId || tabState.tabs.get(tabState.activeTabId)?.workDir !== workDir) {
-      switchTab(existing[existing.length - 1][0]);
-    } else {
-      switchTab(tabState.activeTabId);
-    }
+    const rememberedId = tabState.activeTabByWorkDir.get(workDir);
+    const fallbackId = existing[existing.length - 1][0];
+    switchTab((rememberedId && tabState.tabs.has(rememberedId)) ? rememberedId : fallbackId);
   } else {
     tabState.activeWorkDir = workDir;
     tabState.activeTabId = null;
@@ -270,10 +269,11 @@ initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
 initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
 initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
-initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
+initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, refreshChanges });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });
+initCreateRepoModal({ loadProjects, refreshGitHub });
 initDiagnosticsPanel();
 
 // ── Tab type picker modal handlers ──

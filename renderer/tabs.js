@@ -214,6 +214,7 @@ export function switchTab(id) {
   if (!tabState.tabs.has(id)) return;
   const prevWorkDir = tabState.activeWorkDir;
   tabState.activeTabId = id;
+  tabState.activeTabByWorkDir.set(tabState.tabs.get(id).workDir, id);
   clearNotifForTab(id);
   if (busyTabs.has(id)) clearTabBusy(id);
   // Show/hide panes: only show panes for current workDir, and only active one visible

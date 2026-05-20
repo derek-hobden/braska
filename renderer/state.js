@@ -17,6 +17,7 @@ export const appState = {
 export const tabState = {
   tabs: new Map(),            // id → { term, fitAddon, resizeObs, pane, tabEl, label, workDir, ... }
   tabOrder: new Map(),        // workDir → [tabId, ...]
+  activeTabByWorkDir: new Map(), // workDir → last-active tabId
   activeTabId: null,
   activeWorkDir: null,
   nextBrowserTabId: -1,
@@ -40,6 +41,8 @@ export const modalState = {
   cloneRepoRef: '',           // parsed/selected owner/repo
   cloneDestParent: '',        // chosen parent directory (absolute)
   cloneBusy: false,           // true while a clone is in-flight
+  createRepoWorkDir: '',      // workDir for the create-repo modal
+  createRepoBusy: false,      // true while repo creation is in-flight
 };
 
 // ── File explorer state ─────────────────────────────────────────
@@ -78,6 +81,7 @@ export const ghState = {
 // ── Git / pull-main state ───────────────────────────────────────
 export const gitState = {
   currentPullMainWorkDir: null,
+  currentCommitWorkDir: null,
   _pullMainIsStashConflict: false,
   _pullMainDirtyResolve: null,
   _stageAttentionTimeout: null,
