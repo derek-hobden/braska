@@ -383,6 +383,14 @@ export function prCheckStatus(pr) {
   return 'pass';
 }
 
+/** Map a `gh pr view --json state` value (OPEN | CLOSED | MERGED) to a CSS class suffix used by `.wt-pr` and `.gh-badge-*`. Returns `null` for unknown values so callers can skip rendering. */
+export function prStateBadgeClass(state) {
+  if (state === 'OPEN') return 'open';
+  if (state === 'CLOSED') return 'closed';
+  if (state === 'MERGED') return 'merged';
+  return null;
+}
+
 /** Generate a git branch name from a todo filename and title. */
 export function generateTodoBranchName(todoFilename, todoTitle) {
   const num = todoFilename.match(/^(\d+)/)?.[1] || '';
