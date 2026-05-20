@@ -7,6 +7,7 @@ import { escHtml, timeAgo, ghExtLink } from './utils.js';
 import { refreshGitHubPRs } from './github-prs.js';
 import { refreshGitHubIssues, showGitHubIssueDetail, initGitHubIssues } from './github-issues.js';
 import { openCreateRepoModal } from './github-repo-create-modal.js';
+import { notifRoutingDecision, notifReasonChip } from './notif-helpers.mjs';
 
 // ── Cross-module deps injected via init ─────────────────────────
 let _startTask = null;
@@ -327,15 +328,23 @@ async function refreshGitHubNotifs(workDir) {
   } else {
     for (const n of result.data) {
       const subject = n.subject || {};
+      const decision = notifRoutingDecision(n);
+      const chip = notifReasonChip(n.reason);
       const typeIcon = subject.type === 'PullRequest' ? '<span style="color:#a371f7">PR</span>' :
                        subject.type === 'Issue' ? '<span style="color:#3fb950">I</span>' :
                        '<span style="color:#888">N</span>';
       const rowUrlAttr = n.htmlUrl ? ` data-gh-row-url="${escHtml(n.htmlUrl)}"` : '';
-      html += `<div class="gh-notif-item"${rowUrlAttr}>
+      const clickable = decision.kind !== 'none' ? ' is-clickable' : '';
+      const chipHtml = chip.label
+        ? `<span class="gh-notif-chip gh-notif-chip-${chip.category}">${escHtml(chip.label)}</span>`
+        : '';
+      const doneBtn = `<button class="gh-notif-done-btn" data-gh-notif-done="${escHtml(String(n.id || ''))}" title="Mark as done">Done</button>`;
+      html += `<div class="gh-notif-item${clickable}" data-gh-notif-id="${escHtml(String(n.id || ''))}"${rowUrlAttr}>
         ${typeIcon}
         <span class="gh-notif-title">${escHtml(subject.title || 'Notification')}</span>
-        <span class="gh-notif-reason">${escHtml(n.reason || '')}</span>
+        ${chipHtml}
         <span class="gh-notif-time">${timeAgo(n.updated_at)}</span>
+        ${doneBtn}
         ${ghExtLink(n.htmlUrl)}
       </div>`;
     }
@@ -344,6 +353,38 @@ async function refreshGitHubNotifs(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', async (e) => {
+    // Mark-as-done button — handled before generic row click.
+    const doneBtn = e.target.closest('[data-gh-notif-done]');
+    if (doneBtn) {
+      e.stopPropagation();
+      const threadId = doneBtn.dataset.ghNotifDone;
+      const row = doneBtn.closest('.gh-notif-item');
+      if (!row || !threadId) return;
+      row.classList.add('gh-notif-dimming');
+      doneBtn.disabled = true;
+      const res = await window.github.notificationThreadDone(tabState.activeWorkDir, threadId);
+      if (res.ok) {
+        row.remove();
+        if (!content.querySelector('.gh-notif-item')) {
+          ghState.hasActivity = false;
+          updateActivityBadge();
+          if (!content.querySelector('.gh-empty')) {
+            const empty = document.createElement('div');
+            empty.className = 'gh-empty';
+            empty.textContent = 'No notifications';
+            content.appendChild(empty);
+          }
+          const markAll = content.querySelector('#gh-notif-mark-read-btn');
+          if (markAll) markAll.remove();
+        }
+      } else {
+        row.classList.remove('gh-notif-dimming');
+        doneBtn.disabled = false;
+        showNotifError(content, res.error || 'Failed to mark as done');
+      }
+      return;
+    }
+
     if (handleGhExternalClick(e)) return;
     if (e.target.closest('#gh-notif-refresh-btn')) {
       refreshGitHubNotifs(tabState.activeWorkDir);
@@ -371,14 +412,42 @@ async function refreshGitHubNotifs(workDir) {
       } else {
         markBtn.disabled = false;
         markBtn.textContent = 'Mark all read';
-        const toolbar = content.querySelector('.gh-toolbar');
-        if (toolbar) {
-          const errEl = document.createElement('span');
-          errEl.style.cssText = 'color:#f85149;font-size:0.7rem;margin-left:0.5rem';
-          errEl.textContent = res.error || 'Failed';
-          toolbar.appendChild(errEl);
-        }
+        showNotifError(content, res.error || 'Failed');
       }
+      return;
+    }
+
+    // Default row click → routing decision (issue/PR detail in panel, or external).
+    // Look up by data-gh-notif-id rather than DOM index — the Done button can
+    // remove rows mid-session, desyncing index-based lookups against result.data.
+    const row = e.target.closest('.gh-notif-item');
+    if (!row) return;
+    const rowId = row.dataset.ghNotifId;
+    const n = result.data && result.data.find(x => String(x.id) === rowId);
+    if (!n) return;
+    const decision = notifRoutingDecision(n);
+    if (decision.kind === 'panel-issue') {
+      ghState.section = 'issues';
+      ghState.directIssueNumber = decision.number;
+      refreshGitHub(tabState.activeWorkDir);
+    } else if (decision.kind === 'panel-pr') {
+      ghState.section = 'prs';
+      ghState.directPRNumber = decision.number;
+      refreshGitHub(tabState.activeWorkDir);
+    } else if (decision.kind === 'external') {
+      window.windowActions.openExternal(decision.url);
     }
   }, { signal });
+}
+
+function showNotifError(content, message) {
+  const toolbar = content.querySelector('.gh-toolbar');
+  if (!toolbar) return;
+  const existing = toolbar.querySelector('.gh-notif-error');
+  if (existing) existing.remove();
+  const errEl = document.createElement('span');
+  errEl.className = 'gh-notif-error';
+  errEl.textContent = message;
+  toolbar.appendChild(errEl);
+  setTimeout(() => errEl.remove(), 4000);
 }

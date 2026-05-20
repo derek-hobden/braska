@@ -137,6 +137,7 @@ contextBridge.exposeInMainWorld('github', {
   runView: (workDir, runId) => ipcRenderer.invoke('gh:run-view', workDir, runId),
   notifications: (workDir) => ipcRenderer.invoke('gh:notifications', workDir),
   notificationsMarkRead: (workDir) => ipcRenderer.invoke('gh:notifications-mark-read', workDir),
+  notificationThreadDone: (workDir, threadId) => ipcRenderer.invoke('gh:notification-thread-done', workDir, threadId),
   linkTicket: (workDir, todoPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, todoPath, issueNumber),
   unlinkTicket: (workDir, todoPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, todoPath),
   repoCreate: (workDir, opts) => ipcRenderer.invoke('gh:repo-create', workDir, opts),

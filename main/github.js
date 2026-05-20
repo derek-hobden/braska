@@ -325,6 +325,20 @@ function register({ ipcMain }) {
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
+  // Mark a single notification thread as done (removes it from the inbox).
+  // DELETE /notifications/threads/{thread_id} — accepts the same OAuth scopes
+  // as PATCH (notifications OR repo), verified empirically: see
+  // specs/spec-20260520-github-notifs-richer-interactions/research.md.
+  ipcMain.handle('gh:notification-thread-done', async (_event, workDir, threadId) => {
+    if (!/^[0-9]+$/.test(String(threadId || ''))) {
+      return { ok: false, error: 'Invalid thread id.' };
+    }
+    try {
+      await execFileAsync('gh', ['api', '-X', 'DELETE', `/notifications/threads/${threadId}`], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
+      return { ok: true };
+    } catch (err) { return { ok: false, error: err.stderr || err.message }; }
+  });
+
   ipcMain.handle('gh:repo-create', async (_event, workDir, { name, owner, visibility, description, push, initialCommit }) => {
     if (!name || !NAME_RE.test(name)) return { ok: false, error: 'Invalid repository name.' };
     if (!owner || !NAME_RE.test(owner)) return { ok: false, error: 'Invalid owner name.' };
