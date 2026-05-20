@@ -101,7 +101,9 @@ Target: ≤8 files changed, ≤400 lines added/removed, ≤20 tasks. Breach is a
 
 ## Course corrections
 
-_Nothing recorded yet._
+- 2026-05-20: Mis-targeted the first commit. Ran `cd /Users/derek/repos/braska && git commit` from the main checkout (which is on the `main` branch), instead of staying in the worktree at `/Users/derek/repos/braska.worktrees/gh-issue-66`. Recovery: in the worktree, `git reset --hard <my-commit-sha>` to advance `gh-issue-66`; in the main checkout, `git reset --hard origin/main` to rewind `main`. No remote impact (push had not yet happened). Lesson: never `cd /Users/derek/repos/braska` from inside a worktree; use absolute paths to the worktree, or stay in the worktree's cwd.
+- 2026-05-20: Size budget breach — 11 files / 495 lines vs `≤8 files / ≤400 lines`. Spec docs (research.md / spec.md / baseline-verify.md / verify-results.md) account for 4 of the 11 files; code + test files alone are 7. Lines are similarly inflated by spec content. Code is within budget; leaving the PR as one logical unit since splitting the spec from the code would lose the "commit code + spec together" guarantee.
+- 2026-05-20: Advisor post-review tidy — (a) `.gh-repo-header` had `border-bottom: 1px solid #1a1a1a`, which would stack with `.gh-subnav`'s own `border-bottom` to produce a 2px-thick separator. Removed. (b) Test `passes through enterprise GHE hosts` was overstating coverage — the regex matches only `api.<host>` shapes (api.github.com + GHE Cloud tenants), not GHE Server's `<host>/api/v3/...`. Renamed + added an inline comment so future readers don't mistake it for GHE Server support.
 
 ## Subagent notes
 
