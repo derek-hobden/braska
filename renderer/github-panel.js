@@ -24,10 +24,12 @@ export function ghResetListeners() {
   return ghState.contentAC.signal;
 }
 
-// Intercepts the two "open on GitHub" affordances every list section shares:
-// (1) click on a [data-gh-external-url] button; (2) cmd-click on a row that
-// carries [data-gh-row-url]. Returns true when the event was handled so the
-// caller can short-circuit its detail-open / filter behaviour.
+// Intercepts the "open on GitHub" affordances every list section shares:
+// (1) click on a [data-gh-external-url] button; (2) click on an <a href>
+// inside rendered markdown (issue/PR bodies and comments) — routes external
+// URLs through the system browser; (3) cmd-click on a row carrying
+// [data-gh-row-url]. Returns true when the event was handled so the caller
+// can short-circuit its detail-open / filter behaviour.
 export function handleGhExternalClick(e) {
   const extBtn = e.target.closest('[data-gh-external-url]');
   if (extBtn) {
@@ -36,6 +38,16 @@ export function handleGhExternalClick(e) {
     e.preventDefault();
     e.stopPropagation();
     return true;
+  }
+  const anchor = e.target.closest('a[href]');
+  if (anchor) {
+    const href = anchor.getAttribute('href');
+    if (href && /^(https?:|mailto:)/i.test(href)) {
+      window.windowActions.openExternal(href);
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    }
   }
   if (e.metaKey) {
     const row = e.target.closest('[data-gh-row-url]');
