@@ -167,7 +167,7 @@ export async function refreshCIBadges() {
 
 function prBadgeHtml(pr) {
   if (!pr || !Number.isInteger(pr.number)) return '';
-  const cls = prStateBadgeClass(pr.state);
+  const cls = prStateBadgeClass(pr.state, pr.isDraft);
   if (!cls) return '';
   return `<span class="wt-pr-badge ${cls}" data-pr-number="${pr.number}" title="PR #${pr.number} (${cls}) — click to open">PR</span>`;
 }

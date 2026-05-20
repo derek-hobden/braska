@@ -14,6 +14,8 @@ Issue: https://github.com/derek-hobden/braska/issues/70 · branch: `gh-issue-70`
 >
 > Clicking the badge opens the PR in the right panel using the PR view inside the existing GitHub panel.
 
+**Follow-up from review (2026-05-20):** also show a light-grey "draft" variant for open-but-draft PRs (draft takes precedence over green).
+
 ## Chosen approach
 
 Extend the existing `refreshCIBadges` flow in `renderer/sidebar.js` (which already fetches `prForBranch` per non-main worktree) to additionally render a small "PR" badge in a new `.wt-pr` slot in the worktree row. Map `pr.state` → `.open / .closed / .merged` CSS class. Wire a click handler that mirrors the existing `openIssueInPanel` pattern (`renderer/app.js:250-255`) but sets `ghState.directPRNumber` and `ghState.section = 'prs'` — the PR detail view auto-opens via the existing logic at `renderer/github-prs.js:19-24`. Fix `gh:pr-for-branch` in `main/github.js` to pass `--state all` and include `state` in the JSON fields (its current default of `--state open` is why closed/merged PRs are invisible today).

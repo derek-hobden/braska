@@ -184,6 +184,7 @@
       user-select: none;
     }
     .wt-pr-badge.open    { color: #3fb950; background: rgba(63, 185, 80, 0.12); }
+    .wt-pr-badge.draft   { color: #b8c0c8; background: rgba(184, 192, 200, 0.12); }
     .wt-pr-badge.closed  { color: #e5534b; background: rgba(229, 83, 75, 0.12); }
     .wt-pr-badge.merged  { color: #a371f7; background: rgba(163, 113, 247, 0.12); }
     .wt-pr-badge:hover { filter: brightness(1.25); }

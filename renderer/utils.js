@@ -383,8 +383,9 @@ export function prCheckStatus(pr) {
   return 'pass';
 }
 
-/** Map a `gh pr view --json state` value (OPEN | CLOSED | MERGED) to a CSS class suffix used by `.wt-pr` and `.gh-badge-*`. Returns `null` for unknown values so callers can skip rendering. */
-export function prStateBadgeClass(state) {
+/** Map a `gh pr view` (`state`, `isDraft`) pair to a CSS class suffix. Draft takes precedence over OPEN — a draft PR is technically state=OPEN, but renders distinctly. Returns `null` for unknown state values. */
+export function prStateBadgeClass(state, isDraft = false) {
+  if (state === 'OPEN' && isDraft) return 'draft';
   if (state === 'OPEN') return 'open';
   if (state === 'CLOSED') return 'closed';
   if (state === 'MERGED') return 'merged';
