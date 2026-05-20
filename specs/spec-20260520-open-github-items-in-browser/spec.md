@@ -1,8 +1,8 @@
 # Spec — Open GitHub items in browser from the GitHub panel (#66)
 
-Issue: https://github.com/derek-hobden/braska/issues/66 · branch: `gh-issue-66` · started: 2026-05-20T00:00:00Z
+Issue: https://github.com/derek-hobden/braska/issues/66 · PR: https://github.com/derek-hobden/braska/pull/72 · branch: `gh-issue-66` · started: 2026-05-20T00:00:00Z
 
-**Status:** Ready for commit. 76/76 tests pass (8 new for the notification URL helper). UI verification is manual and pending — the renderer is ESM with browser-only globals (`window.windowActions`, `document.*`), and the existing `node --test` infra doesn't load a DOM.
+**Status:** Draft awaiting manual UI verification. 76/76 tests pass (8 new for the notification URL helper). No CI is configured for non-`@claude` events on this repo so CI cannot gate; the renderer is ESM with browser-only globals (`window.windowActions`, `document.*`) and `node --test` has no DOM, so the UI is not machine-verified in this PR.
 
 ## Issue body
 
