@@ -357,8 +357,13 @@ export function getProjectRootForWorkDir(workDir) {
 }
 
 // StatusContext items have no .conclusion field — ghChecksBadge misreads them as pending; handle both types explicitly.
-export function prCheckStatus(rollup) {
-  if (!rollup || !rollup.length) return null;
+export function prCheckStatus(pr) {
+  if (!pr) return null;
+  if (pr.mergeable === 'CONFLICTING') return 'conflict';
+  const rollup = pr.statusCheckRollup;
+  if (!rollup || !rollup.length) {
+    return (pr.mergeable === 'MERGEABLE' && !pr.isDraft) ? 'pass' : null;
+  }
   for (const c of rollup) {
     if (c.__typename === 'StatusContext') {
       if (c.state === 'FAILURE' || c.state === 'ERROR') return 'fail';
