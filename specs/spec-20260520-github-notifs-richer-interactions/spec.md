@@ -1,6 +1,6 @@
 # Spec — GitHub panel: notifications tab richer interactions (#71)
 
-Issue: https://github.com/derek-hobden/braska/issues/71 · branch: `gh-issue-71` · started: 2026-05-20T00:00:00Z
+Issue: https://github.com/derek-hobden/braska/issues/71 · PR: https://github.com/derek-hobden/braska/pull/75 · branch: `gh-issue-71` · started: 2026-05-20T00:00:00Z
 
 **Status:** Ready for commit. Draft PR until DELETE round-trip + visual verify in running app confirms ⚠ uncertain assumption.
 
