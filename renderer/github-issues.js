@@ -117,7 +117,7 @@ export async function showGitHubIssueDetail(workDir, number) {
     <div class="gh-detail-header">
       <button class="gh-detail-back">&larr; Issues</button>
       ${ghStateBadge(issue.state)}
-      <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, isEditing)}</div>
+      ${!isEditing ? `<div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, false)}</div>` : ''}
     </div>`;
 
   if (isEditing) {
@@ -129,6 +129,10 @@ export async function showGitHubIssueDetail(workDir, number) {
 
   if (isEditing) {
     html += `<textarea class="gh-edit-body-input" id="gh-issue-edit-body" placeholder="Issue description...">${escHtml(editDraft.body)}</textarea>`;
+    html += `<div class="gh-edit-labels-section">
+      <span class="gh-edit-label-caption">Labels</span>
+      <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, true)}</div>
+    </div>`;
   } else if (issue.body) {
     html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
   }

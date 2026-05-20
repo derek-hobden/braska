@@ -72,6 +72,7 @@ export const ghState = {
   ciInterval: null,           // setInterval handle for CI auto-refresh
   contentAC: null,            // AbortController for #gh-content event listeners
   pendingPRForm: false,       // set by post-commit banner, consumed by refreshGitHubPRs
+  directPRNumber: null,       // set by open-pr handler; consumed by refreshGitHubPRs to skip list
   viewActive: false,          // true when GitHub sub-view is shown in the unified panel
   hasActivity: false,         // true when GitHub has unread activity (CI fail, review, etc.)
   _isGitHubRepo: undefined,   // cached result of git:is-github-repo (fast remote URL check)
