@@ -1,8 +1,8 @@
 // ── GitHub PRs — list, detail, create form ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo } from './utils.js';
-import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge } from './github-panel.js';
+import { escHtml, timeAgo, ghExtLink } from './utils.js';
+import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge, handleGhExternalClick } from './github-panel.js';
 
 let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir, _refreshChanges;
 
@@ -48,12 +48,13 @@ export async function refreshGitHubPRs(workDir) {
     html += '<div class="gh-empty">No pull requests found</div>';
   } else {
     for (const pr of result.data) {
-      html += `<div class="gh-item" data-gh-pr-number="${pr.number}">
+      html += `<div class="gh-item" data-gh-pr-number="${pr.number}" data-gh-row-url="${escHtml(pr.url || '')}">
         <span class="gh-item-number">#${pr.number}</span>
         <span class="gh-item-title">${escHtml(pr.title)}</span>
         ${ghStateBadge(pr.state, pr.isDraft)}
         ${ghChecksBadge(pr.statusCheckRollup)}
         ${ghReviewBadge(pr.reviewDecision)}
+        ${ghExtLink(pr.url)}
       </div>`;
     }
   }
@@ -61,6 +62,7 @@ export async function refreshGitHubPRs(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     const filterBtn = e.target.closest('.gh-filter-btn[data-gh-pr-filter]');
     if (filterBtn) {
       ghState.prFilter = filterBtn.dataset.ghPrFilter;

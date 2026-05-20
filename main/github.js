@@ -15,6 +15,22 @@ function isAuthError(err) {
 const REPO_REF_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]+$/;
 const NAME_RE = /^[A-Za-z0-9][\w.-]*$/;  // single component of owner or repo name
 
+// REST /notifications returns subject.url as the API URL (api.github.com/repos/...);
+// the html URL must be derived from subject.url + subject.type. Returns null for
+// Release/Discussion/unknown patterns so the renderer can omit the link affordance
+// rather than synthesise a broken URL.
+const NOTIF_SUBJECT_RE = /^https:\/\/api\.([^/]+)\/repos\/([^/]+)\/([^/]+)\/(issues|pulls|commits)\/([^/]+)\/?$/;
+const NOTIF_PATH_REWRITE = { issues: 'issues', pulls: 'pull', commits: 'commit' };
+function notificationSubjectToHtmlUrl(apiUrl, _type) {
+  if (typeof apiUrl !== 'string') return null;
+  const m = apiUrl.match(NOTIF_SUBJECT_RE);
+  if (!m) return null;
+  const [, host, owner, repo, kind, id] = m;
+  const segment = NOTIF_PATH_REWRITE[kind];
+  if (!segment) return null;
+  return `https://${host}/${owner}/${repo}/${segment}/${id}`;
+}
+
 function register({ ipcMain }) {
   ipcMain.handle('gh:auth-status', async (_event, workDir) => {
     let authenticated = false, user = '';
@@ -290,7 +306,14 @@ function register({ ipcMain }) {
     try {
       const { stdout: nwo } = await execFileAsync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
       const { stdout } = await execFileAsync('gh', ['api', `repos/${nwo.trim()}/notifications`, '--cache', '60s'], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
-      return { ok: true, data: JSON.parse(stdout) };
+      const raw = JSON.parse(stdout);
+      const data = Array.isArray(raw)
+        ? raw.map(n => ({
+            ...n,
+            htmlUrl: notificationSubjectToHtmlUrl((n.subject || {}).url, (n.subject || {}).type),
+          }))
+        : raw;
+      return { ok: true, data };
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
   });
 
@@ -373,4 +396,4 @@ function register({ ipcMain }) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, notificationSubjectToHtmlUrl };
