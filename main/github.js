@@ -13,6 +13,7 @@ function isAuthError(err) {
 // interpret repoRef as a flag (execFileAsync prevents shell injection, but `gh`
 // itself still parses leading-dash tokens as options).
 const REPO_REF_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]+$/;
+const NAME_RE = /^[A-Za-z0-9][\w.-]*$/;  // single component of owner or repo name
 
 function register({ ipcMain }) {
   ipcMain.handle('gh:auth-status', async (_event, workDir) => {
@@ -299,6 +300,44 @@ function register({ ipcMain }) {
       await execFileAsync('gh', ['api', '-X', 'PUT', `repos/${nwo.trim()}/notifications`], { cwd: workDir, encoding: 'utf-8', timeout: 15000 });
       return { ok: true };
     } catch (err) { return { ok: false, error: err.stderr || err.message }; }
+  });
+
+  ipcMain.handle('gh:repo-create', async (_event, workDir, { name, owner, visibility, description, push, initialCommit }) => {
+    if (!name || !NAME_RE.test(name)) return { ok: false, error: 'Invalid repository name.' };
+    if (!owner || !NAME_RE.test(owner)) return { ok: false, error: 'Invalid owner name.' };
+    if (initialCommit) {
+      try {
+        await execFileAsync('git', ['commit', '--allow-empty', '-m', 'Initial commit'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      } catch (err) {
+        return { ok: false, error: `Could not create initial commit: ${errMsg(err)}` };
+      }
+    }
+    const visFlag = visibility === 'private' ? '--private' : '--public';
+    const args = ['repo', 'create', `${owner}/${name}`, visFlag, '--source', workDir, '--remote', 'origin'];
+    if (description && description.trim()) args.push('--description', description.trim());
+    if (push) args.push('--push');
+    try {
+      const { stdout } = await execFileAsync('gh', args, { cwd: workDir, encoding: 'utf-8', timeout: 60000 });
+      return { ok: true, url: stdout.trim() };
+    } catch (err) {
+      if (isAuthError(err)) return { ok: false, error: 'Not authenticated with GitHub. Run `gh auth login` in a terminal.', needsAuth: true };
+      return { ok: false, error: errMsg(err) };
+    }
+  });
+
+  ipcMain.handle('gh:auth-accounts', async (_event, workDir) => {
+    try {
+      const { stdout: userOut } = await execFileAsync('gh', ['api', '/user'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+      const user = JSON.parse(userOut).login || '';
+      let orgs = [];
+      try {
+        const { stdout: orgsOut } = await execFileAsync('gh', ['api', '/user/orgs'], { cwd: workDir, encoding: 'utf-8', timeout: 10000 });
+        orgs = JSON.parse(orgsOut).map(o => o.login).filter(Boolean);
+      } catch {}
+      return { ok: true, user, orgs };
+    } catch (err) {
+      return { ok: false, error: errMsg(err) };
+    }
   });
 
   ipcMain.handle('gh:link-ticket', async (_event, workDir, todoRelPath, issueNumber) => {
