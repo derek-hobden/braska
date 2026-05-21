@@ -2,7 +2,7 @@
 
 Issue: [#76](https://github.com/derek-hobden/braska/issues/76) · PR: [#79](https://github.com/derek-hobden/braska/pull/79) · branch: `claude/issue-76` · started: 2026-05-21T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; verifying.
 
 ## Issue body
 
@@ -66,10 +66,10 @@ No new test files are added.
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Fix A: add `refreshWorktreeMetrics()` to the `isGitChange` branch in `renderer/app.js`
+- [x] Fix A: add `refreshWorktreeMetrics()` to the `isGitChange` branch in `renderer/app.js`
   - _Story: As a developer, when I commit all staged changes so the working tree is clean, then the sidebar worktree badge clears within ~1 s without manual refresh._
   - _test: no test (renderer; see Up-front tests rationale)_
-- [ ] Fix B: pass and call `refreshWorktreeMetrics` in `renderer/terminals.js` PTY `onExit` handler
+- [x] Fix B: pass and call `refreshWorktreeMetrics` in `renderer/terminals.js` PTY `onExit` handler
   - _Story: As a developer, when a committer agent on a background worktree exits, the badge for that worktree shows the updated count when I next look at it._
   - _test: no test (renderer; see Up-front tests rationale)_
 
@@ -81,7 +81,7 @@ node --test test/*.test.js test/*.test.mjs
 
 ## Decisions
 
-_Appended chronologically as implementation reveals choices._
+2026-05-21: TDD carve-out applied for both fixes. All tests in `test/` target the main process via `node:test` + CJS `require`; the renderer is DOM/ESM with no test infrastructure. Writing meaningful unit tests for these two wiring lines would require setting up a full DOM mock environment that doesn't exist in this project. The TDD carve-out threshold ("test would be performative") is met. Both changes add `refreshWorktreeMetrics()` as a sibling call alongside already-tested call sites.
 
 ## Don'ts (rejected approaches and disproved assumptions)
 

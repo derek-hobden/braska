@@ -208,6 +208,8 @@ window.filetree.onChange((filename) => {
       if (entry && !entry.classList.contains('is-git')) loadProjects();
       // Always refresh git panel on .git changes, even when viewing todo/github
       refreshChanges(tabState.activeWorkDir);
+      // Keep sidebar badge in sync after commits/amends/rebases
+      refreshWorktreeMetrics();
       return;
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
@@ -269,7 +271,7 @@ initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startT
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
 initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos, updateTodoFocus, refreshRightPanel });
-initTerminals({ refreshRightPanel });
+initTerminals({ refreshRightPanel, refreshWorktreeMetrics });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, startBrowser, switchTab, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
