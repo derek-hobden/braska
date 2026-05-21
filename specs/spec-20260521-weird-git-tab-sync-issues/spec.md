@@ -2,7 +2,7 @@
 
 Issue: [#77](https://github.com/derek-hobden/braska/issues/77) · PR: [#78](https://github.com/derek-hobden/braska/pull/78) · branch: `claude/issue-77` · started: 2026-05-21T00:00:00Z
 
-**Status:** Spec drafted; implementation not started.
+**Status:** Implementation complete; pending final verify.
 
 ## Issue body
 
@@ -45,15 +45,15 @@ The root cause is a missing `_refreshChanges(workDir)` call after the PR create 
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Add test: no share card when `pushAhead === 0 && hasUpstream === true && branch is feature branch`
+- [x] Add test: no share card when `pushAhead === 0 && hasUpstream === true && branch is feature branch`
   - _Story: As the test suite, when push has completed (pushAhead=0, hasUpstream=true), then computeJourneyCards returns no "share" card._
   - _test: `test/journey-cards.test.mjs::no share card when fully pushed with upstream`_
 
-- [ ] — Export `invalidatePRCache(workDir)` from `renderer/journey-zone.js`
+- [x] Export `invalidatePRCache(workDir)` from `renderer/journey-zone.js`
   - _Story: As the PR form, after PR creation I can clear the journey-zone PR cache so the pill appears immediately._
   - _test: n/a (tested via integration of the next task)_
 
-- [ ] — Call `invalidatePRCache` and `_refreshChanges` after PR creation success in `renderer/github-prs.js`
+- [x] Call `invalidatePRCache` and `_refreshChanges` after PR creation success in `renderer/github-prs.js`
   - _Story: As a user, after I create a PR via the form, the git tab immediately reflects the pushed state (no "N unpushed", no Push card)._
   - _test: `test/journey-cards.test.mjs::no share card when fully pushed with upstream`_
 
