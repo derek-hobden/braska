@@ -75,11 +75,11 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
   - _Story: As a test suite, when I import `buildWorktreeTree` from a DOM-free module, then I can assert the ordering and depth logic without needing a browser._
   - _test: `test/worktree-tree.test.mjs` (all cases above)_
 
-- [ ] **▶ Active** — Add `parentBranch` to `getGitInfo()` in `main/projects.js` and write its tests
+- [x] — Add `parentBranch` to `getGitInfo()` in `main/projects.js` and write its tests
   - _Story: As the sidebar, when I receive worktrees from `window.projects.list()`, then each worktree has a `parentBranch` field set from git reflog or null._
   - _test: `test/projects-parent-branch.test.js` (all cases above)_
 
-- [ ] — Update `renderProjects` in `renderer/sidebar.js` to use `buildWorktreeTree` and emit `data-depth`
+- [ ] **▶ Active** — Update `renderProjects` in `renderer/sidebar.js` to use `buildWorktreeTree` and emit `data-depth`
   - _Story: As a user, when I expand a project with nested branches, then the child worktrees are visually indented under their parent._
   - _test: visual (no automated test for DOM rendering; covered by the unit tests above)_
 
