@@ -4,6 +4,7 @@ import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges } from './ut
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
+import { buildWorktreeTree } from './worktree-tree.js';
 
 // ── DOM refs (queried once at module level) ──
 const projectList = document.getElementById('project-list');
@@ -31,18 +32,19 @@ export function renderProjects(projects) {
   projectList.innerHTML = projects.map(p => {
     const esc = p.path.replace(/"/g, '&quot;');
     const projectIcon = `<span class="expand-icon" style="color:#e8c882">${SVG_FOLDER}</span>`;
-    const worktrees = p.isGit && p.worktrees.length ? '<div class="worktree-list">' + p.worktrees.map(w => {
+    const worktrees = p.isGit && p.worktrees.length ? '<div class="worktree-list">' + buildWorktreeTree(p.worktrees).map(({ wt: w, depth }) => {
       const wtPath = (w.path || '').replace(/"/g, '&quot;');
       const lockIcon = w.isLocked ? '<span class="wt-lock-icon" title="Locked">&#128274;</span>' : '';
       const mainAttr = w.isMain ? ' data-is-main="true"' : '';
       const lockedAttr = w.isLocked ? ' data-is-locked="true"' : '';
       const todoMatch = (w.branch || '').match(/^todo-(\d+)/);
       const todoNumAttr = todoMatch ? ` data-todo-num="${todoMatch[1]}"` : '';
+      const depthAttr = depth > 0 ? ` data-depth="${depth}"` : '';
       const hasIssue = Number.isInteger(w.githubIssue);
       const iconSvg = hasIssue ? SVG_GH_ISSUE : SVG_GIT_BRANCH;
       const iconClass = hasIssue ? 'wt-icon wt-icon-issue' : 'wt-icon';
       const iconAttrs = hasIssue ? ` data-gh-issue="${w.githubIssue}" title="Linked to issue #${w.githubIssue} — click to view"` : '';
-      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
+      return `<div class="worktree-item" data-path="${wtPath}"${mainAttr}${lockedAttr}${todoNumAttr}${depthAttr}><span class="${iconClass}"${iconAttrs}>${iconSvg}</span><span class="wt-branch-name">${w.branch || '(unknown)'}${lockIcon}</span><span class="wt-metrics" data-wt-path="${wtPath}"></span></div>`;
     }).join('') + `<div class="worktree-add-btn" data-project="${esc}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add worktree</div></div>` : '';
     // Project-level section links (available without picking a worktree)
     const sectionLinks = p.isGit ? `<div class="project-actions">

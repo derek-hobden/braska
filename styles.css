@@ -154,6 +154,12 @@
       display: flex;
       align-items: center;
     }
+    /* Hierarchy indentation: each depth level adds 12px of left padding beyond the base 44px. */
+    .worktree-item[data-depth="1"] { padding-left: 56px; }
+    .worktree-item[data-depth="2"] { padding-left: 68px; }
+    .worktree-item[data-depth="3"] { padding-left: 80px; }
+    .worktree-item[data-depth="4"] { padding-left: 92px; }
+    .worktree-item[data-depth="5"] { padding-left: 104px; }
     .wt-branch-name {
       overflow: hidden;
       text-overflow: ellipsis;

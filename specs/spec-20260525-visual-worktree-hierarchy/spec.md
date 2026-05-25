@@ -79,11 +79,11 @@ Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>`
   - _Story: As the sidebar, when I receive worktrees from `window.projects.list()`, then each worktree has a `parentBranch` field set from git reflog or null._
   - _test: `test/projects-parent-branch.test.js` (all cases above)_
 
-- [ ] **▶ Active** — Update `renderProjects` in `renderer/sidebar.js` to use `buildWorktreeTree` and emit `data-depth`
+- [x] — Update `renderProjects` in `renderer/sidebar.js` to use `buildWorktreeTree` and emit `data-depth`
   - _Story: As a user, when I expand a project with nested branches, then the child worktrees are visually indented under their parent._
   - _test: visual (no automated test for DOM rendering; covered by the unit tests above)_
 
-- [ ] — Add `data-depth` CSS to `styles.css`
+- [x] — Add `data-depth` CSS to `styles.css`
   - _Story: As a user, I can see depth 1 items indented by 12px more than depth 0, depth 2 by 24px more, etc._
   - _test: visual; depth attribute is set correctly by task 3_
 
