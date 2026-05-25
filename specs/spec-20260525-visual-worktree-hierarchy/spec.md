@@ -71,11 +71,11 @@ Use `git reflog show <branch> --format=%gs` to find the `branch: Created from <p
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [x] **▶ Active** — Extract `buildWorktreeTree` to `renderer/worktree-tree.js` and write its tests
+- [x] — Extract `buildWorktreeTree` to `renderer/worktree-tree.js` and write its tests
   - _Story: As a test suite, when I import `buildWorktreeTree` from a DOM-free module, then I can assert the ordering and depth logic without needing a browser._
   - _test: `test/worktree-tree.test.mjs` (all cases above)_
 
-- [ ] — Add `parentBranch` to `getGitInfo()` in `main/projects.js` and write its tests
+- [ ] **▶ Active** — Add `parentBranch` to `getGitInfo()` in `main/projects.js` and write its tests
   - _Story: As the sidebar, when I receive worktrees from `window.projects.list()`, then each worktree has a `parentBranch` field set from git reflog or null._
   - _test: `test/projects-parent-branch.test.js` (all cases above)_
 
