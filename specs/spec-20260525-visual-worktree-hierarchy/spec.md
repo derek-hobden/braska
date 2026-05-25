@@ -71,7 +71,7 @@ Use `git reflog show <branch> --format=%gs` to find the `branch: Created from <p
 
 Statuses: `- [ ]` pending, `- [x]` done, `- [ ] ~~text~~ — deferred: <reason>` deferred.
 
-- [ ] **▶ Active** — Extract `buildWorktreeTree` to `renderer/worktree-tree.js` and write its tests
+- [x] **▶ Active** — Extract `buildWorktreeTree` to `renderer/worktree-tree.js` and write its tests
   - _Story: As a test suite, when I import `buildWorktreeTree` from a DOM-free module, then I can assert the ordering and depth logic without needing a browser._
   - _test: `test/worktree-tree.test.mjs` (all cases above)_
 
