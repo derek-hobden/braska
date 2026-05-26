@@ -2,7 +2,7 @@
 
 Issue: [#82](https://github.com/derek-hobden/braska/issues/82) · PR: [#83](https://github.com/derek-hobden/braska/pull/83) · branch: `claude/issue-82` · started: 2026-05-26T18:00:00Z
 
-**Status:** Implementing.
+**Status:** Implementation complete; verifying.
 
 ## Issue body
 
@@ -43,7 +43,7 @@ None — the change is a single `updateNotifUI()` call in a DOM-manipulation fun
 
 ## Tasks
 
-- [x] **▶ Active** — Call `updateNotifUI()` in `loadProjects()` after DOM rebuild and state restoration
+- [x] Call `updateNotifUI()` in `loadProjects()` after DOM rebuild and state restoration
   - _Story: As a user with a running Claude session, when Claude creates a new worktree and the sidebar reloads, then the green busy dot and blue notification dot on my worktree rows stay visible._
   - _test: manual — verify dots remain after sidebar reload_
 
