@@ -2,7 +2,7 @@
 
 Issue: [#82](https://github.com/derek-hobden/braska/issues/82) · PR: [#83](https://github.com/derek-hobden/braska/pull/83) · branch: `claude/issue-82` · started: 2026-05-26T18:00:00Z
 
-**Status:** Implementation complete; verifying.
+**Status:** Complete. All verify commands pass, no deferred tasks, no uncertain assumptions.
 
 ## Issue body
 
@@ -81,8 +81,8 @@ _None._
 
 ## Baseline verify (pre-implementation)
 
-_Populated below._
+See [baseline-verify.md](./baseline-verify.md) — 101 tests pass, 0 fail.
 
 ## Verification results (post-implementation)
 
-_Populated in Phase 4._
+See [verify-results.md](./verify-results.md) — 101 tests pass, 0 fail. No regressions.
