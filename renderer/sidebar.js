@@ -91,6 +91,7 @@ export async function loadProjects() {
       activeItem.closest('.project-entry')?.classList.add('has-active');
     }
   }
+  updateNotifUI();
   refreshWorktreeMetrics();
   refreshAllProjectBadges();
 }
