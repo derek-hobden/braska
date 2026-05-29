@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 const { pathExists, execFileAsync, fsp } = require('./utils');
 
 function getProjectsFile(app) {
@@ -15,10 +16,11 @@ async function saveProjects(app, projects) {
   await fsp.writeFile(getProjectsFile(app), JSON.stringify(projects, null, 2));
 }
 
-// Per-repo file linking worktree branches to GitHub issue numbers.
-// Lives in the main worktree's `.the-agency/`; keyed by branch name (paths differ per machine).
+// Per-project file linking worktree branches to GitHub issue numbers.
+// Lives under ~/.braska/projects/<name>/ — never inside the repo, because braska is the IDE
+// across many projects and other team members may use different IDEs.
 function getWorktreeIssuesFile(mainWtPath) {
-  return path.join(mainWtPath, '.the-agency', 'worktree-issues.json');
+  return path.join(os.homedir(), '.braska', 'projects', path.basename(mainWtPath), 'worktree-issues.json');
 }
 
 // Pure read — never mkdir here. getGitInfo() is called on every projects.list()
@@ -38,7 +40,7 @@ async function saveWorktreeIssues(mainWtPath, map) {
   await fsp.writeFile(file, JSON.stringify(map, null, 2));
 }
 
-const ISSUE_BRANCH_RE = /^gh-issue-(\d+)$/;
+const ISSUE_BRANCH_RE = /^(?:[\w.-]+\/)?(?:gh-)?issue-(\d+)$/;
 const CREATED_FROM_PREFIX = 'branch: Created from ';
 
 // Reads the git reflog for `branch` and returns the name of the branch it was
@@ -171,4 +173,4 @@ function register({ ipcMain, app, dialog, BrowserWindow }) {
   });
 }
 
-module.exports = { register, getGitInfo, loadProjects, loadWorktreeIssues, saveWorktreeIssues };
+module.exports = { register, getGitInfo, loadProjects, loadWorktreeIssues, saveWorktreeIssues, ISSUE_BRANCH_RE };
