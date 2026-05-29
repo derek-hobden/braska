@@ -156,4 +156,17 @@ describe('computeJourneyCards', () => {
     assert.ok(!cardKeys(cards).includes('sync'),
       `sync should not appear when dirty, got [${cardKeys(cards)}]`);
   });
+
+  // ── Post-push state (regression: UI must show no push/share buttons) ──
+  // After refreshChanges() runs following a push+PR, status.mainDivergence
+  // will have pushAhead=0 and hasUpstream=true. No share card should appear.
+  it('no share card when feature branch is fully pushed with upstream (post-push state)', () => {
+    const s = status({
+      branch: 'feat/my-thing',
+      mainDivergence: { ahead: 3, behind: 0, pushAhead: 0, pushBehind: 0, hasUpstream: true },
+    });
+    const cards = computeJourneyCards(s);
+    assert.ok(!cardKeys(cards).includes('share'),
+      `share card must not appear when pushAhead=0 and hasUpstream=true, got [${cardKeys(cards)}]`);
+  });
 });

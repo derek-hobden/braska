@@ -55,11 +55,17 @@ async function ensurePRForBranch(workDir, branch) {
   }
 }
 
-export function onGithubSpecialistExit(workDir) {
-  // Invalidate all cached PR entries for this workDir regardless of branch.
+// Invalidate all cached PR entries for a workDir without triggering a refresh.
+// Callers that need a refresh (e.g. PR form) should call refreshChanges separately.
+export function invalidatePRCache(workDir) {
   for (const key of _prCache.keys()) {
     if (key.startsWith(`${workDir}::`)) _prCache.delete(key);
   }
+}
+
+export function onGithubSpecialistExit(workDir) {
+  // Invalidate all cached PR entries for this workDir regardless of branch.
+  invalidatePRCache(workDir);
   if (tabState.activeWorkDir === workDir && _refreshChanges) _refreshChanges(workDir);
 }
 

@@ -4,6 +4,7 @@ import { tabState, ghState } from './state.js';
 import { escHtml, timeAgo, ghExtLink } from './utils.js';
 import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge, handleGhExternalClick } from './github-panel.js';
 import { renderMarkdown } from './markdown.js';
+import { invalidatePRCache } from './journey-zone.js';
 
 let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir, _refreshChanges;
 
@@ -281,6 +282,10 @@ async function showGitHubPRForm(workDir) {
     if (r.ok) {
       status.className = 'gh-status-msg success';
       status.textContent = 'PR created: ' + r.url;
+      // Refresh git tab immediately: push already happened, pushAhead is now 0.
+      // Also invalidate the PR cache so the branch subtitle pill appears right away.
+      invalidatePRCache(workDir);
+      _refreshChanges?.(workDir);
       setTimeout(() => { ghState.prFilter = 'open'; refreshGitHubPRs(workDir); }, 1500);
     } else {
       status.className = 'gh-status-msg error';
