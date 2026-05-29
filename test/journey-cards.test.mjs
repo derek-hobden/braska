@@ -115,4 +115,58 @@ describe('computeJourneyCards', () => {
     const cards = computeJourneyCards(s);
     assert.equal(cards.length, 0);
   });
+
+  // ── Diverged state (pushAhead > 0 AND pushBehind > 0) ────────
+
+  it('diverged state — shows sync card when pushAhead > 0 and pushBehind > 0 (clean)', () => {
+    const s = status({
+      branch: 'main',
+      mainDivergence: { ahead: 0, behind: 0, pushAhead: 2, pushBehind: 1, hasUpstream: true },
+    });
+    const cards = computeJourneyCards(s);
+    assert.ok(cardKeys(cards).includes('sync'),
+      `expected sync card in [${cardKeys(cards)}]`);
+    const syncCard = cards.find(c => c.key === 'sync');
+    const actions = syncCard.buttons.map(b => b.action);
+    assert.ok(actions.includes('pull-push'), `expected pull-push action in [${actions}]`);
+    assert.ok(actions.includes('pull'), `expected pull action in [${actions}]`);
+  });
+
+  it('diverged state — does NOT show separate pull-remote or share cards when diverged', () => {
+    const s = status({
+      branch: 'main',
+      mainDivergence: { ahead: 0, behind: 0, pushAhead: 2, pushBehind: 1, hasUpstream: true },
+    });
+    const cards = computeJourneyCards(s);
+    assert.ok(!cardKeys(cards).includes('pull-remote'),
+      `pull-remote should not appear in diverged state, got [${cardKeys(cards)}]`);
+    assert.ok(!cardKeys(cards).includes('share'),
+      `share should not appear in diverged state, got [${cardKeys(cards)}]`);
+  });
+
+  it('diverged state — dirty files still show commit card (not sync card)', () => {
+    const s = status({
+      branch: 'main',
+      unstaged: [{ file: 'a.js', added: 1, deleted: 0 }],
+      mainDivergence: { ahead: 0, behind: 0, pushAhead: 2, pushBehind: 1, hasUpstream: true },
+    });
+    const cards = computeJourneyCards(s);
+    assert.ok(cardKeys(cards).includes('commit'),
+      `expected commit card when dirty, got [${cardKeys(cards)}]`);
+    assert.ok(!cardKeys(cards).includes('sync'),
+      `sync should not appear when dirty, got [${cardKeys(cards)}]`);
+  });
+
+  // ── Post-push state (regression: UI must show no push/share buttons) ──
+  // After refreshChanges() runs following a push+PR, status.mainDivergence
+  // will have pushAhead=0 and hasUpstream=true. No share card should appear.
+  it('no share card when feature branch is fully pushed with upstream (post-push state)', () => {
+    const s = status({
+      branch: 'feat/my-thing',
+      mainDivergence: { ahead: 3, behind: 0, pushAhead: 0, pushBehind: 0, hasUpstream: true },
+    });
+    const cards = computeJourneyCards(s);
+    assert.ok(!cardKeys(cards).includes('share'),
+      `share card must not appear when pushAhead=0 and hasUpstream=true, got [${cardKeys(cards)}]`);
+  });
 });

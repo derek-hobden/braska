@@ -26,6 +26,7 @@ export function initChangesModals(deps) {
   _renderTabBar = deps.renderTabBar;
   _initPullMainListeners();
   _initBranchModalListeners();
+  _initCommitListeners();
 }
 
 // ── Pull Latest Main — modals & flow ────────────────────────────
@@ -349,4 +350,128 @@ export async function openDiffTab(workDir, filePath, staged, commitHash) {
   tabState.activeTabId = id;
   _renderTabBar();
   _switchTab(id);
+}
+
+// ── Commit modal ────────────────────────────────────────────────
+
+const BADGE_CLS = { M: 'changes-badge-m', A: 'changes-badge-a', D: 'changes-badge-d', R: 'changes-badge-r', C: 'changes-badge-c', U: 'changes-badge-u' };
+
+function closeCommitModal() {
+  document.getElementById('commit-modal').classList.remove('active');
+  gitState.currentCommitWorkDir = null;
+}
+
+function setCommitError(text) {
+  const errEl = document.getElementById('commit-modal-error');
+  if (text) { errEl.textContent = text; errEl.classList.add('visible'); }
+  else { errEl.textContent = ''; errEl.classList.remove('visible'); }
+}
+
+export async function openCommitModal(workDir) {
+  gitState.currentCommitWorkDir = workDir;
+
+  const msgEl = document.getElementById('commit-modal-msg');
+  const amendEl = document.getElementById('commit-modal-amend-toggle');
+  const summaryEl = document.getElementById('commit-modal-summary');
+  msgEl.value = '';
+  msgEl.disabled = false;
+  amendEl.checked = false;
+  setCommitError('');
+  summaryEl.innerHTML = '<div class="commit-modal-summary-empty">Loading staged files…</div>';
+
+  document.getElementById('commit-modal').classList.add('active');
+  setTimeout(() => msgEl.focus(), 0);
+
+  const status = await window.gitDiff.status(workDir);
+  if (gitState.currentCommitWorkDir !== workDir) return;
+
+  const staged = (status && status.staged) || [];
+  if (!staged.length) {
+    summaryEl.innerHTML = '<div class="commit-modal-summary-empty">No staged changes.</div>';
+    return;
+  }
+  summaryEl.innerHTML = staged.map(f => {
+    const cls = BADGE_CLS[f.status] || 'changes-badge-m';
+    return `<div class="commit-modal-summary-row"><span class="changes-badge ${cls}">${escHtml(f.status || 'M')}</span><span class="commit-modal-summary-file">${escHtml(f.file)}</span>${statSpan(f.added, f.deleted)}</div>`;
+  }).join('');
+}
+
+function _initCommitListeners() {
+  const modal = document.getElementById('commit-modal');
+  const msgEl = document.getElementById('commit-modal-msg');
+  const amendEl = document.getElementById('commit-modal-amend-toggle');
+  const cancelBtn = document.getElementById('commit-modal-cancel');
+  const generateBtn = document.getElementById('commit-modal-generate');
+  const submitBtn = document.getElementById('commit-modal-submit');
+
+  cancelBtn.addEventListener('click', closeCommitModal);
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeCommitModal(); });
+
+  document.addEventListener('keydown', (e) => {
+    if (!modal.classList.contains('active')) return;
+    if (e.key === 'Escape') { closeCommitModal(); return; }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitBtn.click(); }
+  });
+
+  generateBtn.addEventListener('click', async () => {
+    const workDir = gitState.currentCommitWorkDir;
+    if (!workDir) return;
+    setCommitError('');
+    const prevMsg = msgEl.value;
+    generateBtn.disabled = true;
+    submitBtn.disabled = true;
+    msgEl.disabled = true;
+    const prevPlaceholder = msgEl.placeholder;
+    msgEl.placeholder = 'Generating with Claude…';
+    msgEl.value = '';
+    try {
+      const result = await window.gitOps.generateCommitMsg(workDir);
+      if (gitState.currentCommitWorkDir !== workDir) return;
+      if (result && result.ok && result.message) {
+        msgEl.value = result.message;
+      } else {
+        msgEl.value = prevMsg;
+        setCommitError((result && result.error) ? result.error : 'Failed to generate commit message');
+      }
+    } catch (err) {
+      msgEl.value = prevMsg;
+      setCommitError(String(err && err.message || err));
+    } finally {
+      msgEl.placeholder = prevPlaceholder;
+      msgEl.disabled = false;
+      generateBtn.disabled = false;
+      submitBtn.disabled = false;
+      if (gitState.currentCommitWorkDir === workDir) msgEl.focus();
+    }
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    const workDir = gitState.currentCommitWorkDir;
+    if (!workDir) return;
+    const message = msgEl.value.trim();
+    if (!message) { setCommitError('Commit message is required.'); msgEl.focus(); return; }
+    setCommitError('');
+    submitBtn.disabled = true;
+    generateBtn.disabled = true;
+    const amend = amendEl.checked;
+    try {
+      const result = amend
+        ? await window.gitOps.amend(workDir, message)
+        : await window.gitOps.commit(workDir, message);
+      if (result && result.ok) {
+        closeCommitModal();
+        _showChangesStatus(amend ? 'Amended last commit' : 'Committed', 'success');
+        _refreshChanges(workDir);
+        _refreshWorktreeMetrics();
+      } else {
+        setCommitError((result && result.error) ? result.error : (amend ? 'Amend failed' : 'Commit failed'));
+      }
+    } catch (err) {
+      setCommitError(String(err && err.message || err));
+    } finally {
+      submitBtn.disabled = false;
+      generateBtn.disabled = false;
+    }
+  });
 }

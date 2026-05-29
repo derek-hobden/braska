@@ -58,7 +58,8 @@ contextBridge.exposeInMainWorld('todo', {
 
 contextBridge.exposeInMainWorld('worktree', {
   branches: (workDir) => ipcRenderer.invoke('git:branches', workDir),
-  add: (workDir, worktreePath, branch, createNew) => ipcRenderer.invoke('git:worktree-add', workDir, worktreePath, branch, createNew),
+  remoteBranches: (workDir) => ipcRenderer.invoke('git:remote-branches', workDir),
+  add: (workDir, worktreePath, branch, mode) => ipcRenderer.invoke('git:worktree-add', workDir, worktreePath, branch, mode),
   remove: (workDir, worktreePath, force, deleteBranch) => ipcRenderer.invoke('git:worktree-remove', workDir, worktreePath, force, deleteBranch),
   prune: (workDir) => ipcRenderer.invoke('git:worktree-prune', workDir),
   lock: (workDir, worktreePath, unlock) => ipcRenderer.invoke('git:worktree-lock', workDir, worktreePath, unlock),
@@ -81,6 +82,7 @@ contextBridge.exposeInMainWorld('gitDiff', {
   currentBranch: (workDir) => ipcRenderer.invoke('git:current-branch', workDir),
   branchList: (workDir) => ipcRenderer.invoke('git:branch-list', workDir),
   stashList: (workDir) => ipcRenderer.invoke('git:stash-list', workDir),
+  hasCommits: (workDir) => ipcRenderer.invoke('git:has-commits', workDir),
 });
 
 contextBridge.exposeInMainWorld('gitOps', {
@@ -135,8 +137,11 @@ contextBridge.exposeInMainWorld('github', {
   runView: (workDir, runId) => ipcRenderer.invoke('gh:run-view', workDir, runId),
   notifications: (workDir) => ipcRenderer.invoke('gh:notifications', workDir),
   notificationsMarkRead: (workDir) => ipcRenderer.invoke('gh:notifications-mark-read', workDir),
+  notificationThreadDone: (workDir, threadId) => ipcRenderer.invoke('gh:notification-thread-done', workDir, threadId),
   linkTicket: (workDir, todoPath, issueNumber) => ipcRenderer.invoke('gh:link-ticket', workDir, todoPath, issueNumber),
   unlinkTicket: (workDir, todoPath) => ipcRenderer.invoke('gh:unlink-ticket', workDir, todoPath),
+  repoCreate: (workDir, opts) => ipcRenderer.invoke('gh:repo-create', workDir, opts),
+  authAccounts: (workDir) => ipcRenderer.invoke('gh:auth-accounts', workDir),
 });
 
 // PTY bridge — thin IPC layer, multi-tab support

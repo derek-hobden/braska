@@ -1,21 +1,29 @@
 // ── GitHub PRs — list, detail, create form ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo } from './utils.js';
-import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge } from './github-panel.js';
+import { escHtml, timeAgo, ghExtLink } from './utils.js';
+import { ghResetListeners, ghChecksBadge, ghReviewBadge, ghStateBadge, handleGhExternalClick } from './github-panel.js';
+import { renderMarkdown } from './markdown.js';
+import { invalidatePRCache } from './journey-zone.js';
 
-let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir;
+let _loadProjects, _openWorkDir, _closeTab, _tabsForWorkDir, _refreshChanges;
 
-export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir }) {
+export function initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, refreshChanges }) {
   _loadProjects = loadProjects;
   _openWorkDir = openWorkDir;
   _closeTab = closeTab;
   _tabsForWorkDir = tabsForWorkDir;
+  _refreshChanges = refreshChanges;
 }
 
 // ── PR list ────────────────────────────────────────────────────
 
 export async function refreshGitHubPRs(workDir) {
+  if (ghState.directPRNumber) {
+    const n = ghState.directPRNumber;
+    ghState.directPRNumber = null;
+    return showGitHubPRDetail(workDir, n);
+  }
   // Consume pendingPRForm flag — skip list and open form directly
   if (ghState.pendingPRForm) {
     ghState.pendingPRForm = false;
@@ -42,12 +50,13 @@ export async function refreshGitHubPRs(workDir) {
     html += '<div class="gh-empty">No pull requests found</div>';
   } else {
     for (const pr of result.data) {
-      html += `<div class="gh-item" data-gh-pr-number="${pr.number}">
+      html += `<div class="gh-item" data-gh-pr-number="${pr.number}" data-gh-row-url="${escHtml(pr.url || '')}">
         <span class="gh-item-number">#${pr.number}</span>
         <span class="gh-item-title">${escHtml(pr.title)}</span>
         ${ghStateBadge(pr.state, pr.isDraft)}
         ${ghChecksBadge(pr.statusCheckRollup)}
         ${ghReviewBadge(pr.reviewDecision)}
+        ${ghExtLink(pr.url)}
       </div>`;
     }
   }
@@ -55,6 +64,7 @@ export async function refreshGitHubPRs(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     const filterBtn = e.target.closest('.gh-filter-btn[data-gh-pr-filter]');
     if (filterBtn) {
       ghState.prFilter = filterBtn.dataset.ghPrFilter;
@@ -94,7 +104,7 @@ export async function showGitHubPRDetail(workDir, number) {
     <div class="gh-detail-meta">${escHtml((pr.author || {}).login || 'unknown')} &middot; ${escHtml(pr.headRefName)} &rarr; ${escHtml(pr.baseRefName)} &middot; +${pr.additions || 0} &minus;${pr.deletions || 0} &middot; ${timeAgo(pr.createdAt)}</div>`;
 
   if (pr.body) {
-    html += `<div class="gh-detail-body">${escHtml(pr.body)}</div>`;
+    html += `<div class="gh-detail-body markdown-body">${renderMarkdown(pr.body, { breaks: true })}</div>`;
   }
 
   // Files
@@ -121,7 +131,7 @@ export async function showGitHubPRDetail(workDir, number) {
   if (pr.comments && pr.comments.length) {
     html += `<div class="gh-section-title">Comments (${pr.comments.length})</div>`;
     for (const c of pr.comments) {
-      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body">${escHtml(c.body)}</div></div>`;
+      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body markdown-body">${renderMarkdown(c.body, { breaks: true })}</div></div>`;
     }
   }
 
@@ -139,7 +149,9 @@ export async function showGitHubPRDetail(workDir, number) {
   }
 
   html += '</div>';
+  const detailSignal = ghResetListeners();
   content.innerHTML = html;
+  content.addEventListener('click', (e) => { handleGhExternalClick(e); }, { signal: detailSignal });
 
   content.querySelector('.gh-detail-back').addEventListener('click', () => refreshGitHubPRs(workDir));
 
@@ -175,12 +187,15 @@ export async function showGitHubPRDetail(workDir, number) {
         if (cleanDir === workDir) {
           // We were inside the removed worktree — switch to main
           _openWorkDir?.(r.mainWorktreePath);
+          _refreshChanges?.(r.mainWorktreePath || workDir);
         } else {
           // We're in a different worktree (e.g. main) — refresh the PR view
           showGitHubPRDetail(workDir, number);
+          _refreshChanges?.(workDir);
         }
       } else if (r.ok) {
         showGitHubPRDetail(workDir, number);
+        _refreshChanges?.(workDir);
       } else {
         mergeBtn.textContent = 'Error';
         const msg = document.createElement('div');
@@ -267,6 +282,10 @@ async function showGitHubPRForm(workDir) {
     if (r.ok) {
       status.className = 'gh-status-msg success';
       status.textContent = 'PR created: ' + r.url;
+      // Refresh git tab immediately: push already happened, pushAhead is now 0.
+      // Also invalidate the PR cache so the branch subtitle pill appears right away.
+      invalidatePRCache(workDir);
+      _refreshChanges?.(workDir);
       setTimeout(() => { ghState.prFilter = 'open'; refreshGitHubPRs(workDir); }, 1500);
     } else {
       status.className = 'gh-status-msg error';

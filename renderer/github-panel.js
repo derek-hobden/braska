@@ -3,10 +3,11 @@
 // PRs and issues are in github-prs.js and github-issues.js.
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo } from './utils.js';
+import { escHtml, timeAgo, ghExtLink } from './utils.js';
 import { refreshGitHubPRs } from './github-prs.js';
 import { refreshGitHubIssues, showGitHubIssueDetail, initGitHubIssues } from './github-issues.js';
-import { clearGitHubBadgeForWorkDir } from './sidebar.js';
+import { openCreateRepoModal } from './github-repo-create-modal.js';
+import { notifRoutingDecision, notifReasonChip } from './notif-helpers.mjs';
 
 // ── Cross-module deps injected via init ─────────────────────────
 let _startTask = null;
@@ -22,6 +23,45 @@ export function ghResetListeners() {
   if (ghState.contentAC) ghState.contentAC.abort();
   ghState.contentAC = new AbortController();
   return ghState.contentAC.signal;
+}
+
+// Intercepts the "open on GitHub" affordances every list section shares:
+// (1) click on a [data-gh-external-url] button; (2) click on an <a href>
+// inside rendered markdown (issue/PR bodies and comments) — routes external
+// URLs through the system browser; (3) cmd-click on a row carrying
+// [data-gh-row-url]. Returns true when the event was handled so the caller
+// can short-circuit its detail-open / filter behaviour.
+export function handleGhExternalClick(e) {
+  const extBtn = e.target.closest('[data-gh-external-url]');
+  if (extBtn) {
+    const url = extBtn.dataset.ghExternalUrl;
+    if (url) window.windowActions.openExternal(url);
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  }
+  const anchor = e.target.closest('a[href]');
+  if (anchor) {
+    const href = anchor.getAttribute('href');
+    // preventDefault unconditionally so relative/hash hrefs don't navigate
+    // the renderer away from the SPA; route only http(s)/mailto externally.
+    e.preventDefault();
+    e.stopPropagation();
+    if (href && /^(https?:|mailto:)/i.test(href)) {
+      window.windowActions.openExternal(href);
+    }
+    return true;
+  }
+  if (e.metaKey) {
+    const row = e.target.closest('[data-gh-row-url]');
+    const url = row && row.dataset.ghRowUrl;
+    if (url) {
+      window.windowActions.openExternal(url);
+      e.preventDefault();
+      return true;
+    }
+  }
+  return false;
 }
 
 export function ghChecksBadge(rollup) {
@@ -85,6 +125,7 @@ export async function refreshGitHub(workDir) {
     // not the issue, and the sentinel would silently fire on the next Issues
     // load (potentially long after the user has navigated elsewhere).
     ghState.directIssueNumber = null;
+    ghState.directPRNumber = null;
     ghBody.innerHTML = `<div class="gh-auth-msg">
       <svg width="32" height="32" viewBox="0 0 16 16" fill="#666"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <div style="color:#999;font-size:0.85rem">GitHub CLI not authenticated</div>
@@ -104,14 +145,26 @@ export async function refreshGitHub(workDir) {
   }
   if (!ghState.cachedAuth.isGitHubRepo) {
     ghState.directIssueNumber = null;
+    ghState.directPRNumber = null;
     ghBody.innerHTML = `<div class="gh-auth-msg">
       <svg width="32" height="32" viewBox="0 0 16 16" fill="#444"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <div style="color:#666;font-size:0.85rem">Not a GitHub repository</div>
+      <button class="gh-auth-msg-btn" id="gh-create-repo-btn">Create on GitHub…</button>
     </div>`;
+    document.getElementById('gh-create-repo-btn').addEventListener('click', () => {
+      openCreateRepoModal(workDir);
+    });
     return;
   }
 
-  let html = `<div class="gh-subnav">
+  const repo = ghState.cachedAuth.repo;
+  const repoLabel = repo && repo.owner && repo.name ? `${repo.owner.login || repo.owner}/${repo.name}` : '';
+  const repoUrl = repo && repo.url;
+  const repoHeader = repoLabel
+    ? `<div class="gh-repo-header" data-gh-row-url="${escHtml(repoUrl || '')}"><span class="gh-repo-header-name">${escHtml(repoLabel)}</span>${ghExtLink(repoUrl)}</div>`
+    : '';
+
+  let html = `${repoHeader}<div class="gh-subnav">
     <button class="gh-subnav-btn${ghState.section === 'prs' ? ' active' : ''}" data-gh-section="prs">PRs</button>
     <button class="gh-subnav-btn${ghState.section === 'issues' ? ' active' : ''}" data-gh-section="issues">Issues</button>
     <button class="gh-subnav-btn${ghState.section === 'ci' ? ' active' : ''}" data-gh-section="ci">CI</button>
@@ -119,11 +172,18 @@ export async function refreshGitHub(workDir) {
   </div><div id="gh-content"></div>`;
   ghBody.innerHTML = html;
 
+  if (repoHeader) {
+    ghBody.querySelector('.gh-repo-header').addEventListener('click', (e) => {
+      handleGhExternalClick(e);
+    });
+  }
+
   ghBody.querySelector('.gh-subnav').addEventListener('click', (e) => {
     const btn = e.target.closest('.gh-subnav-btn');
     if (!btn) return;
-    // Explicit user nav cancels any pending direct-jump sentinel.
+    // Explicit user nav cancels any pending direct-jump sentinels.
     ghState.directIssueNumber = null;
+    ghState.directPRNumber = null;
     ghState.section = btn.dataset.ghSection;
     refreshGitHub(tabState.activeWorkDir);
   });
@@ -180,11 +240,12 @@ async function refreshGitHubCI(workDir, opts = {}) {
       const icon = run.conclusion === 'success' ? '<span style="color:#3fb950">&#10003;</span>' :
                    run.conclusion === 'failure' ? '<span style="color:#f85149">&#10007;</span>' :
                    '<span style="color:#d29922">&#9679;</span>';
-      html += `<div class="gh-ci-item" data-gh-run-id="${run.databaseId}">
+      html += `<div class="gh-ci-item" data-gh-run-id="${run.databaseId}" data-gh-row-url="${escHtml(run.url || '')}">
         ${icon}
         <span class="gh-ci-title">${escHtml(run.displayTitle)}</span>
         <span class="gh-badge gh-badge-${statusCls}">${escHtml(run.conclusion || run.status || 'pending')}</span>
         <span class="gh-ci-time">${timeAgo(run.createdAt)}</span>
+        ${ghExtLink(run.url)}
       </div>`;
     }
   }
@@ -192,6 +253,7 @@ async function refreshGitHubCI(workDir, opts = {}) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     if (e.target.closest('#gh-ci-refresh-btn')) {
       refreshGitHubCI(tabState.activeWorkDir);
       return;
@@ -280,14 +342,24 @@ async function refreshGitHubNotifs(workDir) {
   } else {
     for (const n of result.data) {
       const subject = n.subject || {};
+      const decision = notifRoutingDecision(n);
+      const chip = notifReasonChip(n.reason);
       const typeIcon = subject.type === 'PullRequest' ? '<span style="color:#a371f7">PR</span>' :
                        subject.type === 'Issue' ? '<span style="color:#3fb950">I</span>' :
                        '<span style="color:#888">N</span>';
-      html += `<div class="gh-notif-item">
+      const rowUrlAttr = n.htmlUrl ? ` data-gh-row-url="${escHtml(n.htmlUrl)}"` : '';
+      const clickable = decision.kind !== 'none' ? ' is-clickable' : '';
+      const chipHtml = chip.label
+        ? `<span class="gh-notif-chip gh-notif-chip-${chip.category}">${escHtml(chip.label)}</span>`
+        : '';
+      const doneBtn = `<button class="gh-notif-done-btn" data-gh-notif-done="${escHtml(String(n.id || ''))}" title="Mark as done">Done</button>`;
+      html += `<div class="gh-notif-item${clickable}" data-gh-notif-id="${escHtml(String(n.id || ''))}"${rowUrlAttr}>
         ${typeIcon}
         <span class="gh-notif-title">${escHtml(subject.title || 'Notification')}</span>
-        <span class="gh-notif-reason">${escHtml(n.reason || '')}</span>
+        ${chipHtml}
         <span class="gh-notif-time">${timeAgo(n.updated_at)}</span>
+        ${doneBtn}
+        ${ghExtLink(n.htmlUrl)}
       </div>`;
     }
   }
@@ -295,6 +367,39 @@ async function refreshGitHubNotifs(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', async (e) => {
+    // Mark-as-done button — handled before generic row click.
+    const doneBtn = e.target.closest('[data-gh-notif-done]');
+    if (doneBtn) {
+      e.stopPropagation();
+      const threadId = doneBtn.dataset.ghNotifDone;
+      const row = doneBtn.closest('.gh-notif-item');
+      if (!row || !threadId) return;
+      row.classList.add('gh-notif-dimming');
+      doneBtn.disabled = true;
+      const res = await window.github.notificationThreadDone(tabState.activeWorkDir, threadId);
+      if (res.ok) {
+        row.remove();
+        if (!content.querySelector('.gh-notif-item')) {
+          ghState.hasActivity = false;
+          updateActivityBadge();
+          if (!content.querySelector('.gh-empty')) {
+            const empty = document.createElement('div');
+            empty.className = 'gh-empty';
+            empty.textContent = 'No notifications';
+            content.appendChild(empty);
+          }
+          const markAll = content.querySelector('#gh-notif-mark-read-btn');
+          if (markAll) markAll.remove();
+        }
+      } else {
+        row.classList.remove('gh-notif-dimming');
+        doneBtn.disabled = false;
+        showNotifError(content, res.error || 'Failed to mark as done');
+      }
+      return;
+    }
+
+    if (handleGhExternalClick(e)) return;
     if (e.target.closest('#gh-notif-refresh-btn')) {
       refreshGitHubNotifs(tabState.activeWorkDir);
       return;
@@ -308,7 +413,6 @@ async function refreshGitHubNotifs(workDir) {
       if (res.ok) {
         ghState.hasActivity = false;
         updateActivityBadge();
-        clearGitHubBadgeForWorkDir(workDir);
         // Optimistic UI: gh CLI's --cache 60s on the GET means a refetch
         // would return the same stale unread list. Replace with empty state.
         content.querySelectorAll('.gh-notif-item').forEach(el => el.remove());
@@ -322,14 +426,42 @@ async function refreshGitHubNotifs(workDir) {
       } else {
         markBtn.disabled = false;
         markBtn.textContent = 'Mark all read';
-        const toolbar = content.querySelector('.gh-toolbar');
-        if (toolbar) {
-          const errEl = document.createElement('span');
-          errEl.style.cssText = 'color:#f85149;font-size:0.7rem;margin-left:0.5rem';
-          errEl.textContent = res.error || 'Failed';
-          toolbar.appendChild(errEl);
-        }
+        showNotifError(content, res.error || 'Failed');
       }
+      return;
+    }
+
+    // Default row click → routing decision (issue/PR detail in panel, or external).
+    // Look up by data-gh-notif-id rather than DOM index — the Done button can
+    // remove rows mid-session, desyncing index-based lookups against result.data.
+    const row = e.target.closest('.gh-notif-item');
+    if (!row) return;
+    const rowId = row.dataset.ghNotifId;
+    const n = result.data && result.data.find(x => String(x.id) === rowId);
+    if (!n) return;
+    const decision = notifRoutingDecision(n);
+    if (decision.kind === 'panel-issue') {
+      ghState.section = 'issues';
+      ghState.directIssueNumber = decision.number;
+      refreshGitHub(tabState.activeWorkDir);
+    } else if (decision.kind === 'panel-pr') {
+      ghState.section = 'prs';
+      ghState.directPRNumber = decision.number;
+      refreshGitHub(tabState.activeWorkDir);
+    } else if (decision.kind === 'external') {
+      window.windowActions.openExternal(decision.url);
     }
   }, { signal });
+}
+
+function showNotifError(content, message) {
+  const toolbar = content.querySelector('.gh-toolbar');
+  if (!toolbar) return;
+  const existing = toolbar.querySelector('.gh-notif-error');
+  if (existing) existing.remove();
+  const errEl = document.createElement('span');
+  errEl.className = 'gh-notif-error';
+  errEl.textContent = message;
+  toolbar.appendChild(errEl);
+  setTimeout(() => errEl.remove(), 4000);
 }

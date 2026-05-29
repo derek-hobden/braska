@@ -1,9 +1,10 @@
 // ── GitHub Issues — list, detail, create + edit forms ──
 
 import { tabState, ghState } from './state.js';
-import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir } from './utils.js';
-import { ghResetListeners, ghLabelHtml, ghStateBadge } from './github-panel.js';
+import { escHtml, timeAgo, ghSafeColor, getProjectRootForWorkDir, ghExtLink } from './utils.js';
+import { ghResetListeners, ghLabelHtml, ghStateBadge, handleGhExternalClick } from './github-panel.js';
 import { showGitHubIssueForm } from './github-issues-create.js';
+import { renderMarkdown } from './markdown.js';
 
 // ── Injected deps ──────────────────────────────────────────────
 let _switchRightPanelTab = null;
@@ -54,11 +55,12 @@ export async function refreshGitHubIssues(workDir) {
       if (issue.labels && issue.labels.length) {
         for (const l of issue.labels) labels += ghLabelHtml(l);
       }
-      html += `<div class="gh-item" data-gh-issue-number="${issue.number}">
+      html += `<div class="gh-item" data-gh-issue-number="${issue.number}" data-gh-row-url="${escHtml(issue.url || '')}">
         <span class="gh-item-number">#${issue.number}</span>
         <span class="gh-item-title">${escHtml(issue.title)}</span>
         ${labels}
         ${ghStateBadge(issue.state)}
+        ${ghExtLink(issue.url)}
       </div>`;
     }
   }
@@ -66,6 +68,7 @@ export async function refreshGitHubIssues(workDir) {
   content.innerHTML = html;
 
   content.addEventListener('click', (e) => {
+    if (handleGhExternalClick(e)) return;
     const filterBtn = e.target.closest('.gh-filter-btn[data-gh-issue-filter]');
     if (filterBtn) {
       ghState.issueFilter = filterBtn.dataset.ghIssueFilter;
@@ -117,7 +120,7 @@ export async function showGitHubIssueDetail(workDir, number) {
     <div class="gh-detail-header">
       <button class="gh-detail-back">&larr; Issues</button>
       ${ghStateBadge(issue.state)}
-      <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, isEditing)}</div>
+      ${!isEditing ? `<div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, false)}</div>` : ''}
     </div>`;
 
   if (isEditing) {
@@ -129,8 +132,12 @@ export async function showGitHubIssueDetail(workDir, number) {
 
   if (isEditing) {
     html += `<textarea class="gh-edit-body-input" id="gh-issue-edit-body" placeholder="Issue description...">${escHtml(editDraft.body)}</textarea>`;
+    html += `<div class="gh-edit-labels-section">
+      <span class="gh-edit-label-caption">Labels</span>
+      <div class="gh-edit-labels-region" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${renderLabelsRegion(issue, true)}</div>
+    </div>`;
   } else if (issue.body) {
-    html += `<div class="gh-detail-body">${escHtml(issue.body)}</div>`;
+    html += `<div class="gh-detail-body markdown-body">${renderMarkdown(issue.body, { breaks: true })}</div>`;
   }
 
   // Linked Braska worktree (by branch). projects.list() returns each project
@@ -171,7 +178,7 @@ export async function showGitHubIssueDetail(workDir, number) {
   if (issue.comments && issue.comments.length) {
     html += `<div class="gh-section-title">Comments (${issue.comments.length})</div>`;
     for (const c of issue.comments) {
-      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body">${escHtml(c.body)}</div></div>`;
+      html += `<div class="gh-comment"><span class="gh-comment-author">${escHtml((c.author || {}).login || 'unknown')}</span><span class="gh-comment-time">${timeAgo(c.createdAt)}</span><div class="gh-comment-body markdown-body">${renderMarkdown(c.body, { breaks: true })}</div></div>`;
     }
   }
 
@@ -193,7 +200,9 @@ export async function showGitHubIssueDetail(workDir, number) {
   html += '</div>';
 
   html += '</div>';
+  const detailSignal = ghResetListeners();
   content.innerHTML = html;
+  content.addEventListener('click', (e) => { handleGhExternalClick(e); }, { signal: detailSignal });
 
   content.querySelector('.gh-detail-back').addEventListener('click', () => {
     editDraft = null;
@@ -325,7 +334,7 @@ async function createWorktreeFromIssue(workDir, issueNumber, projectRoot, btn) {
   btn.textContent = 'Creating worktree...';
   if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#777'; }
 
-  const result = await window.worktree.add(projectRoot, wtPath, branchName, true);
+  const result = await window.worktree.add(projectRoot, wtPath, branchName, 'new');
   if (!result.ok) {
     btn.disabled = false;
     btn.textContent = originalText;

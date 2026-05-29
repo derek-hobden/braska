@@ -18,7 +18,6 @@ let _refreshWorktreeMetrics = null;
 let _loadProjects = null;
 let _openWorkDir = null;
 let _switchToGitHubView = null;
-let _showGitHubPRDetail = null;
 
 // ── PR-for-branch cache ────────────────────────────────────────
 // Keyed by `${workDir}::${branch}`. Value: { pr: { number, url } | null, ts }.
@@ -56,11 +55,17 @@ async function ensurePRForBranch(workDir, branch) {
   }
 }
 
-export function onGithubSpecialistExit(workDir) {
-  // Invalidate all cached PR entries for this workDir regardless of branch.
+// Invalidate all cached PR entries for a workDir without triggering a refresh.
+// Callers that need a refresh (e.g. PR form) should call refreshChanges separately.
+export function invalidatePRCache(workDir) {
   for (const key of _prCache.keys()) {
     if (key.startsWith(`${workDir}::`)) _prCache.delete(key);
   }
+}
+
+export function onGithubSpecialistExit(workDir) {
+  // Invalidate all cached PR entries for this workDir regardless of branch.
+  invalidatePRCache(workDir);
   if (tabState.activeWorkDir === workDir && _refreshChanges) _refreshChanges(workDir);
 }
 
@@ -75,7 +80,6 @@ export function initJourneyZone(deps) {
   _loadProjects = deps.loadProjects;
   _openWorkDir = deps.openWorkDir;
   _switchToGitHubView = deps.switchToGitHubView;
-  _showGitHubPRDetail = deps.showGitHubPRDetail;
 
   // Delegated click for the PR pill rendered inside #branch-subtitle
   document.getElementById('branch-subtitle')?.addEventListener('click', (e) => {
@@ -253,6 +257,28 @@ async function _handleJourneyAction(action, btn) {
       else _showChangesStatus?.('Pull failed: ' + (result.error || '').split('\n')[0], 'error');
     } finally { btn.disabled = false; btn.textContent = 'Pull'; }
 
+  } else if (action === 'pull-push') {
+    btn.disabled = true;
+    btn.textContent = 'Pulling...';
+    try {
+      const pullResult = await window.gitOps.pull(workDir);
+      if (!pullResult.ok) {
+        if (pullResult.hasConflicts) {
+          _refreshChanges?.(workDir);
+          _refreshWorktreeMetrics?.();
+          _showChangesStatus?.('Pull conflicts \u2014 resolve and commit', 'error');
+        } else {
+          _showChangesStatus?.('Pull failed: ' + (pullResult.error || '').split('\n')[0], 'error');
+        }
+        return;
+      }
+      btn.textContent = 'Pushing...';
+      await _doPush?.(workDir, { autoUpstream: false });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Pull & Push';
+    }
+
   } else if (action === 'pull-main') {
     _doPullLatestMain?.(workDir);
 
@@ -328,9 +354,9 @@ async function _handleJourneyAction(action, btn) {
     const branch = document.getElementById('branch-name-btn')?.textContent || '';
     const cached = _prCache.get(_prCacheKey(workDir, branch));
     const number = cached?.pr?.number;
-    if (!number || !_switchToGitHubView || !_showGitHubPRDetail) return;
+    if (!number || !_switchToGitHubView) return;
+    ghState.directPRNumber = number;
     _switchToGitHubView(true, { section: 'prs' });
-    setTimeout(() => _showGitHubPRDetail(workDir, number), 100);
 
   } else if (action === 'open-merger') {
     _startTask?.('merger', workDir, {
