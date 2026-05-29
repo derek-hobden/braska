@@ -1,10 +1,10 @@
 // Sidebar — project list rendering, expand/collapse, worktree metrics, project-scope links
 
 import { SVG_FOLDER, SVG_GIT_BRANCH, SVG_GH_ISSUE, divergenceBadges, prCheckStatus, prStateBadgeClass } from './utils.js';
+import { buildWorktreeTree } from './worktree-tree.js';
 import { updateNotifUI } from './notifications.js';
 import { openCloneModal } from './clone-modal.js';
 import { tabState } from './state.js';
-import { buildWorktreeTree } from './worktree-tree.js';
 
 // ── DOM refs (queried once at module level) ──
 const projectList = document.getElementById('project-list');
@@ -191,20 +191,6 @@ function refreshAllProjectBadges() {
   for (const entry of entries) refreshProjectBadges(entry.dataset.path);
 }
 
-// Optimistically clear the GitHub activity dot for the project that contains workDir.
-// Used after marking notifications read, since the gh CLI's --cache 60s would
-// otherwise serve stale data on the next badge refresh.
-export function clearGitHubBadgeForWorkDir(workDir) {
-  if (!workDir) return;
-  const escaped = CSS.escape(workDir);
-  const entry =
-    projectList.querySelector(`.project-entry[data-path="${escaped}"]`) ||
-    projectList.querySelector(`.worktree-item[data-path="${escaped}"]`)?.closest('.project-entry');
-  if (!entry) return;
-  const badge = entry.querySelector('[data-badge="github"]');
-  if (badge) badge.classList.remove('has-activity');
-}
-
 export async function refreshProjectBadges(projectPath) {
   const entry = projectList.querySelector(`.project-entry[data-path="${CSS.escape(projectPath)}"]`);
   if (!entry) return;
@@ -222,17 +208,6 @@ export async function refreshProjectBadges(projectPath) {
       todoBadge.textContent = openCount > 0 ? String(openCount) : '';
       todoBadge.classList.toggle('has-count', openCount > 0);
     } catch { todoBadge.textContent = ''; }
-  }
-
-  // GitHub activity dot
-  const ghBadge = entry.querySelector('[data-badge="github"]');
-  if (ghBadge) {
-    try {
-      const notifs = await window.github.notifications(workDir);
-      const hasActivity = notifs.ok && notifs.data && notifs.data.length > 0;
-      ghBadge.classList.toggle('has-activity', hasActivity);
-      ghBadge.textContent = '';
-    } catch { ghBadge.classList.remove('has-activity'); }
   }
 }
 

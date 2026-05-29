@@ -19,6 +19,7 @@ const xtermModulesPromise = Promise.all([
 
 // ── Cross-module deps (set via initTerminals) ──────────────────
 let refreshRightPanel = null;
+let refreshWorktreeMetrics = null;
 
 // ── Terminal tab creation ──────────────────────────────────────
 
@@ -132,6 +133,9 @@ export async function startTask(agentName, workDir, options = {}) {
     if (agentName === 'committer') onCommitterExit(workDir);
     if (agentName === 'github-specialist') onGithubSpecialistExit(workDir);
     if (workDir === tabState.activeWorkDir) refreshRightPanel(workDir);
+    // Refresh sidebar badge for all worktrees on exit — covers background-worktree commits
+    // where the fs.watch (active-workdir only) never fires for the committing worktree.
+    refreshWorktreeMetrics();
   });
   term.onData(data => window.pty.write(id, data));
   term.onResize(({ cols, rows }) => window.pty.resize(id, cols, rows));
@@ -494,6 +498,7 @@ export async function openFileEditor(relPath, fileName) {
 
 // ── Initialization ─────────────────────────────────────────────
 
-export function initTerminals({ refreshRightPanel: _refreshRightPanel }) {
+export function initTerminals({ refreshRightPanel: _refreshRightPanel, refreshWorktreeMetrics: _refreshWorktreeMetrics }) {
   refreshRightPanel = _refreshRightPanel;
+  refreshWorktreeMetrics = _refreshWorktreeMetrics;
 }

@@ -2,7 +2,7 @@
 // Imports all modules, wires cross-module dependencies, and initializes the app.
 
 import { tabState, appState, watchState, ghState } from './state.js';
-import { loadProjects, refreshWorktreeMetrics, refreshProjectBadges, initSidebar } from './sidebar.js';
+import { loadProjects, refreshWorktreeMetrics, refreshCIBadges, refreshProjectBadges, initSidebar } from './sidebar.js';
 import { showWorktreeContextMenu, openWorktreeCreateModal, openMergeModal, initWorktreeModals } from './worktree-modals.js';
 import { enterSettings, exitSettings, bindSettingsDeps, initSettings } from './settings.js';
 import { tabsForWorkDir, renderTabBar, switchTab, closeTab, addTabToOrder, removeTabFromOrder, initTabs } from './tabs.js';
@@ -13,10 +13,11 @@ import { refreshChanges, stageAndPromptCommit, doPullLatestMain, openDiffTab, op
 // post-commit-prompt.js is superseded by journey-zone.js — kept for reference only
 import { initJourneyZone, renderJourneyZone, onCommitterExit, onGithubSpecialistExit, dismissPostCommitPrompt } from './journey-zone.js';
 import { refreshGitHub, showGitHubIssueDetail, initGitHubPanel } from './github-panel.js';
-import { initGitHubPRs, showGitHubPRDetail } from './github-prs.js';
+import { initGitHubPRs } from './github-prs.js';
 import { refreshTodos, showTodoClosePrompt, updateTodoFocus, initTodoPanel } from './todo-panel.js';
 import { initHoverLink } from './hover-link.js';
 import { initCloneModal } from './clone-modal.js';
+import { initCreateRepoModal } from './github-repo-create-modal.js';
 import { initDiagnosticsPanel } from './diagnostics-panel.js';
 
 // ── Prevent Electron from navigating to dropped files ──
@@ -34,6 +35,7 @@ document.addEventListener('visibilitychange', () => {
       try { tab.term.options.cursorBlink = !hidden; } catch { /* old xterm shape */ }
     }
   }
+  if (!hidden && document.querySelector('.wt-ci-dot.pending')) refreshCIBadges();
 });
 
 // ── Version info ──
@@ -116,11 +118,9 @@ export function openWorkDir(workDir) {
     launchpad.classList.remove('active');
     terminalView.classList.add('active');
     renderTabBar();
-    if (!tabState.activeTabId || tabState.tabs.get(tabState.activeTabId)?.workDir !== workDir) {
-      switchTab(existing[existing.length - 1][0]);
-    } else {
-      switchTab(tabState.activeTabId);
-    }
+    const rememberedId = tabState.activeTabByWorkDir.get(workDir);
+    const fallbackId = existing[existing.length - 1][0];
+    switchTab((rememberedId && tabState.tabs.has(rememberedId)) ? rememberedId : fallbackId);
   } else {
     tabState.activeWorkDir = workDir;
     tabState.activeTabId = null;
@@ -208,6 +208,8 @@ window.filetree.onChange((filename) => {
       if (entry && !entry.classList.contains('is-git')) loadProjects();
       // Always refresh git panel on .git changes, even when viewing todo/github
       refreshChanges(tabState.activeWorkDir);
+      // Keep sidebar badge in sync after commits/amends/rebases
+      refreshWorktreeMetrics();
       return;
     }
     const activePanel = document.querySelector('.filetree-tab.active')?.dataset.panel;
@@ -254,26 +256,34 @@ function openIssueInPanel(workDir, issueNumber) {
   switchRightPanelTab('github');
 }
 
+function openPRInPanel(workDir, prNumber) {
+  openWorkDir(workDir);
+  ghState.section = 'prs';
+  ghState.directPRNumber = prNumber;
+  switchRightPanelTab('github');
+}
+
 // ── Initialize all modules ──
 
 // Modules that need cross-module function references
-initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel });
+initSidebar({ openWorkDir, openWorktreeCreateModal, showWorktreeContextMenu, openProjectScope, openIssueInPanel, openPRInPanel });
 initWorktreeModals({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, startTask, doPullLatestMain });
 bindSettingsDeps({ openWorkDir, setBreadcrumb });
 initSettings();
 initTabs({ showTabTypePicker, updateFileTreeHighlights, showTodoClosePrompt, refreshTodos, updateTodoFocus, refreshRightPanel });
-initTerminals({ refreshRightPanel });
+initTerminals({ refreshRightPanel, refreshWorktreeMetrics });
 initNotifications({ openWorkDir, switchTab, exitSettings });
 initFileExplorer({ openFileEditor, openDiffTab, refreshChanges, startTask, startBrowser, switchTab, refreshTodos, refreshGitHub });
 initGitChanges({ refreshFileTree, startTask, loadProjects, switchTab, addTabToOrder, renderTabBar, tabsForWorkDir });
 initPostCommitPromptBridge();
 initGitHubViewBridge({ refreshGitHub, switchRightPanelTab });
-initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView, showGitHubPRDetail });
+initJourneyZone({ doPush, doPullLatestMain, openBranchModal, refreshChanges, showChangesStatus, startTask, refreshWorktreeMetrics, loadProjects, openWorkDir, switchToGitHubView });
 initGitHubPanel({ startTask, switchRightPanelTab, loadProjects, openWorkDir });
-initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir });
+initGitHubPRs({ loadProjects, openWorkDir, closeTab, tabsForWorkDir, refreshChanges });
 initTodoPanel({ loadProjects, openWorkDir, startTask, showGitHubIssueDetail, switchRightPanelTab, switchToGitHubView });
 initHoverLink();
 initCloneModal({ loadProjects, openWorkDir });
+initCreateRepoModal({ loadProjects, refreshGitHub });
 initDiagnosticsPanel();
 
 // ── Tab type picker modal handlers ──
