@@ -41,6 +41,28 @@ async function saveWorktreeIssues(mainWtPath, map) {
 }
 
 const ISSUE_BRANCH_RE = /^(?:[\w.-]+\/)?(?:gh-)?issue-(\d+)$/;
+const CREATED_FROM_PREFIX = 'branch: Created from ';
+
+// Reads the git reflog for `branch` and returns the name of the branch it was
+// created from, or null if unavailable (no reflog entry, detached-HEAD origin,
+// reflog disabled, or command failure). Cheap: ~5ms per call, safe to Promise.all.
+async function getParentBranch(projectPath, branch) {
+  try {
+    const { stdout } = await execFileAsync('git', ['reflog', 'show', branch, '--format=%gs'], {
+      cwd: projectPath, encoding: 'utf-8', timeout: 3000,
+    });
+    for (const line of stdout.split('\n')) {
+      if (line.startsWith(CREATED_FROM_PREFIX)) {
+        const parent = line.slice(CREATED_FROM_PREFIX.length).trim();
+        // 'HEAD' means the branch was created from a detached HEAD state — not useful.
+        return parent === 'HEAD' ? null : parent;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function getGitInfo(projectPath) {
   try {
@@ -87,6 +109,13 @@ async function getGitInfo(projectPath) {
       const m = wt.branch.match(ISSUE_BRANCH_RE);
       if (m) wt.githubIssue = parseInt(m[1], 10);
     }
+
+    // Enrich each worktree with its parent branch (from git reflog).
+    // Runs in parallel; each call is ~5ms; degrades gracefully to null on failure.
+    await Promise.all(worktrees.map(async (wt) => {
+      if (!wt.branch || wt.branch === '(detached)') { wt.parentBranch = null; return; }
+      wt.parentBranch = await getParentBranch(projectPath, wt.branch);
+    }));
 
     return { isGit: true, isGitHub, worktrees };
   } catch {
